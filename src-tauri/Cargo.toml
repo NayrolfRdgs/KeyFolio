@@ -2,7 +2,7 @@
 name = "lepuits"
 version = "0.1.0"
 description = "LePuits - Gestion Immobilière Portable"
-authors = ["LePuits"]
+authors = ["Flow (Florian) — FlowCreativeStudio <https://github.com/NayrolfRdgs>"]
 edition = "2021"
 
 [lib]

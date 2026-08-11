@@ -246,3 +246,11 @@ src-tauri/target/release/
 
 Développé pour la gestion immobilière moderne, privée et autonome.
 © 2026 **LePuits** — Tous droits réservés.
+
+---
+
+<div align="center">
+
+**FlowCreativeStudio** · Florian ([@NayrolfRdgs](https://github.com/NayrolfRdgs))
+
+</div>
