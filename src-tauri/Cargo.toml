@@ -1,0 +1,36 @@
+[package]
+name = "lepuits"
+version = "0.1.0"
+description = "LePuits - Gestion Immobilière Portable"
+authors = ["LePuits"]
+edition = "2021"
+
+[lib]
+name = "lepuits_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
+rust_xlsxwriter = "0.79"
+calamine = "0.26"
+keyring = "2.3"
+lettre = { version = "0.11", features = ["smtp-transport", "builder", "native-tls"] }
+imap = { version = "3.0.0-alpha.15", features = ["native-tls"] }
+native-tls = "0.2"
+ureq = { version = "2.10", features = ["json"] }
+urlencoding = "2.1"
+open = "5.3"
+mail-parser = "0.9"
+
