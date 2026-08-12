@@ -148,6 +148,20 @@ src-tauri/target/release/
 
 ---
 
+## 🔮 Roadmap & Évolutions
+
+- [x] **Core App (Phase 1-6)** : Biens, Locataires, Baux, Paiements, Dépenses, Maintenance, Documents, Client Mail par bien, Recherche Globale & Exports Excel.
+- [x] **Visualiseur Tableaux Intégré (`SpreadsheetViewer`)** : Lecture interactive des tableurs Excel (`.xlsx`) et CSV sans logiciel tiers.
+- [x] **Révision de Loyer IRL (`RentRevisionModal`)** : Calculateur natif de révision selon les indices IRL officiels.
+- [x] **Envoi Rapide d'E-mails (`QuickMailModal`)** : Émission de quittances, relances et notifications en 1 clic.
+- [ ] **Génération Natio de Quittances PDF** : Moteur de rendu PDF natif pour l'émission et l'exportation de quittances au format PDF sans connexion réseau.
+- [ ] **Export Fiscale & Déclarations (LMNP / 2044)** : Génération automatique de récapitulatifs fiscaux prêts pour le Cerfa 2044 et la comptabilité LMNP.
+- [ ] **Intégration IA Locale Hors-Ligne (Ollama / Llama 3)** : Extraction automatique de données (OCR & IA) sur les factures, diagnostics et baux importés.
+- [ ] **Graphiques Analytiques & Cash-Flow** : Tableaux de bord de performance financière avec graphiques interactifs (rentabilité nette, évolution des loyers perçus vs charges).
+- [ ] **Centre de Notifications Système (Windows)** : Notifications natives pour les échéances de baux, révisions IRL à venir et retards d'impayés.
+
+---
+
 ## 📄 Licence & Crédits
 
 Développé pour la gestion immobilière moderne, privée et autonome.  
