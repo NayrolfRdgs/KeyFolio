@@ -80,6 +80,8 @@ pub struct Bail {
     pub loyer_mensuel: f64,
     pub charges_mensuelles: Option<f64>,
     pub depot_garantie: Option<f64>,
+    pub statut_garantie: Option<String>,
+    pub fichier_caution: Option<String>,
     pub jour_paiement: Option<i64>,
     pub statut: Option<String>,
     pub fichier_bail: Option<String>,
@@ -87,6 +89,17 @@ pub struct Bail {
     pub bien_nom: Option<String>,
     pub locataire_nom: Option<String>,
     pub locataire_prenom: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LocataireStats {
+    pub locataire_id: i64,
+    pub total_encaisse: f64,
+    pub total_du: f64,
+    pub impayes_count: i64,
+    pub taux_regularite: f64,
+    pub total_depot_garantie: f64,
+    pub statut_caution_resume: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

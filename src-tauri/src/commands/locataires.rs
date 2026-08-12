@@ -77,6 +77,7 @@ pub fn get_baux(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<Bail
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let sql = "SELECT b.id, b.bien_id, b.locataire_id, b.date_debut, b.date_fin,
                       b.loyer_mensuel, b.charges_mensuelles, b.depot_garantie,
+                      b.statut_garantie, b.fichier_caution,
                       b.jour_paiement, b.statut, b.fichier_bail, b.created_at,
                       bi.nom as bien_nom, l.nom as loc_nom, l.prenom as loc_prenom
                FROM baux b
@@ -96,13 +97,15 @@ pub fn get_baux(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<Bail
             loyer_mensuel: row.get(5)?,
             charges_mensuelles: row.get(6)?,
             depot_garantie: row.get(7)?,
-            jour_paiement: row.get(8)?,
-            statut: row.get(9)?,
-            fichier_bail: row.get(10)?,
-            created_at: row.get(11)?,
-            bien_nom: row.get(12)?,
-            locataire_nom: row.get(13)?,
-            locataire_prenom: row.get(14)?,
+            statut_garantie: row.get(8)?,
+            fichier_caution: row.get(9)?,
+            jour_paiement: row.get(10)?,
+            statut: row.get(11)?,
+            fichier_bail: row.get(12)?,
+            created_at: row.get(13)?,
+            bien_nom: row.get(14)?,
+            locataire_nom: row.get(15)?,
+            locataire_prenom: row.get(16)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
@@ -195,13 +198,17 @@ pub fn create_bail(app: tauri::AppHandle, state: State<AppState>, mut bail: Bail
         }
     }
 
+    let statut_garantie = bail.statut_garantie.unwrap_or_else(|| "en_attente".to_string());
+
     db.execute(
         "INSERT INTO baux (bien_id, locataire_id, date_debut, date_fin, loyer_mensuel,
-                           charges_mensuelles, depot_garantie, jour_paiement, statut, fichier_bail)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                           charges_mensuelles, depot_garantie, statut_garantie, fichier_caution,
+                           jour_paiement, statut, fichier_bail)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             bail.bien_id, bail.locataire_id, bail.date_debut, bail.date_fin,
             bail.loyer_mensuel, bail.charges_mensuelles, bail.depot_garantie,
+            statut_garantie, bail.fichier_caution,
             bail.jour_paiement, bail.statut, bail.fichier_bail
         ],
     ).map_err(|e| e.to_string())?;
@@ -453,5 +460,55 @@ pub fn delete_candidature(state: State<AppState>, id: i64) -> Result<(), String>
     db.execute("DELETE FROM candidatures WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_locataire_stats(state: State<AppState>, locataire_id: i64) -> Result<LocataireStats, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let sql_paiements = "SELECT
+                            COALESCE(SUM(CASE WHEN p.statut = 'paye' THEN p.montant ELSE 0 END), 0.0),
+                            COALESCE(SUM(p.montant), 0.0),
+                            COALESCE(SUM(CASE WHEN p.statut = 'impaye' OR p.statut = 'en_retard' THEN 1 ELSE 0 END), 0),
+                            COUNT(p.id)
+                         FROM paiements p
+                         JOIN baux b ON b.id = p.bail_id
+                         WHERE b.locataire_id = ?1";
+
+    let (total_encaisse, total_du, impayes_count, total_paiements_count): (f64, f64, i64, i64) = db.query_row(
+        sql_paiements,
+        params![locataire_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+    ).unwrap_or((0.0, 0.0, 0, 0));
+
+    let taux_regularite = if total_paiements_count > 0 {
+        ((total_paiements_count - impayes_count) as f64 / total_paiements_count as f64) * 100.0
+    } else {
+        100.0
+    };
+
+    let sql_caution = "SELECT
+                         COALESCE(SUM(b.depot_garantie), 0.0),
+                         GROUP_CONCAT(COALESCE(b.statut_garantie, 'en_attente'), ', ')
+                       FROM baux b
+                       WHERE b.locataire_id = ?1";
+
+    let (total_depot_garantie, statut_caution_concat): (f64, Option<String>) = db.query_row(
+        sql_caution,
+        params![locataire_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    ).unwrap_or((0.0, None));
+
+    let statut_caution_resume = statut_caution_concat.unwrap_or_else(|| "Aucune caution".to_string());
+
+    Ok(LocataireStats {
+        locataire_id,
+        total_encaisse,
+        total_du,
+        impayes_count,
+        taux_regularite: (taux_regularite * 10.0).round() / 10.0,
+        total_depot_garantie,
+        statut_caution_resume,
+    })
 }
 

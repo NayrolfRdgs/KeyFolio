@@ -7,6 +7,7 @@ import Icon from '../components/Icon'
 const EMPTY = {
   bien_id: '', locataire_id: '', date_debut: todayISO(), date_fin: '',
   loyer_mensuel: '', charges_mensuelles: '0', depot_garantie: '',
+  statut_garantie: 'en_attente', fichier_caution: '',
   jour_paiement: '5', statut: 'actif', fichier_bail: ''
 }
 
@@ -52,6 +53,8 @@ export default function Baux({ onNavigate, onOpenMail }) {
       loyer_mensuel: b.loyer_mensuel,
       charges_mensuelles: b.charges_mensuelles ?? 0,
       depot_garantie: b.depot_garantie ?? '',
+      statut_garantie: b.statut_garantie || 'en_attente',
+      fichier_caution: b.fichier_caution || '',
       jour_paiement: b.jour_paiement ?? 5,
       fichier_bail: b.fichier_bail || ''
     })
@@ -373,9 +376,19 @@ export default function Baux({ onNavigate, onOpenMail }) {
                   <input type="number" step="0.01" className="form-control" value={form.depot_garantie} onChange={f('depot_garantie')} placeholder="750.00" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Jour d'échéance (du 1 au 28)</label>
-                  <input type="number" min="1" max="28" className="form-control" value={form.jour_paiement} onChange={f('jour_paiement')} />
+                  <label className="form-label">Statut de la caution</label>
+                  <select className="form-control" value={form.statut_garantie || 'en_attente'} onChange={f('statut_garantie')}>
+                    <option value="en_attente">⏳ En attente de versement</option>
+                    <option value="recu">✅ Reçu / Encaissé</option>
+                    <option value="restitue">↩️ Restitué au locataire</option>
+                    <option value="partiel_restitue">⚠️ Retenu partiel / Sinistre</option>
+                  </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Jour d'échéance (du 1 au 28)</label>
+                <input type="number" min="1" max="28" className="form-control" value={form.jour_paiement} onChange={f('jour_paiement')} />
               </div>
 
               <div className="form-group">

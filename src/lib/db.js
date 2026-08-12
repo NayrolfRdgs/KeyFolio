@@ -50,6 +50,7 @@ export const getLocataires = () => cmd('get_locataires')
 export const createLocataire = (locataire) => cmd('create_locataire', { locataire })
 export const updateLocataire = (locataire) => cmd('update_locataire', { locataire })
 export const deleteLocataire = (id) => cmd('delete_locataire', { id })
+export const getLocataireStats = (locataireId) => cmd('get_locataire_stats', { locataireId })
 
 // ─── Baux ─────────────────────────────────────────────────────
 export const getBaux = (bienId = null) => cmd('get_baux', { bienId })

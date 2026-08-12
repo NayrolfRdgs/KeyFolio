@@ -72,6 +72,7 @@ pub fn run() {
             commands::locataires::update_bail,
             commands::locataires::delete_bail,
             commands::locataires::terminate_bail,
+            commands::locataires::get_locataire_stats,
             commands::locataires::get_candidatures,
             commands::locataires::create_candidature,
             commands::locataires::update_candidature,

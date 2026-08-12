@@ -271,5 +271,9 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
         COMMIT;
     ")?;
+
+    conn.execute("ALTER TABLE baux ADD COLUMN statut_garantie TEXT DEFAULT 'en_attente'", []).ok();
+    conn.execute("ALTER TABLE baux ADD COLUMN fichier_caution TEXT", []).ok();
+
     Ok(())
 }
