@@ -36,23 +36,22 @@ L'application est structurée de manière claire et fluide via sa barre latéral
   - Synchronisation automatique avec les fichiers Excel de synthèse.
   - Onglet **Messagerie E-mail** dédié au logement.
 
-### 3. 👥 Gestion des Locataires (`Locataires`)
-- Fiches détaillées des locataires (Nom, Prénom, Téléphone, E-mail).
-- Informations sur les garants et personnes de caution.
-- Historique des baux et des paiements associés.
-- **Bouton d'action rapide** : Envoi direct d'e-mail ou de quittance depuis la fiche locataire.
+### 3. 👥 Gestion des Locataires & Bilan Financier (`Locataires`)
+- Fiches détaillées des locataires (Nom, Prénom, Téléphone, E-mail, Garants).
+- **📊 Bilan Financier & Statistiques Individuelles** : Fenêtre d'analyse affichant le total encaissé, le reste dû, le taux de ponctualité des règlements (%), le résumé du dépôt de garantie et l'historique complet des loyers passés et futurs.
+- **Boutons d'action rapide** : Emission directes de quittances, relances par e-mail ou ouverture de l'historique.
 
-### 4. 🔑 Contrats de Bail & Révision IRL (`Baux`)
+### 4. 🔑 Contrats de Bail, Cautions & Révision IRL (`Baux`)
 - Création et modification des contrats de bail rattachés aux biens et aux locataires.
-- Suivi du loyer hors charges, des charges mensuelles, du dépôt de garantie et de la date d'échéance du paiement.
+- **🛡️ Suivi des Dépôts de Garantie & Cautions** : Enregistrement du montant et du statut du dépôt (*En attente*, *Reçu*, *Restitué*, *Retenu partiel*) et attachement d'actes de cautionnement.
 - **Calculateur de Révision IRL** : Calcul automatique du nouveau loyer selon l'indice IRL officiel avec révision en 1 clic.
 - Association directe des fichiers de bail au format PDF/Word.
 
-### 5. 💳 Suivi des Loyers & Paiements (`Paiements`)
+### 5. 💳 Suivi des Loyers, Paiements & Justificatifs (`Paiements`)
 - Suivi rigoureux des échéances de paiement des loyers avec cartes KPIs modulaires.
 - Statuts automatiques (*Payé*, *En retard*, *Impayé*, *Partiel*).
 - Enregistrement des modes de règlement (virement, chèque, espèces, prélèvement).
-- **Glisser-Déposer & Quittances** : Attachement instantané de justificatifs PDF par simple drag-and-drop sur la ligne d'échéance.
+- **Justificatifs & Quittances** : Attachement et consultation directe des reçus et justificatifs PDF/Images rattachés à chaque paiement.
 
 ### 6. 📉 Dépenses & Charges (`Depenses`)
 - Suivi de toutes les charges et dépenses par logement.

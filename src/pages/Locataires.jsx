@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
-  getLocataires, createLocataire, updateLocataire, deleteLocataire,
+  getLocataires, createLocataire, updateLocataire, deleteLocataire, getLocataireStats,
   getCandidatures, createCandidature, updateCandidature, updateCandidatureStatut, deleteCandidature,
-  getBiens, createBail, openFilePath
+  getBiens, getBaux, getPaiements, createBail, openFilePath
 } from '../lib/db'
 import { formatEuro, formatDate, todayISO } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
@@ -47,10 +47,32 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     fichier_bail: ''
   })
 
-  const [search, setSearch] = useState('')
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [toasts, setToasts] = useState([])
+  // Modal Bilan Financier & Historique Locataire
+  const [statsLocTarget, setStatsLocTarget] = useState(null)
+  const [locStatsData, setLocStatsData] = useState(null)
+  const [locPaiementsList, setLocPaiementsList] = useState([])
+  const [locBauxList, setLocBauxList] = useState([])
+
+  const handleOpenLocStats = async (loc) => {
+    setLoading(true)
+    try {
+      const [st, pAll, bAll] = await Promise.all([
+        getLocataireStats(loc.id),
+        getPaiements(),
+        getBaux()
+      ])
+      const locBauxIds = bAll.filter(b => b.locataire_id === loc.id).map(b => b.id)
+      const pFiltered = pAll.filter(p => locBauxIds.includes(p.bail_id))
+      setLocStatsData(st)
+      setLocPaiementsList(pFiltered)
+      setLocBauxList(bAll.filter(b => b.locataire_id === loc.id))
+      setStatsLocTarget(loc)
+    } catch (e) {
+      setError(e?.toString())
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const addToast = useCallback((message, type = 'success') => {
     const id = Date.now()
@@ -347,6 +369,14 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: 11, background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0' }}
+                          onClick={() => handleOpenLocStats(l)}
+                          title="Voir le bilan financier complet et l'historique des loyers"
+                        >
+                          📊 Bilan & Stats
+                        </button>
                         <button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '3px 8px', fontSize: 11 }}
@@ -670,6 +700,117 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modale Bilan Financier & Historique du Locataire ── */}
+      {statsLocTarget && locStatsData && (
+        <div className="modal-backdrop" onClick={() => setStatsLocTarget(null)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 850 }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0 }}>📊 Bilan Financier & Historique — {statsLocTarget.prenom} {statsLocTarget.nom}</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                  Synthèse complète des encaissements, ponctualité et état des cautionnements
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setStatsLocTarget(null)}>×</button>
+            </div>
+
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Grille des KPIs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                <div className="dash-card" style={{ padding: '12px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Total Encaissé</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#15803D', marginTop: 4 }}>
+                    {formatEuro(locStatsData.total_encaisse)}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>sur {formatEuro(locStatsData.total_du)} appelés</div>
+                </div>
+
+                <div className="dash-card" style={{ padding: '12px 14px', background: locStatsData.impayes_count > 0 ? '#FEF2F2' : '#F8FAFC', border: locStatsData.impayes_count > 0 ? '1px solid #FECACA' : '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: locStatsData.impayes_count > 0 ? '#991B1B' : 'var(--text-muted)', textTransform: 'uppercase' }}>Reste Dû / Impayés</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: locStatsData.impayes_count > 0 ? '#DC2626' : 'var(--text-primary)', marginTop: 4 }}>
+                    {formatEuro(locStatsData.total_du - locStatsData.total_encaisse)}
+                  </div>
+                  <div style={{ fontSize: 11, color: locStatsData.impayes_count > 0 ? '#B91C1C' : 'var(--text-muted)', marginTop: 2 }}>
+                    {locStatsData.impayes_count} échéance(s) en retard
+                  </div>
+                </div>
+
+                <div className="dash-card" style={{ padding: '12px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase' }}>Régularité %</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#1D4ED8', marginTop: 4 }}>
+                    {locStatsData.taux_regularite}%
+                  </div>
+                  <div style={{ fontSize: 11, color: '#1E40AF', marginTop: 2 }}>taux d'échéances réglées à temps</div>
+                </div>
+
+                <div className="dash-card" style={{ padding: '12px 14px', background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>Dépôt de Garantie</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#B45309', marginTop: 4 }}>
+                    {formatEuro(locStatsData.total_depot_garantie)}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                    Statut : {locStatsData.statut_caution_resume}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tableau de l'historique des paiements */}
+              <div>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 700 }}>📋 Historique des Loyers & Règlement ({locPaiementsList.length})</h4>
+                {locPaiementsList.length === 0 ? (
+                  <div className="alert alert-info" style={{ fontSize: 12 }}>Aucun règlement enregistré pour ce locataire.</div>
+                ) : (
+                  <div className="table-wrapper" style={{ maxHeight: 280, overflowY: 'auto' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Date prévue</th>
+                          <th>Montant</th>
+                          <th>Statut</th>
+                          <th>Méthode</th>
+                          <th>Quittance / Justificatif</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {locPaiementsList.map(p => (
+                          <tr key={p.id}>
+                            <td className="fw-600">{formatDate(p.date_prevue)}</td>
+                            <td>{formatEuro(p.montant)}</td>
+                            <td>
+                              <span className={`badge ${p.statut === 'paye' ? 'badge-success' : 'badge-danger'}`}>
+                                {p.statut === 'paye' ? 'Payé' : 'Impayé / En retard'}
+                              </span>
+                            </td>
+                            <td>{p.methode || 'virement'}</td>
+                            <td>
+                              {p.fichier_quittance ? (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '2px 8px', fontSize: 11 }}
+                                  onClick={() => openFilePath(p.fichier_quittance)}
+                                >
+                                  📄 Ouvrir justificatif
+                                </button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: 11 }}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setStatsLocTarget(null)}>Fermer</button>
+            </div>
           </div>
         </div>
       )}
