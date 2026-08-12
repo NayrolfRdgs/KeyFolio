@@ -10,9 +10,10 @@
 - **📦 100% Portable & Autonome** : L'exécutable et la base de données SQLite résident au même endroit. Emportez votre gestion complète sur une clé USB.
 - **🔒 Confidentialité Maximale** : Vos données financières, bailleurs, locataires et factures restent exclusivement stockées en local sur votre machine.
 - **📂 Arborescence Automatisée (40+ Dossiers)** : Création automatique d'une structure de classement complète (Achat, Diagnostics, Copropriété, Travaux, Location, Fiscalité, etc.) pour chaque logement.
-- **✉️ Client Mail Intégré par Bien** : Gestionnaire IMAP/SMTP et Google OAuth dédié à chaque logement avec téléchargement des pièces jointes directement dans les dossiers du bien.
-- **📊 Bilan Financier & Exports Excel** : Suivi des loyers, charges, impayés, dépenses et génération de rapports Excel prêts pour la comptabilité.
-- **🎨 Interface Sombre & Moderne** : Conçue avec React 19 et Tauri 2, offrant une fluidité maximale, un design sombre élégant et des micro-animations intuitives.
+- **📊 Visualiseur de Tableaux Intégré (`SpreadsheetViewer`)** : Lecture et navigation interactive dans les fichiers Excel (`.xlsx`, `.xls`) et CSV sans nécessiter Microsoft Office.
+- **📈 Calculateur & Révision de Loyer (`RentRevisionModal`)** : Calculateur natif de révision selon les indices IRL avec émission de notification.
+- **✉️ Client Mail Intégré & Envoi Rapide (`QuickMailModal`)** : Gestionnaire IMAP/SMTP et Google OAuth dédié par bien avec génération de quittances et relances en 1 clic.
+- **🎨 Interface Épurée & Moderne** : Conçue avec React 19 et Tauri 2, offrant une fluidité maximale, un design sombre élégant et des micro-animations intuitives.
 
 ---
 
@@ -30,27 +31,28 @@ L'application est structurée de manière claire et fluide via sa barre latéral
 - **Assistant de Création (`Wizard`)** : Création pas-à-pas avec génération automatique de l'arborescence physique `biens_data/[NOM_BIEN]/`.
 - **Importation de Dossier** : Scan et association rapide d'un dossier existant sur le disque.
 - **Fiche Bien Détaillée** :
-  - Métriques clés (loyer, charges, rentabilité, surface).
+  - Onglets modulaires dédiés : Infos générales, Fichiers & Documents, Baux & Occupation, Finances.
   - Gestion des champs libres (informations personnalisées).
-  - Synchronisation avec fichier Excel dédié.
+  - Synchronisation automatique avec les fichiers Excel de synthèse.
   - Onglet **Messagerie E-mail** dédié au logement.
 
 ### 3. 👥 Gestion des Locataires (`Locataires`)
 - Fiches détaillées des locataires (Nom, Prénom, Téléphone, E-mail).
 - Informations sur les garants et personnes de caution.
 - Historique des baux et des paiements associés.
+- **Bouton d'action rapide** : Envoi direct d'e-mail ou de quittance depuis la fiche locataire.
 
-### 4. 🔑 Contrats de Bail (`Baux`)
+### 4. 🔑 Contrats de Bail & Révision IRL (`Baux`)
 - Création et modification des contrats de bail rattachés aux biens et aux locataires.
 - Suivi du loyer hors charges, des charges mensuelles, du dépôt de garantie et de la date d'échéance du paiement.
-- Statuts des baux (*Actif*, *Terminé*, *Résilié*).
+- **Calculateur de Révision IRL** : Calcul automatique du nouveau loyer selon l'indice IRL officiel avec révision en 1 clic.
 - Association directe des fichiers de bail au format PDF/Word.
 
 ### 5. 💳 Suivi des Loyers & Paiements (`Paiements`)
-- Suivi rigoureux des échéances de paiement des loyers.
+- Suivi rigoureux des échéances de paiement des loyers avec cartes KPIs modulaires.
 - Statuts automatiques (*Payé*, *En retard*, *Impayé*, *Partiel*).
 - Enregistrement des modes de règlement (virement, chèque, espèces, prélèvement).
-- **Génération & Attachement de Quittances** : Association directe d'un justificatif ou d'une quittance au paiement.
+- **Glisser-Déposer & Quittances** : Attachement instantané de justificatifs PDF par simple drag-and-drop sur la ligne d'échéance.
 
 ### 6. 📉 Dépenses & Charges (`Depenses`)
 - Suivi de toutes les charges et dépenses par logement.
@@ -60,17 +62,18 @@ L'application est structurée de manière claire et fluide via sa barre latéral
 ### 7. 🛠️ Maintenance & Tickets Travaux (`Maintenance`)
 - Suivi des interventions, réparations et sinistres.
 - Gestion des priorités (*Urgent*, *Normal*, *Faible*) et des statuts (*Ouvert*, *En cours*, *Résolu*).
-- Suivi du coût des prestations et des coordonnées des artisans/prestataires.
+- Transformation d'un e-mail reçu directement en ticket de maintenance.
 
-### 8. 📁 Gestionnaire de Documents & Prévisualisation (`Documents`)
+### 8. 📁 Gestionnaire de Documents & Tableurs (`Documents`)
 - Explorateur de fichiers intégré parcourant directement l'arborescence `biens_data/`.
-- **Prévisualisation multi-formats** : Affichage direct des PDF, des images et prévisualisation rapide des tableurs Excel (`.xlsx`, `.xls`).
+- **Lecteur de Tableaux (`SpreadsheetViewer`)** : Visualiseur de tableurs Excel et CSV interactif intégré à l'application.
 - Renommage, suppression, déplacement de fichiers vers sous-dossiers et ouverture directe dans l'explorateur Windows.
 
-### 9. 📧 Messagerie E-mail Dédiée par Bien
+### 9. 📧 Messagerie E-mail Dédiée & Envoi Rapide (`QuickMailModal`)
 - Configuration réseau IMAP / SMTP autonome par logement ou authentification **Google OAuth 2.0**.
 - Consultation des e-mails reçus/envoyés relatifs à un logement.
-- Sauvegarde en 1 clic des pièces jointes directement dans la catégorie de documents appropriée du bien.
+- **Fenêtre d'envoi rapide** : Emission de quittances, relances d'impayés ou avis de passage pré-remplis en 1 clic.
+- Sauvegarde automatique des pièces jointes directement dans la catégorie de documents appropriée.
 
 ### 10. ⚡ Recherche Globale & Générateur Excel
 - **Recherche Globale (Ctrl+K / 🔍)** : Recherche multi-critères instantanée parmi les biens, locataires, baux, paiements, factures, tickets et documents.
@@ -78,15 +81,16 @@ L'application est structurée de manière claire et fluide via sa barre latéral
 
 ---
 
-## 🛠️ Stack Technique
+## 🛠️ Architecture Modulaire & Stack Technique
 
 | Couche | Technologie | Description |
 |---|---|---|
 | **Shell Desktop** | **Tauri 2** (Rust) | Performance native, consommation RAM minimale (< 50 Mo), sécurité renforcée |
-| **Frontend UI** | **React 19 + Vite 7** | Composants réactifs, architecture moderne |
+| **Frontend UI** | **React 19 + Vite 7** | Composants réactifs modulaires, Custom Hooks (`useBiens`, `useMailbox`) |
+| **Backend Rust** | **8 Sous-modules** | Découpage propre par domaine (`biens`, `locataires`, `paiements`, `depenses`, `documents`, `maintenance`, `mail`, `dashboard`) |
 | **Base de données** | **SQLite 3** (`rusqlite`) | Base de données locale embarquée avec transactions WAL et clés étrangères activées |
 | **Styling** | **CSS Vanilla** | Design system Sombre Premium, variables CSS modernes, effets glassmorphism |
-| **Client E-mail** | **Rust IMAP/SMTP & OAuth** | Intégration autonome sans passer par un serveur tierce |
+| **Client E-mail** | **Rust IMAP/SMTP & OAuth** | Intégration autonome sans passer par un serveur tiers |
 | **Fichiers & Excel** | **Rust `calamine` & `umya-spreadsheet`** | Traitement ultra-rapide des fichiers Excel et gestion d'arborescence |
 
 ---
@@ -99,104 +103,15 @@ LePuits est spécialement conçu pour fonctionner de manière **100% autonome et
   La base de données et les dossiers sont créés dans `%APPDATA%\com.lepuits.app\`.
 
 - **En mode Production (`release`)** :  
-  La base de données SQLite `lepuits.db` ainsi que le dossier racine des documents `biens_data/` sont créés **dans le même répertoire que l'exécutable `.exe`**.
-
-### 🚚 Déplacer l'application sur Clé USB :
-1. Compilez ou récupérez le dossier de release.
-2. Copiez le fichier `LePuits.exe`, la base `lepuits.db` et le dossier `biens_data/` sur votre clé USB ou disque dur externe.
-3. Branchez la clé USB sur n'importe quel ordinateur Windows et lancez `LePuits.exe`. Tout est immédiatement disponible sans installation ni configuration !
+  L'exécutable `LePuits.exe` crée et lit la base de données `lepuits.db` et le dossier `biens_data/` **dans le même répertoire que l'exécutable**.  
+  👉 Copiez le dossier complet sur une clé USB et lancez `LePuits.exe` sur n'importe quel PC Windows sans rien installer.
 
 ---
 
-## 🗄️ Modèle de Données SQLite
+## 🔧 Installation & Développement
 
-```
-               ┌───────────────┐
-               │    biens      │
-               └───────┬───────┘
-                       │
-       ┌───────────────┼───────────────┬───────────────┬───────────────┐
-       │ 1..N          │ 1..N          │ 1..N          │ 1..N          │ 1..N
-┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐
-│    baux     │ │  depenses   │ │  documents  │ │ maintenance │ │ champs_libr │
-└──────┬──────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
-       │ 1..N
-┌──────┴──────┐
-│  paiements  │
-└─────────────┘
-       ▲
-       │ N..1
-┌──────┴──────┐
-│ locataires  │
-└─────────────┘
-```
-
-| Table | Description | Principaux champs |
-|---|---|---|
-| **`biens`** | Biens immobiliers gérés | `id`, `nom`, `adresse`, `type_bien`, `statut`, `chemin_dossier`, `email_dedie`, `surface_m2` |
-| **`locataires`** | Fiches locataires & garants | `id`, `nom`, `prenom`, `telephone`, `email`, `garant_nom`, `garant_contact` |
-| **`baux`** | Contrats de bail | `id`, `bien_id`, `locataire_id`, `date_debut`, `date_fin`, `loyer_mensuel`, `charges_mensuelles`, `statut` |
-| **`paiements`** | Suivi des loyers perçus | `id`, `bail_id`, `date_prevue`, `date_reelle`, `montant`, `methode`, `statut`, `fichier_quittance` |
-| **`depenses`** | Charges, factures et entretien | `id`, `bien_id`, `date`, `categorie`, `description`, `montant`, `fournisseur`, `fichier_justificatif` |
-| **`documents`** | Index de fichiers rattachés | `id`, `bien_id`, `type_doc`, `sous_categorie`, `chemin_fichier`, `date_document` |
-| **`maintenance`** | Tickets d'intervention & travaux | `id`, `bien_id`, `titre`, `priorite`, `statut`, `date_signalement`, `cout`, `prestataire` |
-| **`bien_champs_libres`** | Méta-données personnalisées | `id`, `bien_id`, `cle`, `valeur` |
-| **`bien_email_config`** | Configuration IMAP/SMTP/OAuth | `bien_id`, `email_adresse`, `imap_host`, `smtp_host`, `use_ssl` |
-
----
-
-## 📂 Structure du Projet
-
-```
-LePuits/
-├── src/                        # Code Frontend React 19
-│   ├── App.jsx                 # Routeur principal & gestionnaire d'état de l'application
-│   ├── index.css               # Design System complet (variables, composants, dark mode)
-│   ├── main.jsx                # Point d'entrée React
-│   ├── components/             # Composants réutilisables & modales
-│   │   ├── Sidebar.jsx         # Barre de navigation latérale et aperçu des biens
-│   │   ├── GlobalSearchModal.jsx# Modale de recherche globale instantanée
-│   │   ├── ExcelGeneratorModal.jsx # Modale de génération d'exports Excel
-│   │   ├── WizardCreateBien.jsx# Assistant pas-à-pas de création de bien
-│   │   ├── FolderImportModal.jsx# Importation automatique de dossiers
-│   │   ├── MailboxPanel.jsx    # Client mail IMAP/SMTP / OAuth Google
-│   │   ├── FicheBienDetailModal.jsx # Consultation complète d'un bien
-│   │   └── Icon.jsx            # Bibliothèque d'icônes SVG inline
-│   ├── pages/                  # Vues de l'application
-│   │   ├── Dashboard.jsx       # Vue d'ensemble, KPIs et alertes
-│   │   ├── Biens.jsx           # Grille et liste des biens immobiliers
-│   │   ├── BienPanel.jsx       # Tableau de bord complet d'un bien spécifique
-│   │   ├── Locataires.jsx      # Gestion des locataires
-│   │   ├── Baux.jsx            # Gestion des contrats de location
-│   │   ├── Paiements.jsx       # Suivi financier des loyers et quittances
-│   │   ├── Depenses.jsx        # Suivi des charges et factures
-│   │   ├── Documents.jsx       # Explorateur et prévisualiseur de documents
-│   │   └── Maintenance.jsx     # Gestion des tickets de travaux
-│   └── lib/
-│       ├── db.js               # Connecteur API Tauri (invocations IPC backend)
-│       └── utils.js            # Helpers de formatage (dates, monnaie, statuts)
-│
-├── src-tauri/                  # Backend Native Rust & Tauri 2
-│   ├── src/
-│   │   ├── main.rs             # Point d'entrée de l'exécutable
-│   │   ├── lib.rs              # Configuration Tauri, state et registres des commandes IPC
-│   │   ├── db.rs               # Gestionnaire SQLite (connexion, migrations, arborescences)
-│   │   ├── commands.rs         # Implémentation des handlers Rust (CRUD, fichiers, e-mails)
-│   │   └── excel.rs            # Génération et lecture avancée de fichiers Excel
-│   ├── Cargo.toml              # Dépendances Rust (rusqlite, tauri, imap, mail-builder, etc.)
-│   └── tauri.conf.json         # Configuration Tauri (fenêtre, sécurité, bundles)
-│
-├── public/                     # Assets statiques web
-├── package.json                # Dépendances Node.js & scripts npm
-└── README.md                   # Documentation du projet
-```
-
----
-
-## 💻 Guide d'Installation & Développement
-
-### Prérequis de Développement
-- **Node.js** : v18+ (v22 recommandé)
+### Prérequis System
+- **Node.js** v18+ & **npm**
 - **Rust** : 1.70+ (`rustup` / `cargo`)
 - **Environnement de build Windows** : C++ Build Tools (via Visual Studio Installer 2022)
 
@@ -233,18 +148,9 @@ src-tauri/target/release/
 
 ---
 
-## 🔮 Roadmap & Évolutions
-
-- [x] **Phase 1-6** : Core app (Biens, Locataires, Baux, Paiements, Dépenses, Maintenance, Documents, Client Mail par bien, Recherche Globale & Exports Excel).
-- [ ] **Génération Automatique de Quittances PDF** : Moteur de rendu PDF natif pour l'émission de quittances en 1 clic.
-- [ ] **Export Comptable LMNP / 2044** : Génération de récapitulatifs fiscaux prêts à transmettre aux comptables.
-- [ ] **Intégration IA Locale (Ollama)** : Extraction automatique des informations sur les factures et diagnostics importés sans aucun envoi de données en ligne.
-
----
-
 ## 📄 Licence & Crédits
 
-Développé pour la gestion immobilière moderne, privée et autonome.
+Développé pour la gestion immobilière moderne, privée et autonome.  
 © 2026 **LePuits** — Tous droits réservés.
 
 ---
