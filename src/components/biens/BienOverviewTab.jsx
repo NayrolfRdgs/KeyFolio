@@ -296,6 +296,16 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
     return '—'
   }
 
+  const getRawVal = (key, alt = null) => {
+    if (values[key] !== undefined && values[key] !== null && String(values[key]).trim() !== '' && String(values[key]).trim() !== '—') {
+      return values[key]
+    }
+    if (alt !== null && alt !== undefined && String(alt).trim() !== '' && String(alt).trim() !== '—') {
+      return String(alt)
+    }
+    return null
+  }
+
   if (!bien) return null
 
   const prixAchatRaw = parseFloat(values['prix_achat']) || parseFloat(bien.prix_achat) || 0
@@ -375,18 +385,18 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
             </div>
             <div className="dash-card-body">
               <div className="kv-list">
-                <div className="kv-item"><span>Type de bien</span><strong>{getVal('type_bien', bien.type_bien)}</strong></div>
-                <div className="kv-item"><span>Mode d'occupation</span><strong>{getVal('mode_occupation')}</strong></div>
-                <div className="kv-item"><span>Pièces</span><strong>{getVal('pieces')}</strong></div>
-                <div className="kv-item"><span>Chambres</span><strong>{getVal('chambres')}</strong></div>
-                <div className="kv-item"><span>Salle de bain</span><strong>{getVal('salles_de_bain')}</strong></div>
-                <div className="kv-item"><span>Surface habitable</span><strong>{getVal('surface_habitable', bien.surface_m2 ? `${bien.surface_m2} m²` : null)}</strong></div>
-                <div className="kv-item"><span>Étage</span><strong>{getVal('etage')}</strong></div>
-                <div className="kv-item"><span>Exposition</span><strong>{getVal('exposition')}</strong></div>
-                <div className="kv-item"><span>Ascenseur</span><strong>{getVal('ascenseur')}</strong></div>
-                <div className="kv-item"><span>Cave</span><strong>{getVal('cave')}</strong></div>
-                <div className="kv-item"><span>Balcon / Terrasse</span><strong>{getVal('balcon_terrasse')}</strong></div>
-                <div className="kv-item"><span>Meublé</span><strong>{getVal('meuble')}</strong></div>
+                {getRawVal('type_bien', bien.type_bien) && <div className="kv-item"><span>Type de bien</span><strong>{getRawVal('type_bien', bien.type_bien)}</strong></div>}
+                {getRawVal('mode_occupation') && <div className="kv-item"><span>Mode d'occupation</span><strong>{getRawVal('mode_occupation')}</strong></div>}
+                {getRawVal('pieces') && <div className="kv-item"><span>Pièces</span><strong>{getRawVal('pieces')}</strong></div>}
+                {getRawVal('chambres') && <div className="kv-item"><span>Chambres</span><strong>{getRawVal('chambres')}</strong></div>}
+                {getRawVal('salles_de_bain') && <div className="kv-item"><span>Salle de bain</span><strong>{getRawVal('salles_de_bain')}</strong></div>}
+                {getRawVal('surface_habitable', bien.surface_m2 ? `${bien.surface_m2} m²` : null) && <div className="kv-item"><span>Surface habitable</span><strong>{getRawVal('surface_habitable', bien.surface_m2 ? `${bien.surface_m2} m²` : null)}</strong></div>}
+                {getRawVal('etage') && <div className="kv-item"><span>Étage</span><strong>{getRawVal('etage')}</strong></div>}
+                {getRawVal('exposition') && <div className="kv-item"><span>Exposition</span><strong>{getRawVal('exposition')}</strong></div>}
+                {getRawVal('ascenseur') && <div className="kv-item"><span>Ascenseur</span><strong>{getRawVal('ascenseur')}</strong></div>}
+                {getRawVal('cave') && <div className="kv-item"><span>Cave</span><strong>{getRawVal('cave')}</strong></div>}
+                {getRawVal('balcon_terrasse') && <div className="kv-item"><span>Balcon / Terrasse</span><strong>{getRawVal('balcon_terrasse')}</strong></div>}
+                {getRawVal('meuble') && <div className="kv-item"><span>Meublé</span><strong>{getRawVal('meuble')}</strong></div>}
               </div>
             </div>
           </div>
@@ -401,14 +411,14 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
             </div>
             <div className="dash-card-body">
               <div className="kv-list">
-                <div className="kv-item"><span>Chauffage</span><strong>{getVal('eq_chauffage')}</strong></div>
-                <div className="kv-item"><span>Eau chaude</span><strong>{getVal('eq_eau_chaude')}</strong></div>
-                <div className="kv-item"><span>Énergie principale</span><strong>{getVal('eq_energie')}</strong></div>
-                <div className="kv-item"><span>Climatisation</span><strong>{getVal('eq_clim')}</strong></div>
-                <div className="kv-item"><span>Fibre optique</span><strong>{getVal('eq_fibre')}</strong></div>
-                <div className="kv-item"><span>VMC</span><strong>{getVal('eq_vmc')}</strong></div>
-                <div className="kv-item"><span>Interphone</span><strong>{getVal('eq_interphone')}</strong></div>
-                <div className="kv-item"><span>Détecteur de fumée</span><strong>{getVal('eq_daf')}</strong></div>
+                {getRawVal('eq_chauffage') && <div className="kv-item"><span>Chauffage</span><strong>{getRawVal('eq_chauffage')}</strong></div>}
+                {getRawVal('eq_eau_chaude') && <div className="kv-item"><span>Eau chaude</span><strong>{getRawVal('eq_eau_chaude')}</strong></div>}
+                {getRawVal('eq_energie') && <div className="kv-item"><span>Énergie principale</span><strong>{getRawVal('eq_energie')}</strong></div>}
+                {getRawVal('eq_clim') && <div className="kv-item"><span>Climatisation</span><strong>{getRawVal('eq_clim')}</strong></div>}
+                {getRawVal('eq_fibre') && <div className="kv-item"><span>Fibre optique</span><strong>{getRawVal('eq_fibre')}</strong></div>}
+                {getRawVal('eq_vmc') && <div className="kv-item"><span>VMC</span><strong>{getRawVal('eq_vmc')}</strong></div>}
+                {getRawVal('eq_interphone') && <div className="kv-item"><span>Interphone</span><strong>{getRawVal('eq_interphone')}</strong></div>}
+                {getRawVal('eq_daf') && <div className="kv-item"><span>Détecteur de fumée</span><strong>{getRawVal('eq_daf')}</strong></div>}
               </div>
             </div>
           </div>
@@ -423,12 +433,12 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
             </div>
             <div className="dash-card-body">
               <div className="kv-list">
-                <div className="kv-item"><span>Clés logement</span><strong>{getVal('clefs_logement')}</strong></div>
-                <div className="kv-item"><span>Clés boîte aux lettres</span><strong>{getVal('clefs_bal')}</strong></div>
-                <div className="kv-item"><span>Badge immeuble</span><strong>{getVal('clefs_badge_immeuble')}</strong></div>
-                <div className="kv-item"><span>Télécommande garage</span><strong>{getVal('clefs_telecommande_garage')}</strong></div>
-                <div className="kv-item"><span>Code portail</span><strong>{getVal('clefs_code_portail')}</strong></div>
-                <div className="kv-item"><span>Code interphone</span><strong>{getVal('clefs_code_interphone')}</strong></div>
+                {getRawVal('clefs_logement') && <div className="kv-item"><span>Clés logement</span><strong>{getRawVal('clefs_logement')}</strong></div>}
+                {getRawVal('clefs_bal') && <div className="kv-item"><span>Clés boîte aux lettres</span><strong>{getRawVal('clefs_bal')}</strong></div>}
+                {getRawVal('clefs_badge_immeuble') && <div className="kv-item"><span>Badge immeuble</span><strong>{getRawVal('clefs_badge_immeuble')}</strong></div>}
+                {getRawVal('clefs_telecommande_garage') && <div className="kv-item"><span>Télécommande garage</span><strong>{getRawVal('clefs_telecommande_garage')}</strong></div>}
+                {getRawVal('clefs_code_portail') && <div className="kv-item"><span>Code portail</span><strong>{getRawVal('clefs_code_portail')}</strong></div>}
+                {getRawVal('clefs_code_interphone') && <div className="kv-item"><span>Code interphone</span><strong>{getRawVal('clefs_code_interphone')}</strong></div>}
               </div>
             </div>
           </div>
@@ -464,26 +474,34 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
               </div>
 
               <div className="amenities-grid">
-                <div className="amenity-item">
-                  <span className="amenity-icon">🚇</span>
-                  <span className="amenity-label">Métro</span>
-                  <strong>{getVal('loc_metro')}</strong>
-                </div>
-                <div className="amenity-item">
-                  <span className="amenity-icon">🛒</span>
-                  <span className="amenity-label">Commerces</span>
-                  <strong>{getVal('loc_commerces')}</strong>
-                </div>
-                <div className="amenity-item">
-                  <span className="amenity-icon">🎓</span>
-                  <span className="amenity-label">École</span>
-                  <strong>{getVal('loc_ecole')}</strong>
-                </div>
-                <div className="amenity-item">
-                  <span className="amenity-icon">🏥</span>
-                  <span className="amenity-label">Hôpital</span>
-                  <strong>{getVal('loc_hopital')}</strong>
-                </div>
+                {getRawVal('loc_metro') && (
+                  <div className="amenity-item">
+                    <span className="amenity-icon">🚇</span>
+                    <span className="amenity-label">Métro</span>
+                    <strong>{getRawVal('loc_metro')}</strong>
+                  </div>
+                )}
+                {getRawVal('loc_commerces') && (
+                  <div className="amenity-item">
+                    <span className="amenity-icon">🛒</span>
+                    <span className="amenity-label">Commerces</span>
+                    <strong>{getRawVal('loc_commerces')}</strong>
+                  </div>
+                )}
+                {getRawVal('loc_ecole') && (
+                  <div className="amenity-item">
+                    <span className="amenity-icon">🎓</span>
+                    <span className="amenity-label">École</span>
+                    <strong>{getRawVal('loc_ecole')}</strong>
+                  </div>
+                )}
+                {getRawVal('loc_hopital') && (
+                  <div className="amenity-item">
+                    <span className="amenity-icon">🏥</span>
+                    <span className="amenity-label">Hôpital</span>
+                    <strong>{getRawVal('loc_hopital')}</strong>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -498,14 +516,14 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
             </div>
             <div className="dash-card-body">
               <div className="kv-list">
-                <div className="kv-item"><span>État général</span>{renderStatusPill(getVal('etat_general'))}</div>
-                <div className="kv-item"><span>Cuisine</span>{renderStatusPill(getVal('etat_cuisine'))}</div>
-                <div className="kv-item"><span>Salle de bain</span>{renderStatusPill(getVal('etat_salle_de_bain'))}</div>
-                <div className="kv-item"><span>Électricité</span>{renderStatusPill(getVal('etat_electricite'))}</div>
-                <div className="kv-item"><span>Plomberie</span>{renderStatusPill(getVal('etat_plomberie'))}</div>
-                <div className="kv-item"><span>Peintures</span>{renderStatusPill(getVal('etat_peintures'))}</div>
-                <div className="kv-item" style={{ marginTop: 6 }}><span>Dernière rénovation</span><strong>{getVal('date_renovation')}</strong></div>
-                <div className="kv-item"><span>Dernière inspection</span><strong>{getVal('date_inspection') !== '—' ? formatDate(getVal('date_inspection')) : '—'}</strong></div>
+                {getRawVal('etat_general') && <div className="kv-item"><span>État général</span>{renderStatusPill(getRawVal('etat_general'))}</div>}
+                {getRawVal('etat_cuisine') && <div className="kv-item"><span>Cuisine</span>{renderStatusPill(getRawVal('etat_cuisine'))}</div>}
+                {getRawVal('etat_salle_de_bain') && <div className="kv-item"><span>Salle de bain</span>{renderStatusPill(getRawVal('etat_salle_de_bain'))}</div>}
+                {getRawVal('etat_electricite') && <div className="kv-item"><span>Électricité</span>{renderStatusPill(getRawVal('etat_electricite'))}</div>}
+                {getRawVal('etat_plomberie') && <div className="kv-item"><span>Plomberie</span>{renderStatusPill(getRawVal('etat_plomberie'))}</div>}
+                {getRawVal('etat_peintures') && <div className="kv-item"><span>Peintures</span>{renderStatusPill(getRawVal('etat_peintures'))}</div>}
+                {getRawVal('date_renovation') && <div className="kv-item" style={{ marginTop: 6 }}><span>Dernière rénovation</span><strong>{getRawVal('date_renovation')}</strong></div>}
+                {getRawVal('date_inspection') && <div className="kv-item"><span>Dernière inspection</span><strong>{formatDate(getRawVal('date_inspection'))}</strong></div>}
               </div>
             </div>
           </div>
@@ -520,34 +538,48 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
             </div>
             <div className="dash-card-body">
               <div className="copro-horizontal-grid">
-                <div className="copro-col">
-                  <span className="copro-label">Nom de la copropriété</span>
-                  <strong className="copro-val">{getVal('copro_nom')}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Syndic</span>
-                  <strong className="copro-val">{getVal('syndic_nom')}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Charges trimestrielles</span>
-                  <strong className="copro-val">{getVal('charges_trimestrielles') !== '—' ? formatEuro(getVal('charges_trimestrielles')) : '—'}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Tantièmes</span>
-                  <strong className="copro-val">{getVal('copro_tantiemes')}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Dernière AG</span>
-                  <strong className="copro-val">{getVal('date_derniere_ag') !== '—' ? formatDate(getVal('date_derniere_ag')) : '—'}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Prochaine AG</span>
-                  <strong className="copro-val">{getVal('date_prochaine_ag') !== '—' ? formatDate(getVal('date_prochaine_ag')) : '—'}</strong>
-                </div>
-                <div className="copro-col">
-                  <span className="copro-label">Fonds travaux</span>
-                  <strong className="copro-val">{getVal('fonds_travaux') !== '—' ? formatEuro(getVal('fonds_travaux')) : '—'}</strong>
-                </div>
+                {getRawVal('copro_nom') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Nom de la copropriété</span>
+                    <strong className="copro-val">{getRawVal('copro_nom')}</strong>
+                  </div>
+                )}
+                {getRawVal('syndic_nom') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Syndic</span>
+                    <strong className="copro-val">{getRawVal('syndic_nom')}</strong>
+                  </div>
+                )}
+                {getRawVal('charges_trimestrielles') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Charges trimestrielles</span>
+                    <strong className="copro-val">{formatEuro(getRawVal('charges_trimestrielles'))}</strong>
+                  </div>
+                )}
+                {getRawVal('copro_tantiemes') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Tantièmes</span>
+                    <strong className="copro-val">{getRawVal('copro_tantiemes')}</strong>
+                  </div>
+                )}
+                {getRawVal('date_derniere_ag') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Dernière AG</span>
+                    <strong className="copro-val">{formatDate(getRawVal('date_derniere_ag'))}</strong>
+                  </div>
+                )}
+                {getRawVal('date_prochaine_ag') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Prochaine AG</span>
+                    <strong className="copro-val">{formatDate(getRawVal('date_prochaine_ag'))}</strong>
+                  </div>
+                )}
+                {getRawVal('fonds_travaux') && (
+                  <div className="copro-col">
+                    <span className="copro-label">Fonds travaux</span>
+                    <strong className="copro-val">{formatEuro(getRawVal('fonds_travaux'))}</strong>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -555,7 +587,7 @@ export default function BienOverviewTab({ bien, onEdit, onNavigateTab, onOpenInD
         </div>
       ) : (
         /* ── MODE ÉDITION ORGANISÉ PAR CATÉGORIES (SANS AUCUN CRASH) ── */
-        <div className="card" style={{ padding: 24, background: '#FFF', borderRadius: 12 }}>
+        <div className="card" style={{ padding: 24, background: 'var(--color-surface)', borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
             <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>✏️ Édition complète des informations par catégorie</h4>
             <div style={{ display: 'flex', gap: 8 }}>

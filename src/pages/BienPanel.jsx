@@ -321,23 +321,23 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
       </div>
 
       {/* ── Dashboard Top Header Banner (Exactement comme dans l'image modèle) ── */}
-      <div className="card" style={{ padding: 20, marginBottom: 20, background: '#FFF', borderRadius: 14, border: '1px solid var(--border-color)', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+      <div className="card" style={{ padding: 20, marginBottom: 20, background: 'var(--color-surface)', borderRadius: 14, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr 280px', gap: 24, alignItems: 'stretch' }}>
           
           {/* Colonne 1: Photos Principale + Miniature */}
           <div>
-            <div style={{ position: 'relative', width: '100%', height: 190, borderRadius: 10, overflow: 'hidden', background: '#F1F5F9', border: '1px solid var(--border-color)' }}>
+            <div style={{ position: 'relative', width: '100%', height: 190, borderRadius: 10, overflow: 'hidden', background: 'var(--color-surface-2)', border: '1px solid var(--border-color)' }}>
               {allPhotoPaths.length > 0 ? (
                 <img src={getPhotoUrl(allPhotoPaths[0])} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6, color: '#94A3B8' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6, color: 'var(--text-muted)' }}>
                   <span style={{ fontSize: 36, opacity: 0.5 }}>📸</span>
                   <span style={{ fontSize: 12, fontWeight: 600 }}>Aucune photo</span>
                 </div>
               )}
               <button
                 className="btn btn-secondary btn-sm"
-                style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(255,255,255,0.92)', border: 'none', padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+                style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,23,42,0.75)', color: '#FFF', border: 'none', padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: 'pointer', backdropFilter: 'blur(4px)' }}
                 onClick={() => setGalleryModalOpen(true)}
               >
                 📷 Voir toutes les photos ({allPhotoPaths.length})
@@ -365,40 +365,40 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>🏠 {bien.nom}</h2>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--text-primary)' }}>🏠 {bien.nom}</h2>
                 <span className={`badge ${bien.statut === 'en_cours' ? 'badge-success' : 'badge-warning'}`} style={{ background: '#DCFCE7', color: '#166534', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
                   {bien.statut === 'en_cours' ? 'Actif' : bien.statut}
                 </span>
               </div>
 
-              <div style={{ fontSize: 13, color: '#64748B', fontWeight: 500, marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, marginTop: 4 }}>
                 {propertyAddress || '—'}
               </div>
 
-              <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>
                 {champsMap['surface_m2'] || bien.surface_m2 ? `${champsMap['surface_m2'] || bien.surface_m2} m²` : '—'}  •  {champsMap['pieces'] ? `${champsMap['pieces']} pièce(s)` : ''}  •  {champsMap['type_bien'] || bien.type_bien || 'Logement'}  •  {champsMap['mode_occupation'] || (activeBail ? 'Location' : 'Résidence / Occupation libre')}
               </div>
 
               {/* Locataire / Occupation actuelle */}
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Statut / Occupation actuelle</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Statut / Occupation actuelle</div>
                 {activeBail ? (
                   <div style={{ marginTop: 2 }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', cursor: 'pointer' }} onClick={() => onNavigate && onNavigate('locataires')}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', cursor: 'pointer' }} onClick={() => onNavigate && onNavigate('locataires')}>
                       👤 {activeBail.locataire_prenom} {activeBail.locataire_nom}
                     </span>
-                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                       Bail {activeBail.type_bail || 'Location'} depuis le {formatDate(activeBail.date_debut)}
                     </div>
                   </div>
                 ) : champsMap['mode_occupation'] ? (
                   <div style={{ marginTop: 2 }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
                       🏠 {champsMap['mode_occupation']}
                     </span>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
                     Non loué / Sans bail actif
                   </div>
                 )}
@@ -407,21 +407,21 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
 
             {/* Rangée de 4 Cartes KPIs Pastel */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 16 }}>
-              <div style={{ background: '#ECFDF5', padding: '8px 12px', borderRadius: 8, textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#059669' }}>{loyerMensuel ? formatEuro(loyerMensuel) : '—'}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#047857', marginTop: 1 }}>Loyer mensuel</div>
+              <div style={{ background: 'var(--color-surface-2)', padding: '8px 12px', borderRadius: 8, textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: '#10B981' }}>{loyerMensuel ? formatEuro(loyerMensuel) : '—'}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginTop: 1 }}>Loyer mensuel</div>
               </div>
-              <div style={{ background: '#F0F9FF', padding: '8px 12px', borderRadius: 8, textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#0284C7' }}>{rendNet}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#0369A1', marginTop: 1 }}>Rendement net</div>
+              <div style={{ background: 'var(--color-surface-2)', padding: '8px 12px', borderRadius: 8, textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: '#3B82F6' }}>{rendNet}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginTop: 1 }}>Rendement net</div>
               </div>
-              <div style={{ background: '#FEF3C7', padding: '8px 12px', borderRadius: 8, textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#D97706' }}>{dpeNote}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#B45309', marginTop: 1 }}>DPE</div>
+              <div style={{ background: 'var(--color-surface-2)', padding: '8px 12px', borderRadius: 8, textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: '#F59E0B' }}>{dpeNote}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginTop: 1 }}>DPE</div>
               </div>
-              <div style={{ background: '#F5F3FF', padding: '8px 12px', borderRadius: 8, textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#7C3AED' }}>{activeBail ? 'Occupé' : (champsMap['mode_occupation'] || 'Libre')}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#6D28D9', marginTop: 1 }}>Occupation</div>
+              <div style={{ background: 'var(--color-surface-2)', padding: '8px 12px', borderRadius: 8, textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: '#8B5CF6' }}>{activeBail ? 'Occupé' : (champsMap['mode_occupation'] || 'Libre')}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginTop: 1 }}>Occupation</div>
               </div>
             </div>
           </div>
@@ -430,7 +430,7 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           <div style={{ background: 'var(--color-surface-2)', padding: 14, borderRadius: 10, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
                   RÉSUMÉ
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -503,7 +503,7 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
         {/* Colonne Gauche: Onglets & Contenu du Tab (Infos, Finances, Bail...) */}
         <div>
           {/* Navigation Onglets */}
-          <div className="bien-panel-tabs" style={{ marginBottom: 16, background: '#FFF', borderRadius: 10, padding: '4px 12px', border: '1px solid var(--border-color)' }}>
+          <div className="bien-panel-tabs" style={{ marginBottom: 16, background: 'var(--color-surface)', borderRadius: 10, padding: '4px 12px', border: '1px solid var(--border-color)' }}>
             {TABS.map(t => (
               <button
                 key={t.id}
@@ -691,36 +691,36 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           
           {/* Bloc ALERTES */}
-          <div className="card" style={{ padding: 16, background: '#FFF', borderRadius: 12 }}>
+          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: '#64748B' }}>
+              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 ALERTES ({impayes.length > 0 ? '3' : '2'})
               </h4>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 16 }}>⚠️</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>DPE à renouveler</div>
-                  <div style={{ fontSize: 11, color: '#B45309' }}>Valide jusqu'à la fin d'année</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>DPE à renouveler</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Valide jusqu'à la fin d'année</div>
                 </div>
               </div>
 
-              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 16 }}>🛡️</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>Assurance PNO</div>
-                  <div style={{ fontSize: 11, color: '#1D4ED8' }}>Attestation annuelle à jour</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6' }}>Assurance PNO</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Attestation annuelle à jour</div>
                 </div>
               </div>
 
               {impayes.length > 0 && (
-                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 16 }}>🚨</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#991B1B' }}>Loyers en retard ({impayes.length})</div>
-                    <div style={{ fontSize: 11, color: '#DC2626' }}>Paiement de loyer non reçu</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Loyers en retard ({impayes.length})</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Paiement de loyer non reçu</div>
                   </div>
                 </div>
               )}
@@ -728,9 +728,9 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           </div>
 
           {/* Bloc DOCUMENTS RAPIDES */}
-          <div className="card" style={{ padding: 16, background: '#FFF', borderRadius: 12 }}>
+          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: '#64748B' }}>
+              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 DOCUMENTS RAPIDES ({bienFiles.length})
               </h4>
             </div>
@@ -771,8 +771,8 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           </div>
 
           {/* Bloc ACTIVITÉ RÉCENTE */}
-          <div className="card" style={{ padding: 16, background: '#FFF', borderRadius: 12 }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: '#64748B' }}>
+          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               ACTIVITÉS RÉCENTES
             </h4>
 

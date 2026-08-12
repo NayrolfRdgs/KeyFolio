@@ -48,6 +48,19 @@
   --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
 }
 
+:root[data-theme="dark"], body.theme-dark {
+  --color-bg:           #0f172a;
+  --color-surface:      #1e293b;
+  --color-surface-2:    #334155;
+  --color-border:       rgba(255, 255, 255, 0.12);
+  --color-border-hover: rgba(99, 102, 241, 0.6);
+  --text-primary:       #f8fafc;
+  --text-secondary:     #cbd5e1;
+  --text-muted:         #94a3b8;
+  --shadow:             0 10px 15px -3px rgba(0,0,0,0.5);
+  --shadow-sm:          0 1px 3px 0 rgba(0,0,0,0.3);
+}
+
 /* ─── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1992,21 +2005,26 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .dashboard-grid-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1350px) {
+  .dashboard-grid-layout {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 900px) {
   .dashboard-grid-layout {
     grid-template-columns: 1fr;
   }
 }
 
 .dash-card {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 18px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
 }
@@ -2039,12 +2057,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #334155;
+  color: var(--text-secondary);
 }
 .dash-card-link {
   background: none;
   border: none;
-  color: #6366F1;
+  color: var(--color-accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -2067,19 +2085,19 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .fin-kpi-label {
   font-size: 11px;
-  color: #64748B;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .fin-kpi-val {
   font-size: 18px;
   font-weight: 800;
-  color: #0F172A;
+  color: var(--text-primary);
   margin-top: 2px;
 }
 .fin-kpi-subval {
   font-size: 15px;
   font-weight: 700;
-  color: #1E293B;
+  color: var(--text-primary);
   margin-top: 2px;
 }
 .val-badge-green {
@@ -2092,13 +2110,13 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 
 .finances-chart-container {
-  background: #F8FAFC;
+  background: var(--color-surface-2);
   border-radius: 10px;
   padding: 12px 14px;
 }
 .chart-title {
   font-size: 11px;
-  color: #64748B;
+  color: var(--text-muted);
   font-weight: 600;
   display: block;
   margin-bottom: 6px;
@@ -2113,7 +2131,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .chart-axis-text {
   font-size: 9px;
-  fill: #94A3B8;
+  fill: var(--text-muted);
   font-weight: 600;
 }
 
@@ -2127,7 +2145,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  border-bottom: 1px solid #F1F5F9;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 6px;
 }
 .kv-item:last-child {
@@ -2135,11 +2153,11 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   padding-bottom: 0;
 }
 .kv-item span {
-  color: #64748B;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .kv-item strong {
-  color: #0F172A;
+  color: var(--text-primary);
   font-weight: 600;
 }
 .icon-label {
@@ -2155,7 +2173,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   overflow: hidden;
   position: relative;
   margin-bottom: 12px;
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--color-border);
 }
 .map-grid-bg {
   width: 100%;
@@ -2168,7 +2186,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .map-address-text {
   font-size: 12px;
-  color: #0F172A;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -2177,7 +2195,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid #F1F5F9;
+  border-top: 1px solid var(--color-border);
 }
 .amenity-item {
   display: flex;
@@ -2191,12 +2209,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .amenity-label {
   font-size: 10px;
-  color: #64748B;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .amenity-item strong {
   font-size: 12px;
-  color: #0F172A;
+  color: var(--text-primary);
   font-weight: 700;
   margin-top: 2px;
 }
@@ -2217,13 +2235,13 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .copro-label {
   font-size: 11px;
-  color: #64748B;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .copro-val {
   font-size: 13px;
   font-weight: 700;
-  color: #0F172A;
+  color: var(--text-primary);
   margin-top: 2px;
 }
 

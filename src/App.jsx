@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar             from './components/Sidebar'
 import Dashboard           from './pages/Dashboard'
 import Biens               from './pages/Biens'
@@ -12,8 +12,14 @@ import BienPanel           from './pages/BienPanel'
 import GlobalSearchModal   from './components/GlobalSearchModal'
 import ExcelGeneratorModal from './components/ExcelGeneratorModal'
 import WizardCreateBien    from './components/WizardCreateBien'
+import SettingsModal       from './components/SettingsModal'
+import { initThemeListener } from './lib/theme'
 
 export default function App() {
+  useEffect(() => {
+    initThemeListener()
+  }, [])
+
   const [page, setPage] = useState('dashboard')
   const [currentBienId, setCurrentBienId] = useState(null)
   const [selectedBienId, setSelectedBienId] = useState(null)
@@ -22,6 +28,7 @@ export default function App() {
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [excelGenModalOpen, setExcelGenModalOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [documentFilePath, setDocumentFilePath] = useState(null)
 
   const navigate = (p, param = null) => {
@@ -103,6 +110,7 @@ export default function App() {
         onOpenSearch={() => setSearchModalOpen(true)}
         onOpenExcelGenerator={() => setExcelGenModalOpen(true)}
         onOpenMail={openMail}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <main className="app-main">{renderPage()}</main>
 
@@ -125,6 +133,11 @@ export default function App() {
           onSuccess={() => { setWizardOpen(false) }}
         />
       )}
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   )
 }

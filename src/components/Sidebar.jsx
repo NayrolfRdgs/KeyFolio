@@ -8,7 +8,7 @@ const statutColor = {
   vendu:     { dot: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
 }
 
-export default function Sidebar({ currentPage, currentBienId, onNavigate, onOpenSearch, onOpenExcelGenerator, onOpenMail }) {
+export default function Sidebar({ currentPage, currentBienId, onNavigate, onOpenSearch, onOpenExcelGenerator, onOpenMail, onOpenSettings }) {
   const [biens, setBiens] = useState([])
 
   useEffect(() => {
@@ -154,6 +154,15 @@ export default function Sidebar({ currentPage, currentBienId, onNavigate, onOpen
         >
           <Icon name="documents" size={16} />
           Documents
+        </button>
+
+        <button
+          id="nav-options"
+          className="nav-item"
+          onClick={onOpenSettings}
+          style={{ marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 10, color: 'var(--text-muted)' }}
+        >
+          ⚙️ Options & Réglages
         </button>
       </nav>
 
