@@ -47,6 +47,11 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     fichier_bail: ''
   })
 
+  const [search, setSearch] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [toasts, setToasts] = useState([])
+
   // Modal Bilan Financier & Historique Locataire
   const [statsLocTarget, setStatsLocTarget] = useState(null)
   const [locStatsData, setLocStatsData] = useState(null)
