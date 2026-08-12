@@ -66,6 +66,8 @@ pub struct Locataire {
     pub garant_contact: Option<String>,
     pub notes: Option<String>,
     pub created_at: Option<String>,
+    pub bien_id: Option<i64>,
+    pub bien_nom: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -166,6 +168,12 @@ pub struct BienChampLibre {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BienChampLibreItem {
+    pub cle: String,
+    pub valeur: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BienEmailConfig {
     pub bien_id: i64,
     pub email_adresse: String,
@@ -182,6 +190,21 @@ pub struct BienEmailConfig {
 pub struct ExcelSheetPreview {
     pub rows: Vec<Vec<String>>,
     pub sheet_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExcelSheetFullPreview {
+    pub rows: Vec<Vec<String>>,
+    pub sheet_name: String,
+    pub sheet_names: Vec<String>,
+    pub total_rows: usize,
+    pub total_cols: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SheetSaveData {
+    pub sheet_name: String,
+    pub rows: Vec<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -232,4 +255,22 @@ pub struct SendEmailAttachment {
     pub filename: String,
     pub mime_type: String,
     pub base64_data: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Candidature {
+    pub id: Option<i64>,
+    pub bien_id: Option<i64>,
+    pub nom: String,
+    pub prenom: String,
+    pub email: Option<String>,
+    pub telephone: Option<String>,
+    pub revenus_mensuels: Option<f64>,
+    pub statut: Option<String>,
+    pub garant_nom: Option<String>,
+    pub garant_contact: Option<String>,
+    pub notes: Option<String>,
+    pub fichier_dossier: Option<String>,
+    pub created_at: Option<String>,
+    pub bien_nom: Option<String>,
 }

@@ -36,6 +36,7 @@ pub fn sync_all_property_excels(conn: &Connection, base_dir: &PathBuf, bien_id: 
     sync_suivi_loyers_excel(conn, &bien_dir, bien_id)?;
     sync_suivi_depenses_excel(conn, &bien_dir, bien_id)?;
     sync_locataires_baux_excel(conn, &bien_dir, bien_id)?;
+    sync_tableau_amortissement_excel(conn, &bien_dir, bien_id)?;
 
     Ok(())
 }
@@ -409,6 +410,127 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
 
     worksheet.autofit();
     workbook.save(&file_path).map_err(|e| format!("Erreur écriture Locataires_Baux.xlsx: {}", e))?;
+
+    Ok(())
+}
+
+/// 5. Tableau_Amortissement.xlsx — Amortissement LMNP/BIC, déductions temporelles et échéancier 30 ans
+pub fn sync_tableau_amortissement_excel(conn: &Connection, bien_dir: &Path, bien_id: i64) -> Result<(), String> {
+    let file_path = get_dated_subfolder_file_path(bien_dir, "04_FINANCES", "Tableau_Amortissement");
+
+    let mut workbook = Workbook::new();
+
+    // ── Feuille 1 : Synthèse Amortissements ──
+    let sheet1 = workbook.add_worksheet();
+    sheet1.set_name("Synthèse Amortissements").map_err(|e| e.to_string())?;
+
+    let header_fmt = create_header_format();
+    let title_fmt = create_title_format();
+    let currency_fmt = create_currency_format();
+
+    sheet1.write_with_format(0, 0, "PLAN D'AMORTISSEMENT IMMOBILIER & DÉDUCTIONS TEMPORELLES (LMNP / BIC)", &title_fmt).map_err(|e| e.to_string())?;
+
+    // Récupérer les données du bien et champs libres
+    let mut map = std::collections::HashMap::new();
+    let mut stmt = conn.prepare("SELECT cle, valeur FROM bien_champs_libres WHERE bien_id = ?1").map_err(|e| e.to_string())?;
+    let champs = stmt.query_map(params![bien_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))).map_err(|e| e.to_string())?;
+    for c in champs.flatten() {
+        map.insert(c.0, c.1);
+    }
+
+    let (_nom_bien, _surface): (String, Option<f64>) = conn.query_row(
+        "SELECT nom, surface_m2 FROM biens WHERE id = ?1",
+        params![bien_id],
+        |r| Ok((r.get(0)?, r.get(1)?))
+    ).unwrap_or(("Logement".to_string(), None));
+
+    let prix_achat: f64 = map.get("prix_achat").and_then(|v| v.parse().ok()).unwrap_or(150000.0);
+    let frais_notaire: f64 = map.get("frais_notaire").and_then(|v| v.parse().ok()).unwrap_or(prix_achat * 0.08);
+    let travaux_initiaux: f64 = map.get("travaux_initiaux").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+    let part_terrain_pct: f64 = map.get("part_terrain_pct").and_then(|v| v.parse().ok()).unwrap_or(15.0);
+    let valeur_mobilier: f64 = map.get("valeur_mobilier").and_then(|v| v.parse().ok()).unwrap_or(5000.0);
+
+    let val_terrain = prix_achat * (part_terrain_pct / 100.0);
+    let val_construction = prix_achat - val_terrain;
+    let total_revient = prix_achat + frais_notaire + travaux_initiaux;
+
+    let duree_construction: u32 = 30;
+    let duree_notaire: u32 = 5;
+    let duree_travaux: u32 = 10;
+    let duree_mobilier: u32 = 7;
+
+    let dot_const_annuelle = val_construction / (duree_construction as f64);
+    let dot_notaire_annuelle = frais_notaire / (duree_notaire as f64);
+    let dot_travaux_annuelle = if travaux_initiaux > 0.0 { travaux_initiaux / (duree_travaux as f64) } else { 0.0 };
+    let dot_mobilier_annuelle = if valeur_mobilier > 0.0 { valeur_mobilier / (duree_mobilier as f64) } else { 0.0 };
+
+    sheet1.write_with_format(2, 0, "Paramètre", &header_fmt).map_err(|e| e.to_string())?;
+    sheet1.write_with_format(2, 1, "Valeur / Base", &header_fmt).map_err(|e| e.to_string())?;
+    sheet1.write_with_format(2, 2, "Durée", &header_fmt).map_err(|e| e.to_string())?;
+    sheet1.write_with_format(2, 3, "Dotation Annuelle (€/an)", &header_fmt).map_err(|e| e.to_string())?;
+
+    let rows_data = vec![
+        ("Prix d'achat global", prix_achat, "—", 0.0),
+        ("Terrain (non amortissable)", val_terrain, "Infinie", 0.0),
+        ("Bâtiment / Construction", val_construction, "30 ans", dot_const_annuelle),
+        ("Frais de notaire & d'acquisition", frais_notaire, "5 ans", dot_notaire_annuelle),
+        ("Travaux & Aménagements initiaux", travaux_initiaux, "10 ans", dot_travaux_annuelle),
+        ("Mobilier & Équipements", valeur_mobilier, "7 ans", dot_mobilier_annuelle),
+        ("PRIX DE REVIENT TOTAL", total_revient, "—", dot_const_annuelle + dot_notaire_annuelle + dot_travaux_annuelle + dot_mobilier_annuelle),
+    ];
+
+    for (idx, (label, base, duree, dot)) in rows_data.into_iter().enumerate() {
+        let r = (idx + 3) as u32;
+        sheet1.write(r, 0, label).map_err(|e| e.to_string())?;
+        sheet1.write_with_format(r, 1, base, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet1.write(r, 2, duree).map_err(|e| e.to_string())?;
+        sheet1.write_with_format(r, 3, dot, &currency_fmt).map_err(|e| e.to_string())?;
+    }
+
+    sheet1.autofit();
+
+    // ── Feuille 2 : Échéancier 30 Ans ──
+    let sheet2 = workbook.add_worksheet();
+    sheet2.set_name("Échéancier 30 Ans").map_err(|e| e.to_string())?;
+
+    sheet2.write_with_format(0, 0, "ÉCHÉANCIER DÉTAILLÉ DE L'AMORTISSEMENT SUR 30 ANS", &title_fmt).map_err(|e| e.to_string())?;
+
+    let headers = vec![
+        "Année", "Amort. Construction (€)", "Amort. Notaire (€)", "Amort. Travaux (€)",
+        "Amort. Mobilier (€)", "Amort. Total Annuel (€)", "Amortissements Cumulés (€)", "VNC Restante (€)"
+    ];
+
+    for (col, h) in headers.into_iter().enumerate() {
+        sheet2.write_with_format(2, col as u16, h, &header_fmt).map_err(|e| e.to_string())?;
+    }
+
+    let mut cumul: f64 = 0.0;
+    let mut vnc: f64 = val_construction + frais_notaire + travaux_initiaux + valeur_mobilier;
+
+    for y in 1..=30 {
+        let r = (y + 2) as u32;
+        let const_a = dot_const_annuelle;
+        let notaire_a = if y <= duree_notaire { dot_notaire_annuelle } else { 0.0 };
+        let travaux_a = if y <= duree_travaux { dot_travaux_annuelle } else { 0.0 };
+        let mob_a = if y <= duree_mobilier { dot_mobilier_annuelle } else { 0.0 };
+
+        let total_an = const_a + notaire_a + travaux_a + mob_a;
+        cumul += total_an;
+        vnc = (vnc - total_an).max(0.0);
+
+        sheet2.write(r, 0, format!("Année {}", y)).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 1, const_a, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 2, notaire_a, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 3, travaux_a, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 4, mob_a, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 5, total_an, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 6, cumul, &currency_fmt).map_err(|e| e.to_string())?;
+        sheet2.write_with_format(r, 7, vnc, &currency_fmt).map_err(|e| e.to_string())?;
+    }
+
+    sheet2.autofit();
+
+    workbook.save(&file_path).map_err(|e| format!("Erreur écriture Tableau_Amortissement.xlsx: {}", e))?;
 
     Ok(())
 }

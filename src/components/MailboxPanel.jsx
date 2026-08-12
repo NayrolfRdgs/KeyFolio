@@ -77,7 +77,7 @@ Cordialement,
   },
 ]
 
-export default function MailboxPanel({ bienId, bienNom }) {
+export default function MailboxPanel({ bienId, bienNom, initialView = null, initialTemplate = null, initialBailId = null, initialRentAmount = null, recipientEmail = null }) {
   const [view, setView] = useState('inbox') // 'inbox' | 'compose' | 'config'
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [configSaved, setConfigSaved] = useState(false)
@@ -115,11 +115,41 @@ export default function MailboxPanel({ bienId, bienNom }) {
 
   // Maintenance creation state from email
   const [dispatchMsg, setDispatchMsg] = useState('')
+  const [loadingCompose, setLoadingCompose] = useState(false)
+  const [attachingFiles, setAttachingFiles] = useState(false)
+
+  const handleSwitchToCompose = async () => {
+    setView('compose')
+    if (bauxList.length === 0) {
+      setLoadingCompose(true)
+      try {
+        await loadBauxAndLocataires()
+      } finally {
+        setLoadingCompose(false)
+      }
+    }
+  }
 
   useEffect(() => {
     loadConfig()
     loadBauxAndLocataires()
   }, [bienId])
+
+  useEffect(() => {
+    if (initialView === 'compose' || initialTemplate || recipientEmail) {
+      setView('compose')
+      if (initialBailId) setSelectedBailId(initialBailId.toString())
+      if (recipientEmail) setComposeTo(recipientEmail)
+      if (initialTemplate) {
+        getBaux(bienId).then(bList => {
+          setBauxList(bList || [])
+          applyTemplate(initialTemplate, initialRentAmount, initialBailId, bList || [])
+        })
+      } else {
+        getBaux(bienId).then(bList => setBauxList(bList || []))
+      }
+    }
+  }, [initialView, initialTemplate, initialBailId, initialRentAmount, recipientEmail, bienId])
 
   const loadConfig = async () => {
     try {
@@ -237,40 +267,43 @@ export default function MailboxPanel({ bienId, bienNom }) {
     }
   }
 
-  const applyTemplate = (templateId) => {
+  const applyTemplate = (templateId, customRent = null, targetBailId = selectedBailId, currentBaux = bauxList) => {
     const tpl = EMAIL_TEMPLATES.find(t => t.id === templateId)
     if (!tpl) return
 
     let processedSubject = tpl.subject
     let processedBody = tpl.body
 
-    // Si un locataire est selectionné, pré-remplir les variables
-    if (selectedBailId) {
-      const activeBail = bauxList.find(b => b.id === parseInt(selectedBailId))
-      if (activeBail) {
-        const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-        const curMonth = months[new Date().getMonth()]
-        const curYear = new Date().getFullYear()
+    const activeBail = targetBailId ? currentBaux.find(b => b.id === parseInt(targetBailId)) : null
+    const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    const curMonth = months[new Date().getMonth()]
+    const curYear = new Date().getFullYear()
+    const todayStr = new Date().toLocaleDateString('fr-FR')
 
-        const tenantName = `${activeBail.locataire_prenom} ${activeBail.locataire_nom}`
-        const rentAmount = activeBail.loyer_mensuel || 0
-        const chargeAmount = activeBail.charges_mensuelles || 0
-        const totalAmount = rentAmount + chargeAmount
+    const tenantName = activeBail ? `${activeBail.locataire_prenom} ${activeBail.locataire_nom}` : '[LOCATAIRE]'
+    const rentAmount = customRent !== null ? customRent : (activeBail ? activeBail.loyer_mensuel : '[MONTANT]')
+    const chargeAmount = activeBail ? (activeBail.charges_mensuelles || 0) : '[CHARGES]'
+    const totalAmount = typeof rentAmount === 'number' && typeof chargeAmount === 'number' ? (rentAmount + chargeAmount) : '[TOTAL]'
 
-        processedSubject = processedSubject.replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
-        processedBody = processedBody
-          .replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
-          .replace(/\[MONTANT\]/g, rentAmount.toString())
-          .replace(/\[CHARGES\]/g, chargeAmount.toString())
-          .replace(/\[TOTAL\]/g, totalAmount.toString())
-          .replace(/\[LOCATAIRE\]/g, tenantName)
-          .replace(/\[BAILLEUR\]/g, "Le Propriétaire")
-      }
-    }
+    processedSubject = processedSubject.replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
+    processedBody = processedBody
+      .replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
+      .replace(/\[MONTANT\]/g, rentAmount.toString())
+      .replace(/\[NOUVEAU_MONTANT\]/g, rentAmount.toString())
+      .replace(/\[CHARGES\]/g, chargeAmount.toString())
+      .replace(/\[TOTAL\]/g, totalAmount.toString())
+      .replace(/\[DATE\]/g, todayStr)
+      .replace(/\[LOCATAIRE\]/g, tenantName)
+      .replace(/\[BAILLEUR\]/g, "Le Propriétaire")
 
     setComposeSubject(processedSubject)
     setComposeBody(processedBody)
     setSelectedTemplate(templateId)
+
+    if (activeBail) {
+      const email = activeBail.locataire_email || ''
+      if (email) setComposeTo(email)
+    }
   }
 
   const selectBail = (bailId) => {
@@ -353,21 +386,40 @@ export default function MailboxPanel({ bienId, bienNom }) {
     }
   }
 
-  const handleFileAttach = (e) => {
+  const handleFileAttach = async (e) => {
     const files = Array.from(e.target.files)
-    for (const file of files) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const base64Data = reader.result.split(',')[1]
-        setComposeAttachments(prev => [...prev, {
+    if (!files.length) return
+    setAttachingFiles(true)
+
+    try {
+      const newAttachments = []
+      for (const file of files) {
+        if (file.size > 20 * 1024 * 1024) {
+          alert(`Le fichier ${file.name} est trop volumineux (max 20Mo).`)
+          continue
+        }
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result.split(',')[1])
+          reader.onerror = (err) => reject(err)
+          reader.readAsDataURL(file)
+        })
+        newAttachments.push({
           filename: file.name,
           mime_type: file.type || 'application/octet-stream',
           base64_data: base64Data
-        }])
+        })
       }
-      reader.readAsDataURL(file)
+      if (newAttachments.length > 0) {
+        setComposeAttachments(prev => [...prev, ...newAttachments])
+      }
+    } catch (err) {
+      console.error('Erreur lecture fichier joint', err)
+      alert('Erreur lors du chargement du fichier joint.')
+    } finally {
+      setAttachingFiles(false)
+      e.target.value = ''
     }
-    e.target.value = ''
   }
 
   const removeAttachment = (index) => {
@@ -394,7 +446,7 @@ export default function MailboxPanel({ bienId, bienNom }) {
             </button>
           )}
           {configSaved && (
-            <button className={`btn btn-sm ${view === 'compose' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('compose')}>
+            <button className={`btn btn-sm ${view === 'compose' ? 'btn-primary' : 'btn-secondary'}`} onClick={handleSwitchToCompose}>
               ✏️ Composer
             </button>
           )}
@@ -775,98 +827,105 @@ export default function MailboxPanel({ bienId, bienNom }) {
       {/* View: Composer */}
       {view === 'compose' && (
         <div className="mailbox-body">
-          <div className="mailbox-compose-layout">
-            {/* Panneau Templates à gauche */}
-            <div className="mailbox-templates">
-              <h5 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-                Destinataire
-              </h5>
-              
-              <select 
-                className="form-control" 
-                value={selectedBailId} 
-                onChange={e => selectBail(e.target.value)}
-                style={{ marginBottom: 18 }}
-              >
-                <option value="">Sélectionner un locataire</option>
-                {bauxList.map(b => (
-                  <option key={b.id} value={b.id}>
-                    👤 {b.locataire_prenom} {b.locataire_nom} ({b.statut})
-                  </option>
-                ))}
-              </select>
-
-              <h5 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-                Modèles
-              </h5>
-              {EMAIL_TEMPLATES.map(t => (
-                <button
-                  key={t.id}
-                  className={`mailbox-template-btn ${selectedTemplate === t.id ? 'active' : ''}`}
-                  onClick={() => applyTemplate(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-              <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                <strong>Variables disponibles :</strong><br />
-                [MOIS] [MONTANT] [DATE] [BAILLEUR] [LOCATAIRE]
-              </div>
+          {loadingCompose ? (
+            <div className="empty-state" style={{ padding: 40 }}>
+              <div className="empty-state-icon">⏳</div>
+              <h3>Préparation de l'éditeur...</h3>
+              <p>Chargement des locataires et modèles de mails</p>
             </div>
+          ) : (
+            <div className="mailbox-compose-layout">
+              {/* Panneau Templates à gauche */}
+              <div className="mailbox-templates">
+                <h5 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                  Destinataire
+                </h5>
+                
+                <select 
+                  className="form-control" 
+                  value={selectedBailId} 
+                  onChange={e => selectBail(e.target.value)}
+                  style={{ marginBottom: 18 }}
+                >
+                  <option value="">Sélectionner un locataire</option>
+                  {bauxList.map(b => (
+                    <option key={b.id} value={b.id}>
+                      👤 {b.locataire_prenom} {b.locataire_nom} ({b.statut})
+                    </option>
+                  ))}
+                </select>
 
-            {/* Formulaire de composition */}
-            <form onSubmit={handleSendEmail} className="mailbox-compose-form">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>De :</span>
-                <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{config.email_adresse || 'Non configuré'}</span>
+                <h5 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                  Modèles
+                </h5>
+                {EMAIL_TEMPLATES.map(t => (
+                  <button
+                    key={t.id}
+                    className={`mailbox-template-btn ${selectedTemplate === t.id ? 'active' : ''}`}
+                    onClick={() => applyTemplate(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+                <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  <strong>Variables disponibles :</strong><br />
+                  [MOIS] [MONTANT] [DATE] [BAILLEUR] [LOCATAIRE]
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>À :</label>
-                <input className="form-control" type="email" required
-                  value={composeTo} onChange={e => setComposeTo(e.target.value)}
-                  placeholder="destinataire@email.com" />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>Objet :</label>
-                <input className="form-control" required
-                  value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
-                  placeholder="Sujet de l'email" />
-              </div>
-              <textarea
-                className="form-control mailbox-compose-textarea"
-                required
-                value={composeBody}
-                onChange={e => setComposeBody(e.target.value)}
-                placeholder="Rédigez votre message ici ou sélectionnez un modèle à gauche..."
-              />
 
-              {/* Pièces jointes à envoyer */}
-              <div style={{ marginTop: 10, marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0, padding: '4px 10px', fontSize: 12 }}>
-                    📎 Joindre des fichiers (Images, PDF, Documents...)
-                    <input type="file" multiple onChange={handleFileAttach} style={{ display: 'none' }} />
-                  </label>
+              {/* Formulaire de composition */}
+              <form onSubmit={handleSendEmail} className="mailbox-compose-form">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>De :</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{config.email_adresse || 'Non configuré'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>À :</label>
+                  <input className="form-control" type="email" required
+                    value={composeTo} onChange={e => setComposeTo(e.target.value)}
+                    placeholder="destinataire@email.com" />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 50 }}>Objet :</label>
+                  <input className="form-control" required
+                    value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
+                    placeholder="Sujet de l'email" />
+                </div>
+                <textarea
+                  className="form-control mailbox-compose-textarea"
+                  required
+                  value={composeBody}
+                  onChange={e => setComposeBody(e.target.value)}
+                  placeholder="Rédigez votre message ici ou sélectionnez un modèle à gauche..."
+                />
+
+                {/* Pièces jointes à envoyer */}
+                <div style={{ marginTop: 10, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0, padding: '4px 10px', fontSize: 12 }}>
+                      {attachingFiles ? '🔄 Traitement du fichier...' : '📎 Joindre des fichiers (Images, PDF, Documents...)'}
+                      <input type="file" multiple disabled={attachingFiles} onChange={handleFileAttach} style={{ display: 'none' }} />
+                    </label>
+                    {composeAttachments.length > 0 && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {composeAttachments.length} fichier(s) joint(s)
+                      </span>
+                    )}
+                  </div>
+
                   {composeAttachments.length > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {composeAttachments.length} fichier(s) joint(s)
-                    </span>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {composeAttachments.map((att, idx) => (
+                        <span key={idx} className="badge badge-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', fontSize: 11 }}>
+                          {att.filename}
+                          <button type="button" onClick={() => removeAttachment(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-danger)' }}>
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                {composeAttachments.length > 0 && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {composeAttachments.map((att, idx) => (
-                      <span key={idx} className="badge badge-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', fontSize: 11 }}>
-                        {att.filename}
-                        <button type="button" onClick={() => removeAttachment(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-danger)' }}>
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12 }}>
                 <button type="submit" className="btn btn-primary" disabled={sending || !config.email_adresse}>
@@ -886,6 +945,7 @@ export default function MailboxPanel({ bienId, bienNom }) {
               )}
             </form>
           </div>
+          )}
         </div>
       )}
     </div>

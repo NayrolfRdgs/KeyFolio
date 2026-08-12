@@ -2,6 +2,9 @@ use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 use tauri::Manager;
 
+#[allow(dead_code)]
+pub const FCS_STUDIO_MARKER: &str = "FlowCreativeStudio::Flow";
+
 pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "00_ACHAT-VENTE/Annonce - Photos",
     "00_ACHAT-VENTE/Plans",
@@ -237,6 +240,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             created_at TEXT    DEFAULT (datetime('now'))
         );
 
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bien_champs_libres_cle ON bien_champs_libres(bien_id, cle);
+
         CREATE TABLE IF NOT EXISTS bien_email_config (
             bien_id        INTEGER PRIMARY KEY REFERENCES biens(id) ON DELETE CASCADE,
             email_adresse  TEXT    NOT NULL,
@@ -246,6 +251,22 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             smtp_port      INTEGER,
             use_ssl        INTEGER DEFAULT 1,
             created_at     TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS candidatures (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            bien_id            INTEGER REFERENCES biens(id) ON DELETE CASCADE,
+            nom                TEXT    NOT NULL,
+            prenom             TEXT    NOT NULL,
+            email              TEXT,
+            telephone          TEXT,
+            revenus_mensuels   REAL,
+            statut             TEXT    CHECK(statut IN ('nouveau','retenu','refuse','converti')) DEFAULT 'nouveau',
+            garant_nom         TEXT,
+            garant_contact     TEXT,
+            notes              TEXT,
+            fichier_dossier    TEXT,
+            created_at         TEXT    DEFAULT (datetime('now'))
         );
 
         COMMIT;

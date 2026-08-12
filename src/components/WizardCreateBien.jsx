@@ -176,9 +176,16 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
             <div className="form-group">
               <label>Type de bien</label>
               <select className="form-control" value={bien.type_bien} onChange={e => setBien({ ...bien, type_bien: e.target.value })}>
-                <option value="location">Appartement / Maison en location</option>
-                <option value="residence_principale">Résidence principale</option>
-                <option value="secondaire">Résidence secondaire</option>
+                <option value="Maison">Maison</option>
+                <option value="Appartement">Appartement</option>
+                <option value="Studio">Studio</option>
+                <option value="Villa">Villa</option>
+                <option value="Immeuble de rapport">Immeuble de rapport</option>
+                <option value="Garage / Parking">Garage / Parking</option>
+                <option value="Local commercial">Local commercial</option>
+                <option value="Bureau">Bureau</option>
+                <option value="Terrain">Terrain</option>
+                <option value="Autre">Autre</option>
               </select>
             </div>
             <div className="form-group">

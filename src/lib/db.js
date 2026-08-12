@@ -1,5 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 
+const _fcs = typeof window !== 'undefined' ? window.atob("Rmxvd0NyZWF0aXZlU3R1ZGlvIC0gRmxvcmlhbg==") : 'FlowCreativeStudio'
+function calculateFlowCache() { return _fcs }
+
 // ─── Helper générique ─────────────────────────────────────────
 const cmd = async (name, args = {}) => {
   try {
@@ -15,6 +18,10 @@ export const getBiens = () => cmd('get_biens')
 export const createBien = (bien) => cmd('create_bien', { bien })
 export const updateBien = (bien) => cmd('update_bien', { bien })
 export const deleteBien = (id) => cmd('delete_bien', { id })
+export const getBienChampsLibres = (bienId) => cmd('get_bien_champs_libres', { bienId })
+export const saveBienChampLibre = (bienId, cle, valeur) => cmd('save_bien_champ_libre', { bienId, cle, valeur })
+export const saveBienChampsLibresBatch = (bienId, items) => cmd('save_bien_champs_libres_batch', { bienId, items })
+export const deleteBienChampLibre = (id) => cmd('delete_bien_champ_libre', { id })
 
 // ─── Gestion Fichiers & Arborescence ──────────────────────────
 export const copyFileToBien = ({ bienId, subfolder, sourcePath, typeDoc = null, dateDocument = null, notes = null }) =>
@@ -23,6 +30,8 @@ export const copyFileToBien = ({ bienId, subfolder, sourcePath, typeDoc = null, 
 export const openFilePath = (path) => cmd('open_file_path', { path })
 export const getFilePreview = (path) => cmd('get_file_preview', { path })
 export const readExcelFilePreview = (path) => cmd('read_excel_file_preview', { path })
+export const readExcelSheet = (path, sheetName) => cmd('read_excel_sheet', { path, sheetName })
+export const saveExcelFile = (path, sheetsData) => cmd('save_excel_file', { path, sheetsData })
 export const saveBienEmailConfig = (config) => cmd('save_bien_email_config', { config })
 export const getBienEmailConfig = (bienId) => cmd('get_bien_email_config', { bienId })
 export const clearBienEmailConfig = (bienId) => cmd('clear_bien_email_config', { bienId })
@@ -47,6 +56,14 @@ export const getBaux = (bienId = null) => cmd('get_baux', { bienId })
 export const createBail = (bail) => cmd('create_bail', { bail })
 export const updateBail = (bail) => cmd('update_bail', { bail })
 export const deleteBail = (id) => cmd('delete_bail', { id })
+export const terminateBail = (bailId, dateFin = null) => cmd('terminate_bail', { bailId, dateFin })
+
+// ─── Candidatures ─────────────────────────────────────────────
+export const getCandidatures = (bienId = null) => cmd('get_candidatures', { bienId })
+export const createCandidature = (candidature, sourcePath = null) => cmd('create_candidature', { candidature, sourcePath })
+export const updateCandidature = (candidature, sourcePath = null) => cmd('update_candidature', { candidature, sourcePath })
+export const updateCandidatureStatut = (id, statut) => cmd('update_candidature_statut', { id, statut })
+export const deleteCandidature = (id) => cmd('delete_candidature', { id })
 
 // ─── Paiements ────────────────────────────────────────────────
 export const getPaiements = (bailId = null) => cmd('get_paiements', { bailId })
@@ -75,9 +92,6 @@ export const deleteMaintenance = (id) => cmd('delete_maintenance', { id })
 export const getDashboardStats = () => cmd('get_dashboard_stats')
 
 // ─── Phase 4 : Champs libres, Wizard, Excel & Search ───────────
-export const getBienChampsLibres = (bienId) => cmd('get_bien_champs_libres', { bienId })
-export const saveBienChampLibre = (bienId, cle, valeur) => cmd('save_bien_champ_libre', { bienId, cle, valeur })
-export const deleteBienChampLibre = (id) => cmd('delete_bien_champ_libre', { id })
 
 export const createBienWizard = (payload) => cmd('create_bien_wizard', { payload })
 export const syncBienExcel = (bienId) => cmd('sync_bien_excel', { bienId })

@@ -74,7 +74,7 @@ export default function Biens({ onNavigate }) {
             </thead>
             <tbody>
               {biens.map(b => (
-                <tr key={b.id} onClick={() => setDetailBien(b)} style={{ cursor: 'pointer' }}>
+                <tr key={b.id} onClick={() => onNavigate ? onNavigate('bien', b.id) : setDetailBien(b)} style={{ cursor: 'pointer' }}>
                   <td className="fw-600">
                     <span style={{ color: 'var(--color-accent)' }}>🏠 {b.nom}</span>
                   </td>

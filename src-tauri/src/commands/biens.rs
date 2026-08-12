@@ -1,6 +1,7 @@
 use rusqlite::params;
 use tauri::State;
 use calamine::{Reader, Xlsx};
+use rust_xlsxwriter::Workbook as XlsxWorkbook;
 use base64::Engine;
 use crate::AppState;
 use crate::models::*;
@@ -50,13 +51,25 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 
     bien.chemin_dossier = Some(chemin_dossier.clone());
 
+    let safe_type_bien = match bien.type_bien.as_deref() {
+        Some("residence_principale") => "residence_principale",
+        Some("secondaire") => "secondaire",
+        _ => "location",
+    };
+
+    let safe_statut = match bien.statut.as_deref() {
+        Some("en_vente") => "en_vente",
+        Some("vendu") => "vendu",
+        _ => "en_cours",
+    };
+
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO biens (nom, adresse, type_bien, statut, chemin_dossier, email_dedie,
                             date_acquisition, surface_m2, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
-            bien.nom, bien.adresse, bien.type_bien, bien.statut,
+            bien.nom, bien.adresse, safe_type_bien, safe_statut,
             bien.chemin_dossier, bien.email_dedie, bien.date_acquisition,
             bien.surface_m2, bien.notes
         ],
@@ -75,6 +88,18 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 
 #[tauri::command]
 pub fn update_bien(state: State<AppState>, bien: Bien) -> Result<(), String> {
+    let safe_type_bien = match bien.type_bien.as_deref() {
+        Some("residence_principale") => "residence_principale",
+        Some("secondaire") => "secondaire",
+        _ => "location",
+    };
+
+    let safe_statut = match bien.statut.as_deref() {
+        Some("en_vente") => "en_vente",
+        Some("vendu") => "vendu",
+        _ => "en_cours",
+    };
+
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "UPDATE biens SET nom=?1, adresse=?2, type_bien=?3, statut=?4,
@@ -82,7 +107,7 @@ pub fn update_bien(state: State<AppState>, bien: Bien) -> Result<(), String> {
                           surface_m2=?8, notes=?9
          WHERE id=?10",
         params![
-            bien.nom, bien.adresse, bien.type_bien, bien.statut,
+            bien.nom, bien.adresse, safe_type_bien, safe_statut,
             bien.chemin_dossier, bien.email_dedie, bien.date_acquisition,
             bien.surface_m2, bien.notes, bien.id
         ],
@@ -108,7 +133,7 @@ pub fn copy_file_to_bien(
     type_doc: Option<String>,
     date_document: Option<String>,
     notes: Option<String>,
-) -> Result<i64, String> {
+) -> Result<String, String> {
     let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
@@ -164,7 +189,7 @@ pub fn copy_file_to_bien(
         params![bien_id, final_type, clean_subfolder, relative_file_path, date_document, notes],
     ).map_err(|e| e.to_string())?;
 
-    Ok(db.last_insert_rowid())
+    Ok(relative_file_path)
 }
 
 #[tauri::command]
@@ -178,6 +203,20 @@ pub fn open_file_path(app: tauri::AppHandle, path: String) -> Result<(), String>
 
     if !target.exists() {
         return Err(format!("Fichier non trouvé sur le disque: {}", target.display()));
+    }
+
+    if let Some(ext) = target.extension() {
+        if ext.to_string_lossy().eq_ignore_ascii_case("url") {
+            if let Ok(content) = std::fs::read_to_string(&target) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.to_lowercase().starts_with("url=") {
+                        let url = trimmed[4..].trim().to_string();
+                        return crate::commands::mail::open_external_url(url);
+                    }
+                }
+            }
+        }
     }
 
     #[cfg(target_os = "windows")]
@@ -247,6 +286,138 @@ pub fn read_excel_file_preview(app: tauri::AppHandle, path: String) -> Result<Ex
 }
 
 #[tauri::command]
+pub fn read_excel_sheet(app: tauri::AppHandle, path: String, sheet_name: String) -> Result<ExcelSheetFullPreview, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let target = if std::path::Path::new(&path).is_absolute() {
+        std::path::PathBuf::from(&path)
+    } else {
+        base_dir.join(&path)
+    };
+
+    if !target.exists() {
+        return Err(format!("Fichier non trouvé: {}", target.display()));
+    }
+
+    let ext = target.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+
+    if ext == "csv" {
+        let content = std::fs::read_to_string(&target).map_err(|e| format!("Lecture CSV impossible: {}", e))?;
+        let rows: Vec<Vec<String>> = content
+            .lines()
+            .map(|line| line.split(';').map(str::to_string).collect())
+            .collect();
+        let total_rows = rows.len();
+        let total_cols = rows.first().map(|r| r.len()).unwrap_or(0);
+        return Ok(ExcelSheetFullPreview {
+            rows,
+            sheet_name: "CSV".to_string(),
+            sheet_names: vec!["CSV".to_string()],
+            total_rows,
+            total_cols,
+        });
+    }
+
+    let mut workbook = calamine::open_workbook::<Xlsx<_>, _>(&target)
+        .map_err(|e| format!("Lecture du fichier Excel impossible: {}", e))?;
+
+    let all_sheet_names = workbook.sheet_names().to_vec();
+    let target_sheet = if all_sheet_names.contains(&sheet_name) {
+        sheet_name.clone()
+    } else {
+        all_sheet_names.first().cloned().unwrap_or_else(|| "Feuil1".to_string())
+    };
+
+    let range = workbook
+        .worksheet_range(&target_sheet)
+        .map_err(|e| format!("Lecture de la feuille '{}' impossible: {}", target_sheet, e))?;
+
+    let total_rows = range.height();
+    let total_cols = range.width();
+
+    let rows: Vec<Vec<String>> = range
+        .rows()
+        .map(|row| {
+            row.iter()
+                .map(|cell| cell.to_string())
+                .collect()
+        })
+        .collect();
+
+    Ok(ExcelSheetFullPreview {
+        rows,
+        sheet_name: target_sheet,
+        sheet_names: all_sheet_names,
+        total_rows,
+        total_cols,
+    })
+}
+
+#[tauri::command]
+pub fn save_excel_file(app: tauri::AppHandle, path: String, sheets_data: Vec<SheetSaveData>) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let target = if std::path::Path::new(&path).is_absolute() {
+        std::path::PathBuf::from(&path)
+    } else {
+        base_dir.join(&path)
+    };
+
+    if !target.exists() {
+        return Err(format!("Fichier non trouvé: {}", target.display()));
+    }
+
+    // Create backup
+    let backup_path = target.with_extension("xlsx.bak");
+    std::fs::copy(&target, &backup_path)
+        .map_err(|e| format!("Impossible de créer la sauvegarde: {}", e))?;
+
+    // Write new file using rust_xlsxwriter
+    let mut workbook = XlsxWorkbook::new();
+
+    for sheet_data in &sheets_data {
+        let worksheet = workbook.add_worksheet();
+        worksheet.set_name(&sheet_data.sheet_name)
+            .map_err(|e| format!("Erreur nom de feuille: {}", e))?;
+
+        // Header format (bold, background)
+        let header_format = rust_xlsxwriter::Format::new()
+            .set_bold()
+            .set_background_color(rust_xlsxwriter::Color::RGB(0xD9E1F2))
+            .set_border(rust_xlsxwriter::FormatBorder::Thin);
+
+        let cell_format = rust_xlsxwriter::Format::new()
+            .set_border(rust_xlsxwriter::FormatBorder::Thin);
+
+        for (row_idx, row) in sheet_data.rows.iter().enumerate() {
+            for (col_idx, cell_value) in row.iter().enumerate() {
+                let fmt = if row_idx == 0 { &header_format } else { &cell_format };
+
+                // Try to parse as number
+                if let Ok(num) = cell_value.parse::<f64>() {
+                    worksheet.write_number_with_format(
+                        row_idx as u32,
+                        col_idx as u16,
+                        num,
+                        fmt,
+                    ).map_err(|e| format!("Erreur écriture cellule: {}", e))?;
+                } else {
+                    worksheet.write_string_with_format(
+                        row_idx as u32,
+                        col_idx as u16,
+                        cell_value,
+                        fmt,
+                    ).map_err(|e| format!("Erreur écriture cellule: {}", e))?;
+                }
+            }
+        }
+    }
+
+    workbook.save(&target)
+        .map_err(|e| format!("Impossible de sauvegarder le fichier Excel: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_file_preview(app: tauri::AppHandle, path: String) -> Result<FilePreviewData, String> {
     use base64::Engine;
 
@@ -271,7 +442,7 @@ pub fn get_file_preview(app: tauri::AppHandle, path: String) -> Result<FilePrevi
         "webp" => "image/webp",
         "gif" => "image/gif",
         "svg" => "image/svg+xml",
-        "txt" | "md" | "csv" | "json" | "log" => "text/plain",
+        "txt" | "md" | "csv" | "json" | "log" | "url" => "text/plain",
         _ => "application/octet-stream",
     };
 
@@ -463,15 +634,34 @@ pub fn list_bien_files(app: tauri::AppHandle, state: State<AppState>, bien_id: i
         .map_err(|e| e.to_string())?;
 
     let mut result = Vec::new();
+    let mut scanned_paths = std::collections::HashSet::new();
 
-    for sub in crate::db::DEFAULT_FOLDER_HIERARCHY {
-        let sub_dir = bien_abs_dir.join(sub);
-        if let Ok(entries) = std::fs::read_dir(&sub_dir) {
+    fn scan_dir(
+        dir: &std::path::Path,
+        bien_abs_dir: &std::path::Path,
+        bien_rel_path: &str,
+        db_docs: &[(i64, Option<String>, Option<String>, String, Option<String>, Option<String>)],
+        result: &mut Vec<BienFileItem>,
+        scanned_paths: &mut std::collections::HashSet<String>,
+    ) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() {
+                if path.is_dir() {
+                    scan_dir(&path, bien_abs_dir, bien_rel_path, db_docs, result, scanned_paths);
+                } else if path.is_file() {
+                    let absolute_path = path.to_string_lossy().to_string();
+                    if scanned_paths.contains(&absolute_path) {
+                        continue;
+                    }
+                    scanned_paths.insert(absolute_path.clone());
+
                     let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                    let relative_file_path = format!("{}/{}/{}", bien_rel_path, sub, filename);
+                    let rel_sub = path.strip_prefix(bien_abs_dir)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    let relative_file_path = format!("{}/{}", bien_rel_path, rel_sub);
 
                     let metadata = entry.metadata().ok();
                     let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
@@ -481,13 +671,17 @@ pub fn list_bien_files(app: tauri::AppHandle, state: State<AppState>, bien_id: i
                         .unwrap_or_default();
 
                     let matched_doc = db_docs.iter().find(|d| d.3 == relative_file_path || d.3.ends_with(&filename));
+                    let subfolder = std::path::Path::new(&rel_sub)
+                        .parent()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default();
 
                     result.push(BienFileItem {
                         doc_id: matched_doc.map(|d| d.0),
                         filename,
                         relative_path: relative_file_path,
-                        absolute_path: path.to_string_lossy().to_string(),
-                        subfolder: sub.to_string(),
+                        absolute_path,
+                        subfolder,
                         size_bytes,
                         modified_at,
                         type_doc: matched_doc.and_then(|d| d.1.clone()),
@@ -498,6 +692,8 @@ pub fn list_bien_files(app: tauri::AppHandle, state: State<AppState>, bien_id: i
             }
         }
     }
+
+    scan_dir(&bien_abs_dir, &bien_abs_dir, &bien_rel_path, &db_docs, &mut result, &mut scanned_paths);
 
     Ok(result)
 }
@@ -618,6 +814,18 @@ pub fn move_file_to_subfolder(
         counter += 1;
     }
 
+    if old_abs_path.is_dir() {
+        std::fs::rename(&old_abs_path, &new_abs_path).map_err(|e| format!("Impossible de déplacer le dossier: {}", e))?;
+        let new_relative_path = format!("{}/{}/{}", chemin_dossier, target_subfolder, actual_filename);
+        let old_prefix = format!("{}/", source_relative_path);
+        let new_prefix = format!("{}/", new_relative_path);
+        db.execute(
+            "UPDATE documents SET chemin_fichier = ?1 || SUBSTR(chemin_fichier, LENGTH(?2) + 1), sous_categorie = ?3 WHERE chemin_fichier LIKE ?2 || '%'",
+            rusqlite::params![new_prefix, old_prefix, target_subfolder],
+        ).ok();
+        return Ok(new_relative_path);
+    }
+
     if let Err(_e) = std::fs::rename(&old_abs_path, &new_abs_path) {
         std::fs::copy(&old_abs_path, &new_abs_path).map_err(|e| format!("Impossible de copier le fichier: {}", e))?;
         std::fs::remove_file(&old_abs_path).map_err(|e| format!("Impossible de supprimer l'ancien fichier: {}", e))?;
@@ -731,9 +939,38 @@ pub fn save_bien_champ_libre(app: tauri::AppHandle, state: State<AppState>, bien
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
     db.execute(
-        "INSERT INTO bien_champs_libres (bien_id, cle, valeur) VALUES (?1, ?2, ?3)",
+        "INSERT INTO bien_champs_libres (bien_id, cle, valeur) VALUES (?1, ?2, ?3)
+         ON CONFLICT(bien_id, cle) DO UPDATE SET valeur = excluded.valeur",
         params![bien_id, cle, valeur],
     ).map_err(|e| e.to_string())?;
+
+    crate::excel::sync_all_property_excels(&db, &base_dir, bien_id).ok();
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_bien_champs_libres_batch(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bien_id: i64,
+    items: Vec<BienChampLibreItem>,
+) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let mut db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+    {
+        let mut stmt = tx.prepare(
+            "INSERT INTO bien_champs_libres (bien_id, cle, valeur) VALUES (?1, ?2, ?3)
+             ON CONFLICT(bien_id, cle) DO UPDATE SET valeur = excluded.valeur"
+        ).map_err(|e| e.to_string())?;
+
+        for item in items {
+            stmt.execute(params![bien_id, item.cle, item.valeur]).map_err(|e| e.to_string())?;
+        }
+    }
+    tx.commit().map_err(|e| e.to_string())?;
 
     crate::excel::sync_all_property_excels(&db, &base_dir, bien_id).ok();
 
@@ -767,11 +1004,17 @@ pub fn create_bien_wizard(app: tauri::AppHandle, state: State<AppState>, payload
         .map_err(|e| format!("Erreur création arborescence: {}", e))?;
     bien.chemin_dossier = Some(rel_path.clone());
 
+    let safe_type_bien = match bien.type_bien.as_deref() {
+        Some("residence_principale") => "residence_principale",
+        Some("secondaire") => "secondaire",
+        _ => "location",
+    };
+
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO biens (nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![bien.nom, bien.adresse, bien.type_bien, bien.statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes],
+        params![bien.nom, bien.adresse, safe_type_bien, bien.statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes],
     ).map_err(|e| format!("Erreur insertion bien: {}", e))?;
 
     let bien_id = db.last_insert_rowid();
