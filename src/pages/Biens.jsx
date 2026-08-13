@@ -33,8 +33,28 @@ export default function Biens({ onNavigate }) {
     }
   }
 
-  const statutLabel = (s) => ({ en_cours: 'En cours', en_vente: 'En vente', vendu: 'Vendu' }[s] || s)
-  const statutBadge = (s) => ({ en_cours: 'badge-success', en_vente: 'badge-warning', vendu: 'badge-muted' }[s] || 'badge-muted')
+  const statutLabel = (s) => {
+    if (!s) return '—'
+    const lower = String(s).toLowerCase()
+    if (lower.includes('principale')) return 'Résidence principale'
+    if (lower.includes('secondaire')) return 'Résidence secondaire'
+    if (lower === 'en_cours' || lower === 'loue') return 'Loué'
+    if (lower === 'en_vente') return 'En vente'
+    if (lower === 'vendu') return 'Vendu'
+    if (lower === 'vacant') return 'Vacant'
+    return s
+  }
+
+  const statutBadge = (s) => {
+    if (!s) return 'badge-muted'
+    const lower = String(s).toLowerCase()
+    if (lower.includes('principale')) return 'badge-info'
+    if (lower.includes('secondaire')) return 'badge-purple'
+    if (lower === 'en_cours' || lower === 'loue') return 'badge-success'
+    if (lower === 'en_vente') return 'badge-warning'
+    if (lower === 'vacant') return 'badge-danger'
+    return 'badge-muted'
+  }
 
   return (
     <div className="page-content">

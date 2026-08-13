@@ -434,6 +434,7 @@ html, body, #root {
 .badge-warning { background: var(--color-warning-dim); color: var(--color-warning); }
 .badge-danger  { background: var(--color-danger-dim);  color: var(--color-danger);  }
 .badge-info    { background: var(--color-info-dim);    color: var(--color-info);    }
+.badge-purple  { background: rgba(147, 51, 234, 0.15); color: #a855f7; }
 .badge-muted   { background: var(--color-surface-2);   color: var(--text-secondary); border: 1px solid var(--color-border); }
 .badge-accent  { background: var(--color-accent-dim); color: var(--color-accent); }
 
@@ -998,13 +999,13 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 13px 16px;
+  padding: 12px 18px;
   border: none;
   background: transparent;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
@@ -1015,7 +1016,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .bien-tab-btn.active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 .tab-badge {
   display: inline-flex;
@@ -2202,21 +2203,40 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   flex-direction: column;
   align-items: center;
   text-align: center;
+  padding: 8px 6px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.amenity-item:hover {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 .amenity-icon {
-  font-size: 16px;
+  font-size: 18px;
   margin-bottom: 2px;
 }
 .amenity-label {
   font-size: 10px;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
 }
 .amenity-item strong {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-primary);
   font-weight: 700;
   margin-top: 2px;
+}
+.amenity-route-hint {
+  font-size: 9px;
+  color: var(--color-accent);
+  font-weight: 600;
+  margin-top: 3px;
+  opacity: 0.85;
 }
 
 .copro-horizontal-grid {

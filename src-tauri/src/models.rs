@@ -1,4 +1,47 @@
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
+
+pub fn deserialize_flexible_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum F64OrString {
+        F64(f64),
+        String(String),
+    }
+
+    match F64OrString::deserialize(deserializer)? {
+        F64OrString::F64(v) => Ok(v),
+        F64OrString::String(s) => s.trim().parse::<f64>().map_err(de::Error::custom),
+    }
+}
+
+pub fn deserialize_flexible_opt_f64<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OptF64OrString {
+        F64(f64),
+        String(String),
+        None,
+    }
+
+    match Option::<OptF64OrString>::deserialize(deserializer)? {
+        Some(OptF64OrString::F64(v)) => Ok(Some(v)),
+        Some(OptF64OrString::String(s)) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                trimmed.parse::<f64>().map(Some).map_err(de::Error::custom)
+            }
+        }
+        Some(OptF64OrString::None) | None => Ok(None),
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Bien {
@@ -10,6 +53,7 @@ pub struct Bien {
     pub chemin_dossier: Option<String>,
     pub email_dedie: Option<String>,
     pub date_acquisition: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
     pub surface_m2: Option<f64>,
     pub notes: Option<String>,
     pub created_at: Option<String>,
@@ -62,9 +106,13 @@ pub struct Locataire {
     pub prenom: String,
     pub telephone: Option<String>,
     pub email: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub revenus_mensuels: Option<f64>,
+    pub profession: Option<String>,
     pub garant_nom: Option<String>,
     pub garant_contact: Option<String>,
     pub notes: Option<String>,
+    pub fichier_dossier: Option<String>,
     pub created_at: Option<String>,
     pub bien_id: Option<i64>,
     pub bien_nom: Option<String>,
@@ -77,14 +125,19 @@ pub struct Bail {
     pub locataire_id: i64,
     pub date_debut: String,
     pub date_fin: Option<String>,
+    #[serde(deserialize_with = "deserialize_flexible_f64")]
     pub loyer_mensuel: f64,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
     pub charges_mensuelles: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
     pub depot_garantie: Option<f64>,
     pub statut_garantie: Option<String>,
     pub fichier_caution: Option<String>,
     pub jour_paiement: Option<i64>,
     pub statut: Option<String>,
     pub fichier_bail: Option<String>,
+    pub motif_fin: Option<String>,
+    pub notes_fin: Option<String>,
     pub created_at: Option<String>,
     pub bien_nom: Option<String>,
     pub locataire_nom: Option<String>,
@@ -233,6 +286,7 @@ pub struct WizardPayload {
     pub locataire: Option<Locataire>,
     pub bail: Option<Bail>,
     pub documents: Vec<WizardInitialDoc>,
+    pub champs_libres: Option<Vec<BienChampLibreItem>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -279,6 +333,7 @@ pub struct Candidature {
     pub email: Option<String>,
     pub telephone: Option<String>,
     pub revenus_mensuels: Option<f64>,
+    pub profession: Option<String>,
     pub statut: Option<String>,
     pub garant_nom: Option<String>,
     pub garant_contact: Option<String>,

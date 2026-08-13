@@ -7,7 +7,9 @@ use crate::models::*;
 pub fn get_locataires(state: State<AppState>) -> Result<Vec<Locataire>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db.prepare(
-        "SELECT l.id, l.nom, l.prenom, l.telephone, l.email, l.garant_nom, l.garant_contact, l.notes, l.created_at, b.bien_id, bi.nom as bien_nom
+        "SELECT l.id, l.nom, l.prenom, l.telephone, l.email, l.revenus_mensuels, l.profession,
+                l.garant_nom, l.garant_contact, l.notes, l.fichier_dossier, l.created_at,
+                b.bien_id, bi.nom as bien_nom
          FROM locataires l
          LEFT JOIN baux b ON b.locataire_id = l.id AND b.statut = 'actif'
          LEFT JOIN biens bi ON bi.id = b.bien_id
@@ -21,12 +23,15 @@ pub fn get_locataires(state: State<AppState>) -> Result<Vec<Locataire>, String> 
             prenom: row.get(2)?,
             telephone: row.get(3)?,
             email: row.get(4)?,
-            garant_nom: row.get(5)?,
-            garant_contact: row.get(6)?,
-            notes: row.get(7)?,
-            created_at: row.get(8)?,
-            bien_id: row.get(9)?,
-            bien_nom: row.get(10)?,
+            revenus_mensuels: row.get(5)?,
+            profession: row.get(6)?,
+            garant_nom: row.get(7)?,
+            garant_contact: row.get(8)?,
+            notes: row.get(9)?,
+            fichier_dossier: row.get(10)?,
+            created_at: row.get(11)?,
+            bien_id: row.get(12)?,
+            bien_nom: row.get(13)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
@@ -36,29 +41,116 @@ pub fn get_locataires(state: State<AppState>) -> Result<Vec<Locataire>, String> 
 }
 
 #[tauri::command]
-pub fn create_locataire(state: State<AppState>, locataire: Locataire) -> Result<i64, String> {
+pub fn create_locataire(app: tauri::AppHandle, state: State<AppState>, mut locataire: Locataire, source_path: Option<String>) -> Result<i64, String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let b_id = locataire.bien_id;
+    if let (Some(target_bien_id), Some(src)) = (b_id, source_path) {
+        if !src.trim().is_empty() && std::path::Path::new(&src).is_absolute() {
+            let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+                "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+                params![target_bien_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            ).map_err(|e| format!("Bien introuvable: {}", e))?;
+
+            let bien_rel_path = match chemin_dossier {
+                Some(p) if !p.trim().is_empty() => p,
+                _ => {
+                    let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                        .map_err(|e| format!("Erreur dossier: {}", e))?;
+                    db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, target_bien_id]).ok();
+                    rel_path
+                }
+            };
+
+            let subfolder = "07_LOCATION/Locataires/Dossier candidature";
+            let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
+            std::fs::create_dir_all(&target_dir).ok();
+
+            let src_path = std::path::Path::new(&src);
+            if let Some(fname) = src_path.file_name() {
+                let target_file = target_dir.join(fname);
+                if std::fs::copy(&src_path, &target_file).is_ok() {
+                    let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, fname.to_string_lossy());
+                    locataire.fichier_dossier = Some(rel_file.clone());
+
+                    db.execute(
+                        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+                         VALUES (?1, 'autre', ?2, ?3, date('now'), ?4)",
+                        params![target_bien_id, subfolder, rel_file, format!("Dossier locataire - {} {}", locataire.prenom, locataire.nom)],
+                    ).ok();
+                }
+            }
+        }
+    }
+
     db.execute(
-        "INSERT INTO locataires (nom, prenom, telephone, email, garant_nom, garant_contact, notes)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO locataires (nom, prenom, telephone, email, revenus_mensuels, profession, garant_nom, garant_contact, notes, fichier_dossier)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             locataire.nom, locataire.prenom, locataire.telephone, locataire.email,
-            locataire.garant_nom, locataire.garant_contact, locataire.notes
+            locataire.revenus_mensuels, locataire.profession,
+            locataire.garant_nom, locataire.garant_contact, locataire.notes, locataire.fichier_dossier
         ],
     ).map_err(|e| e.to_string())?;
     Ok(db.last_insert_rowid())
 }
 
 #[tauri::command]
-pub fn update_locataire(state: State<AppState>, locataire: Locataire) -> Result<(), String> {
+pub fn update_locataire(app: tauri::AppHandle, state: State<AppState>, mut locataire: Locataire, source_path: Option<String>) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let b_id = locataire.bien_id;
+    if let (Some(target_bien_id), Some(src)) = (b_id, source_path) {
+        if !src.trim().is_empty() && std::path::Path::new(&src).is_absolute() {
+            let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+                "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+                params![target_bien_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            ).map_err(|e| format!("Bien introuvable: {}", e))?;
+
+            let bien_rel_path = match chemin_dossier {
+                Some(p) if !p.trim().is_empty() => p,
+                _ => {
+                    let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                        .map_err(|e| format!("Erreur dossier: {}", e))?;
+                    db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, target_bien_id]).ok();
+                    rel_path
+                }
+            };
+
+            let subfolder = "07_LOCATION/Locataires/Dossier candidature";
+            let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
+            std::fs::create_dir_all(&target_dir).ok();
+
+            let src_path = std::path::Path::new(&src);
+            if let Some(fname) = src_path.file_name() {
+                let target_file = target_dir.join(fname);
+                if std::fs::copy(&src_path, &target_file).is_ok() {
+                    let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, fname.to_string_lossy());
+                    locataire.fichier_dossier = Some(rel_file.clone());
+
+                    db.execute(
+                        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+                         VALUES (?1, 'autre', ?2, ?3, date('now'), ?4)",
+                        params![target_bien_id, subfolder, rel_file, format!("Dossier locataire - {} {}", locataire.prenom, locataire.nom)],
+                    ).ok();
+                }
+            }
+        }
+    }
+
     db.execute(
         "UPDATE locataires SET nom=?1, prenom=?2, telephone=?3, email=?4,
-                                garant_nom=?5, garant_contact=?6, notes=?7
-         WHERE id=?8",
+                                revenus_mensuels=?5, profession=?6, garant_nom=?7,
+                                garant_contact=?8, notes=?9, fichier_dossier=?10
+         WHERE id=?11",
         params![
             locataire.nom, locataire.prenom, locataire.telephone, locataire.email,
-            locataire.garant_nom, locataire.garant_contact, locataire.notes, locataire.id
+            locataire.revenus_mensuels, locataire.profession, locataire.garant_nom,
+            locataire.garant_contact, locataire.notes, locataire.fichier_dossier, locataire.id
         ],
     ).map_err(|e| e.to_string())?;
     Ok(())
@@ -78,7 +170,7 @@ pub fn get_baux(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<Bail
     let sql = "SELECT b.id, b.bien_id, b.locataire_id, b.date_debut, b.date_fin,
                       b.loyer_mensuel, b.charges_mensuelles, b.depot_garantie,
                       b.statut_garantie, b.fichier_caution,
-                      b.jour_paiement, b.statut, b.fichier_bail, b.created_at,
+                      b.jour_paiement, b.statut, b.fichier_bail, b.motif_fin, b.notes_fin, b.created_at,
                       bi.nom as bien_nom, l.nom as loc_nom, l.prenom as loc_prenom
                FROM baux b
                LEFT JOIN biens bi ON bi.id = b.bien_id
@@ -102,10 +194,12 @@ pub fn get_baux(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<Bail
             jour_paiement: row.get(10)?,
             statut: row.get(11)?,
             fichier_bail: row.get(12)?,
-            created_at: row.get(13)?,
-            bien_nom: row.get(14)?,
-            locataire_nom: row.get(15)?,
-            locataire_prenom: row.get(16)?,
+            motif_fin: row.get(13)?,
+            notes_fin: row.get(14)?,
+            created_at: row.get(15)?,
+            bien_nom: row.get(16)?,
+            locataire_nom: row.get(17)?,
+            locataire_prenom: row.get(18)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
@@ -222,7 +316,14 @@ pub fn create_bail(app: tauri::AppHandle, state: State<AppState>, mut bail: Bail
 }
 
 #[tauri::command]
-pub fn terminate_bail(app: tauri::AppHandle, state: State<AppState>, bail_id: i64, date_fin: Option<String>) -> Result<(), String> {
+pub fn terminate_bail(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bail_id: i64,
+    date_fin: Option<String>,
+    motif_fin: Option<String>,
+    notes_fin: Option<String>,
+) -> Result<(), String> {
     let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
@@ -235,8 +336,8 @@ pub fn terminate_bail(app: tauri::AppHandle, state: State<AppState>, bail_id: i6
     let end_date = date_fin.unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
 
     db.execute(
-        "UPDATE baux SET statut = 'termine', date_fin = ?1 WHERE id = ?2",
-        params![end_date, bail_id],
+        "UPDATE baux SET statut = 'termine', date_fin = ?1, motif_fin = ?2, notes_fin = ?3 WHERE id = ?4",
+        params![end_date, motif_fin, notes_fin, bail_id],
     ).map_err(|e| e.to_string())?;
 
     if let Some(rel_path) = fichier_bail {
@@ -295,7 +396,7 @@ pub fn delete_bail(state: State<AppState>, id: i64) -> Result<(), String> {
 pub fn get_candidatures(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<Candidature>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let sql = "SELECT c.id, c.bien_id, c.nom, c.prenom, c.email, c.telephone,
-                      c.revenus_mensuels, c.statut, c.garant_nom, c.garant_contact,
+                      c.revenus_mensuels, c.profession, c.statut, c.garant_nom, c.garant_contact,
                       c.notes, c.fichier_dossier, c.created_at, bi.nom as bien_nom
                FROM candidatures c
                LEFT JOIN biens bi ON bi.id = c.bien_id
@@ -312,13 +413,14 @@ pub fn get_candidatures(state: State<AppState>, bien_id: Option<i64>) -> Result<
             email: row.get(4)?,
             telephone: row.get(5)?,
             revenus_mensuels: row.get(6)?,
-            statut: row.get(7)?,
-            garant_nom: row.get(8)?,
-            garant_contact: row.get(9)?,
-            notes: row.get(10)?,
-            fichier_dossier: row.get(11)?,
-            created_at: row.get(12)?,
-            bien_nom: row.get(13)?,
+            profession: row.get(7)?,
+            statut: row.get(8)?,
+            garant_nom: row.get(9)?,
+            garant_contact: row.get(10)?,
+            notes: row.get(11)?,
+            fichier_dossier: row.get(12)?,
+            created_at: row.get(13)?,
+            bien_nom: row.get(14)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
@@ -372,11 +474,11 @@ pub fn create_candidature(app: tauri::AppHandle, state: State<AppState>, mut can
     }
 
     db.execute(
-        "INSERT INTO candidatures (bien_id, nom, prenom, email, telephone, revenus_mensuels, statut, garant_nom, garant_contact, notes, fichier_dossier)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO candidatures (bien_id, nom, prenom, email, telephone, revenus_mensuels, profession, statut, garant_nom, garant_contact, notes, fichier_dossier)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             candidature.bien_id, candidature.nom, candidature.prenom, candidature.email,
-            candidature.telephone, candidature.revenus_mensuels,
+            candidature.telephone, candidature.revenus_mensuels, candidature.profession,
             candidature.statut.unwrap_or_else(|| "nouveau".to_string()),
             candidature.garant_nom, candidature.garant_contact, candidature.notes, candidature.fichier_dossier
         ],
@@ -431,12 +533,12 @@ pub fn update_candidature(app: tauri::AppHandle, state: State<AppState>, mut can
 
     db.execute(
         "UPDATE candidatures SET bien_id=?1, nom=?2, prenom=?3, email=?4, telephone=?5,
-                                 revenus_mensuels=?6, statut=?7, garant_nom=?8, garant_contact=?9,
-                                 notes=?10, fichier_dossier=?11
-         WHERE id=?12",
+                                 revenus_mensuels=?6, profession=?7, statut=?8, garant_nom=?9,
+                                 garant_contact=?10, notes=?11, fichier_dossier=?12
+         WHERE id=?13",
         params![
             candidature.bien_id, candidature.nom, candidature.prenom, candidature.email,
-            candidature.telephone, candidature.revenus_mensuels,
+            candidature.telephone, candidature.revenus_mensuels, candidature.profession,
             candidature.statut.unwrap_or_else(|| "nouveau".to_string()),
             candidature.garant_nom, candidature.garant_contact, candidature.notes,
             candidature.fichier_dossier, candidature.id

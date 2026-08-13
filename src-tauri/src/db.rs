@@ -146,8 +146,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
             nom              TEXT    NOT NULL,
             adresse          TEXT,
-            type_bien        TEXT    CHECK(type_bien IN ('location','residence_principale','secondaire')),
-            statut           TEXT    CHECK(statut IN ('en_cours','en_vente','vendu')) DEFAULT 'en_cours',
+            type_bien        TEXT,
+            statut           TEXT    DEFAULT 'en_cours',
             chemin_dossier   TEXT,
             email_dedie      TEXT,
             date_acquisition TEXT,
@@ -274,6 +274,38 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     conn.execute("ALTER TABLE baux ADD COLUMN statut_garantie TEXT DEFAULT 'en_attente'", []).ok();
     conn.execute("ALTER TABLE baux ADD COLUMN fichier_caution TEXT", []).ok();
+
+    conn.execute("ALTER TABLE locataires ADD COLUMN revenus_mensuels REAL", []).ok();
+    conn.execute("ALTER TABLE locataires ADD COLUMN profession TEXT", []).ok();
+    conn.execute("ALTER TABLE locataires ADD COLUMN fichier_dossier TEXT", []).ok();
+
+    conn.execute("ALTER TABLE candidatures ADD COLUMN profession TEXT", []).ok();
+
+    conn.execute("ALTER TABLE baux ADD COLUMN motif_fin TEXT", []).ok();
+    conn.execute("ALTER TABLE baux ADD COLUMN notes_fin TEXT", []).ok();
+
+    // Migration pour supprimer la contrainte CHECK de l'ancienne table biens
+    conn.execute_batch("
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE IF NOT EXISTS biens_new (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom              TEXT    NOT NULL,
+            adresse          TEXT,
+            type_bien        TEXT,
+            statut           TEXT    DEFAULT 'en_cours',
+            chemin_dossier   TEXT,
+            email_dedie      TEXT,
+            date_acquisition TEXT,
+            surface_m2       REAL,
+            notes            TEXT,
+            created_at       TEXT    DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO biens_new (id, nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes, created_at)
+            SELECT id, nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes, created_at FROM biens;
+        DROP TABLE IF EXISTS biens;
+        ALTER TABLE biens_new RENAME TO biens;
+        PRAGMA foreign_keys=ON;
+    ").ok();
 
     Ok(())
 }

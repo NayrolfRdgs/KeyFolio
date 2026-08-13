@@ -137,9 +137,22 @@ export default function Dashboard({ onNavigate }) {
                         <div className="property-dash-name">{b.nom}</div>
                         <div className="property-dash-addr">{b.adresse || '—'}</div>
                       </div>
-                      <span className={`badge ${b.statut === 'en_cours' ? 'badge-success' : b.statut === 'en_vente' ? 'badge-warning' : 'badge-muted'}`}>
-                        {b.statut === 'en_cours' ? 'Actif' : b.statut}
-                      </span>
+                      {(() => {
+                        const st = (b.statut || '').toLowerCase()
+                        if (st.includes('principale') || st === 'residence_principale') {
+                          return <span className="badge badge-info">Résidence Principale</span>
+                        }
+                        if (st.includes('secondaire') || st === 'residence_secondaire') {
+                          return <span className="badge badge-purple">Résidence Secondaire</span>
+                        }
+                        if (bail) {
+                          return <span className="badge badge-success">Loué</span>
+                        }
+                        if (st.includes('vente') || st === 'en_vente') {
+                          return <span className="badge badge-warning">En vente</span>
+                        }
+                        return <span className="badge badge-danger">Vacant</span>
+                      })()}
                     </div>
 
                     {bail && (

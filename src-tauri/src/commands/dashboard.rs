@@ -12,7 +12,7 @@ pub fn get_dashboard_stats(state: State<AppState>) -> Result<DashboardStats, Str
     ).unwrap_or(0);
 
     let biens_en_location: i64 = db.query_row(
-        "SELECT COUNT(*) FROM biens WHERE type_bien = 'location'", [], |r| r.get(0)
+        "SELECT COUNT(DISTINCT bien_id) FROM baux WHERE statut = 'actif'", [], |r| r.get(0)
     ).unwrap_or(0);
 
     let loyers_mois: f64 = db.query_row(

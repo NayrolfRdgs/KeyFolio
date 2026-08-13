@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { getBienEmailConfig, saveBienEmailConfig, clearBienEmailConfig, getBaux, fetchEmails, createMaintenance, sendEmail, openExternalUrl, startGoogleOauth, saveEmailAttachmentToBien } from '../lib/db'
 import Icon from './Icon'
 import MailList from './mailbox/MailList'
@@ -78,14 +78,16 @@ Cordialement,
 ]
 
 export default function MailboxPanel({ bienId, bienNom, initialView = null, initialTemplate = null, initialBailId = null, initialRentAmount = null, recipientEmail = null }) {
+  const isMounted = useRef(true)
   const [view, setView] = useState('inbox') // 'inbox' | 'compose' | 'config'
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [configSaved, setConfigSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
 
-  // Mail inbox list state
+  // Mail inbox list state & cache
   const [emails, setEmails] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedMail, setSelectedMail] = useState(null)
   const [loadingEmails, setLoadingEmails] = useState(false)
   const [emailFetchError, setEmailFetchError] = useState('')
@@ -125,14 +127,32 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       try {
         await loadBauxAndLocataires()
       } finally {
-        setLoadingCompose(false)
+        if (isMounted.current) setLoadingCompose(false)
       }
     }
   }
 
   useEffect(() => {
+    isMounted.current = true
+
+    // Charger immédiatement depuis le cache si disponible
+    const cacheKey = `emails_cache_${bienId}`
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEmails(parsed)
+        }
+      }
+    } catch(e) {}
+
     loadConfig()
     loadBauxAndLocataires()
+
+    return () => {
+      isMounted.current = false
+    }
   }, [bienId])
 
   useEffect(() => {
@@ -142,11 +162,14 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       if (recipientEmail) setComposeTo(recipientEmail)
       if (initialTemplate) {
         getBaux(bienId).then(bList => {
+          if (!isMounted.current) return
           setBauxList(bList || [])
           applyTemplate(initialTemplate, initialRentAmount, initialBailId, bList || [])
         })
       } else {
-        getBaux(bienId).then(bList => setBauxList(bList || []))
+        getBaux(bienId).then(bList => {
+          if (isMounted.current) setBauxList(bList || [])
+        })
       }
     }
   }, [initialView, initialTemplate, initialBailId, initialRentAmount, recipientEmail, bienId])
@@ -154,6 +177,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
   const loadConfig = async () => {
     try {
       const res = await getBienEmailConfig(bienId)
+      if (!isMounted.current) return
       if (res) {
         setConfig({
           email_adresse: res.email_adresse || '',
@@ -167,7 +191,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         setConfigSaved(true)
         if (res.email_adresse) {
           setView('inbox')
-          fetchInbox(bienId)
+          fetchInbox(bienId, false)
         } else {
           setView('config')
         }
@@ -182,23 +206,51 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
   const loadBauxAndLocataires = async () => {
     try {
       const bList = await getBaux(bienId)
-      setBauxList(bList || [])
+      if (isMounted.current) setBauxList(bList || [])
     } catch (e) {
       console.error('Erreur baux list', e)
     }
   }
 
-  const fetchInbox = async (bid = bienId) => {
-    setLoadingEmails(true)
-    setEmailFetchError('')
+  const fetchInbox = async (bid = bienId, forceRefresh = true) => {
+    const cacheKey = `emails_cache_${bid}`
+
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            if (isMounted.current) setEmails(parsed)
+            return
+          }
+        }
+      } catch(e) {}
+    }
+
+    if (isMounted.current) {
+      setLoadingEmails(true)
+      setEmailFetchError('')
+    }
+
     try {
       const list = await fetchEmails(bid)
-      setEmails(list || [])
+      if (isMounted.current) {
+        const validList = list || []
+        setEmails(validList)
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(validList.slice(0, 50)))
+        } catch(e) {}
+      }
     } catch (e) {
       console.error('Erreur chargement emails', e)
-      setEmailFetchError(e?.toString() || 'Erreur lors du chargement des e-mails.')
+      if (isMounted.current) {
+        setEmailFetchError(e?.toString() || 'Erreur lors du chargement des e-mails.')
+      }
     } finally {
-      setLoadingEmails(false)
+      if (isMounted.current) {
+        setLoadingEmails(false)
+      }
     }
   }
 
@@ -440,79 +492,98 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {configSaved && (
-            <button className={`btn btn-sm ${view === 'inbox' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setView('inbox'); fetchInbox(); }}>
-              📥 Boîte de réception
-            </button>
-          )}
-          {configSaved && (
-            <button className={`btn btn-sm ${view === 'compose' ? 'btn-primary' : 'btn-secondary'}`} onClick={handleSwitchToCompose}>
-              ✏️ Composer
-            </button>
-          )}
+          <button className={`btn btn-sm ${view === 'inbox' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setView('inbox'); fetchInbox(bienId, false); }}>
+            📥 Boîte de réception
+          </button>
+          <button className={`btn btn-sm ${view === 'compose' ? 'btn-primary' : 'btn-secondary'}`} onClick={handleSwitchToCompose}>
+            ✏️ Rédiger un email
+          </button>
           <button className={`btn btn-sm ${view === 'config' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('config')}>
-            ⚙️ Config
+            ⚙️ Configuration Email
           </button>
         </div>
       </div>
 
       {/* View: Inbox (Boîte de réception) */}
-      {view === 'inbox' && (
-        <div className="mailbox-body" style={{ padding: 0, display: 'flex', height: 420 }}>
-          {/* Liste des e-mails à gauche */}
-          <div style={{ flex: 1, borderRight: '1px solid var(--color-border)', overflowY: 'auto' }}>
-            <div style={{ padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }}>
-              <strong style={{ fontSize: 13 }}>Messages reçus</strong>
-              <button className="btn btn-secondary btn-sm" onClick={() => fetchInbox()} disabled={loadingEmails} style={{ padding: '3px 8px' }}>
-                {loadingEmails ? '🔄' : '🔄 Rafraîchir'}
-              </button>
-            </div>
-            
-            {emailFetchError && (
-              <div className="alert alert-danger" style={{ margin: 10, fontSize: 12 }}>
-                {emailFetchError}
+      {view === 'inbox' && (() => {
+        const filteredEmails = emails.filter(m => {
+          if (!searchQuery.trim()) return true
+          const q = searchQuery.toLowerCase().trim()
+          return (
+            (m.from || '').toLowerCase().includes(q) ||
+            (m.subject || '').toLowerCase().includes(q) ||
+            (m.body || '').toLowerCase().includes(q)
+          )
+        })
+
+        return (
+          <div className="mailbox-body" style={{ padding: 0, display: 'flex', height: 500, minHeight: 450 }}>
+            {/* Liste des e-mails à gauche (Largeur fixe 320px) */}
+            <div style={{ width: 320, minWidth: 320, flexShrink: 0, borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+              <div style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+                <strong style={{ fontSize: 13 }}>Messages ({filteredEmails.length})</strong>
+                <button className="btn btn-secondary btn-sm" onClick={() => fetchInbox(bienId, true)} disabled={loadingEmails} style={{ padding: '3px 8px', fontSize: 11 }}>
+                  {loadingEmails ? '🔄 Sync...' : '🔄 Synchroniser'}
+                </button>
               </div>
-            )}
-            
-            {loadingEmails ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                <span>⏳ Récupération des e-mails depuis le serveur...</span>
+
+              {/* Bar de recherche d'e-mails sécurisée */}
+              <div style={{ padding: '6px 10px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="🔍 Rechercher (nom, sujet, contenu...)"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ fontSize: 11, padding: '4px 8px' }}
+                />
               </div>
-            ) : emails.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Aucun e-mail reçu dans la boîte.
-              </div>
-            ) : (
-              emails.map(mail => (
-                <div 
-                  key={mail.uid} 
-                  onClick={() => setSelectedMail(mail)}
-                  style={{
-                    padding: '12px 14px',
-                    borderBottom: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                    background: selectedMail?.uid === mail.uid ? 'var(--color-accent-dim)' : 'transparent',
-                    transition: 'background 0.15s'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <strong style={{ fontSize: 12, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
-                      👤 {mail.from}
-                    </strong>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                      {mail.date.split(' ').slice(0, 4).join(' ')}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--color-accent)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {mail.subject || '(Sans objet)'}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {mail.body}
-                  </div>
+
+              {emailFetchError && (
+                <div className="alert alert-danger" style={{ margin: 10, fontSize: 12 }}>
+                  {emailFetchError}
                 </div>
-              ))
-            )}
-          </div>
+              )}
+
+              {loadingEmails && emails.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <span>⏳ Récupération des e-mails depuis le serveur...</span>
+                </div>
+              ) : filteredEmails.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12 }}>
+                  {searchQuery ? 'Aucun message ne correspond à la recherche.' : 'Aucun e-mail reçu dans la boîte.'}
+                </div>
+              ) : (
+                filteredEmails.map(mail => (
+                  <div
+                    key={mail.uid || mail.id || Math.random()}
+                    onClick={() => setSelectedMail(mail)}
+                    style={{
+                      padding: '10px 12px',
+                      borderBottom: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                      background: selectedMail?.uid === mail.uid ? 'var(--color-accent-dim)' : 'transparent',
+                      transition: 'background 0.15s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <strong style={{ fontSize: 12, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
+                        👤 {mail.from}
+                      </strong>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        {mail.date ? mail.date.split(' ').slice(0, 4).join(' ') : '—'}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--color-accent)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {mail.subject || '(Sans objet)'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {mail.body || mail.body_text}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
 
           {/* Corps de l'e-mail sélectionné à droite */}
           <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', background: 'var(--color-surface-2)', overflowY: 'auto' }}>
@@ -624,7 +695,8 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* View: Config */}
       {view === 'config' && (

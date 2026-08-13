@@ -3,6 +3,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import { createBienWizard } from '../lib/db'
 import { SUBFOLDERS } from '../lib/utils'
 import Icon from './Icon'
+import { ALL_FIELDS } from './biens/BienOverviewTab'
 
 // Étapes dynamiques selon le type d'occupation
 function getSteps(occupation) {
@@ -27,19 +28,25 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [showExtraDetails, setShowExtraDetails] = useState(false)
 
-  // Étape 1 : Infos bien
+  // Étape 1 : Infos bien & champs complémentaires
   const [bien, setBien] = useState({
-    nom: '', adresse: '', type_bien: 'location', statut: 'en_cours',
+    nom: '', adresse: '', type_bien: 'Appartement', statut: 'en_cours',
     chemin_dossier: '', email_dedie: '', date_acquisition: '', surface_m2: '', notes: ''
   })
+  const [champsLibresValues, setChampsLibresValues] = useState({})
+
+  const handleExtraFieldChange = (key, val) => {
+    setChampsLibresValues(prev => ({ ...prev, [key]: val }))
+  }
 
   // Étape 2 : Occupation
   const [occupation, setOccupation] = useState('location')
 
   // Étape 3 : Locataire & Bail (seulement si location)
   const [locataire, setLocataire] = useState({
-    nom: '', prenom: '', telephone: '', email: '', garant_nom: '', garant_contact: '', notes: ''
+    nom: '', prenom: '', telephone: '', email: '', revenus_mensuels: '', profession: '', garant_nom: '', garant_contact: '', notes: '', fichier_dossier: ''
   })
   const [bail, setBail] = useState({
     date_debut: new Date().toISOString().split('T')[0],
@@ -118,13 +125,40 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
     setLoading(true)
     setError(null)
     try {
+      const initialStatut = occupation === 'residence_principale'
+        ? 'residence_principale'
+        : occupation === 'residence_secondaire'
+        ? 'residence_secondaire'
+        : (isLocation && locataire.nom.trim() ? 'en_cours' : 'vacant')
+
+      // Serialiser tous les champs complémentaires saisis dans l'assistant
+      const champsLibresList = Object.entries(champsLibresValues)
+        .filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(([k, v]) => ({ cle: k, valeur: String(v) }))
+
+      const modeOccVal = occupation === 'residence_principale'
+        ? 'Résidence principale (Propriétaire)'
+        : occupation === 'residence_secondaire'
+        ? 'Résidence secondaire'
+        : 'Location longue durée (Nue)'
+
+      if (!champsLibresList.some(c => c.cle === 'mode_occupation')) {
+        champsLibresList.push({ cle: 'mode_occupation', valeur: modeOccVal })
+      }
+
       const payload = {
         bien: {
           ...bien,
           surface_m2: bien.surface_m2 !== '' ? parseFloat(bien.surface_m2) : null,
-          type_bien: isLocation ? 'location' : (occupation === 'residence_principale' ? 'residence_principale' : 'location')
+          type_bien: bien.type_bien || 'Appartement',
+          statut: initialStatut
         },
-        locataire: isLocation && locataire.nom.trim() ? locataire : null,
+        locataire: isLocation && locataire.nom.trim() ? {
+          ...locataire,
+          revenus_mensuels: locataire.revenus_mensuels !== '' && locataire.revenus_mensuels !== null && locataire.revenus_mensuels !== undefined
+            ? parseFloat(locataire.revenus_mensuels)
+            : null
+        } : null,
         bail: isLocation && locataire.nom.trim() ? {
           ...bail,
           bien_id: 0,
@@ -134,7 +168,8 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
           depot_garantie: parseFloat(bail.depot_garantie || 0),
           jour_paiement: parseInt(bail.jour_paiement || 5, 10)
         } : null,
-        documents: initialDocs
+        documents: initialDocs,
+        champs_libres: champsLibresList
       }
 
       await createBienWizard(payload)
@@ -222,6 +257,63 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
                 value={bien.notes}
                 onChange={e => setBien({ ...bien, notes: e.target.value })}
               />
+            </div>
+
+            {/* Accordéon dépliable pour tous les champs détaillés du logement */}
+            <div style={{ gridColumn: 'span 2', marginTop: 10, paddingTop: 12, borderTop: '1px dashed var(--border-color)' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}
+                onClick={() => setShowExtraDetails(!showExtraDetails)}
+              >
+                <span>📋 Renseigner les caractéristiques complètes (Pièces, Finances, Clés, Copro...)</span>
+                <span>{showExtraDetails ? '▲ Masquer' : '▼ Déplier et compléter'}</span>
+              </button>
+
+              {showExtraDetails && (
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 16, background: 'var(--color-surface-2)', padding: 14, borderRadius: 10, border: '1px solid var(--border-color)' }}>
+                  {Object.entries(
+                    ALL_FIELDS.filter(f => !['type_bien', 'mode_occupation', 'surface_m2'].includes(f.key)).reduce((acc, f) => {
+                      if (!acc[f.cat]) acc[f.cat] = []
+                      acc[f.cat].push(f)
+                      return acc
+                    }, {})
+                  ).map(([cat, fields]) => (
+                    <div key={cat} style={{ background: 'var(--color-surface)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <h5 style={{ margin: '0 0 10px 0', fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>{cat}</h5>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {fields.map(f => (
+                          <div key={f.key} className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11, fontWeight: 600 }}>{f.label}</label>
+                            {f.type === 'select' ? (
+                              <select
+                                className="form-control"
+                                style={{ fontSize: 12, padding: '4px 8px' }}
+                                value={champsLibresValues[f.key] || ''}
+                                onChange={e => handleExtraFieldChange(f.key, e.target.value)}
+                              >
+                                {f.options.map(opt => (
+                                  <option key={opt} value={opt === '—' ? '' : opt}>{opt}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
+                                className="form-control"
+                                style={{ fontSize: 12, padding: '4px 8px' }}
+                                placeholder={f.placeholder || f.hint || ''}
+                                value={champsLibresValues[f.key] || ''}
+                                onChange={e => handleExtraFieldChange(f.key, e.target.value)}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -312,6 +404,14 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
               <div className="form-group">
                 <label>Email</label>
                 <input type="email" className="form-control" placeholder="jean.dupont@email.com" value={locataire.email} onChange={e => setLocataire({ ...locataire, email: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Revenus mensuels (€) / Salaire</label>
+                <input type="number" step="50" className="form-control" placeholder="Ex: 2400" value={locataire.revenus_mensuels || ''} onChange={e => setLocataire({ ...locataire, revenus_mensuels: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Profession / Situation pro</label>
+                <input type="text" className="form-control" placeholder="Ex: CDI, Fonctionnaire..." value={locataire.profession || ''} onChange={e => setLocataire({ ...locataire, profession: e.target.value })} />
               </div>
               <div className="form-group">
                 <label>Nom du garant</label>

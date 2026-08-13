@@ -51,17 +51,8 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 
     bien.chemin_dossier = Some(chemin_dossier.clone());
 
-    let safe_type_bien = match bien.type_bien.as_deref() {
-        Some("residence_principale") => "residence_principale",
-        Some("secondaire") => "secondaire",
-        _ => "location",
-    };
-
-    let safe_statut = match bien.statut.as_deref() {
-        Some("en_vente") => "en_vente",
-        Some("vendu") => "vendu",
-        _ => "en_cours",
-    };
+    let safe_type_bien = bien.type_bien.as_deref().unwrap_or("Appartement");
+    let safe_statut = bien.statut.as_deref().unwrap_or("vacant");
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
@@ -88,17 +79,8 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 
 #[tauri::command]
 pub fn update_bien(state: State<AppState>, bien: Bien) -> Result<(), String> {
-    let safe_type_bien = match bien.type_bien.as_deref() {
-        Some("residence_principale") => "residence_principale",
-        Some("secondaire") => "secondaire",
-        _ => "location",
-    };
-
-    let safe_statut = match bien.statut.as_deref() {
-        Some("en_vente") => "en_vente",
-        Some("vendu") => "vendu",
-        _ => "en_cours",
-    };
+    let safe_type_bien = bien.type_bien.as_deref().unwrap_or("Appartement");
+    let safe_statut = bien.statut.as_deref().unwrap_or("vacant");
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
@@ -966,8 +948,26 @@ pub fn save_bien_champs_libres_batch(
              ON CONFLICT(bien_id, cle) DO UPDATE SET valeur = excluded.valeur"
         ).map_err(|e| e.to_string())?;
 
-        for item in items {
+        for item in &items {
             stmt.execute(params![bien_id, item.cle, item.valeur]).map_err(|e| e.to_string())?;
+
+            if item.cle == "mode_occupation" {
+                let val_lower = item.valeur.to_lowercase();
+                let new_statut = if val_lower.contains("principale") {
+                    Some("residence_principale")
+                } else if val_lower.contains("secondaire") {
+                    Some("residence_secondaire")
+                } else if val_lower.contains("vente") {
+                    Some("en_vente")
+                } else if val_lower.contains("vacant") {
+                    Some("vacant")
+                } else {
+                    None
+                };
+                if let Some(st) = new_statut {
+                    tx.execute("UPDATE biens SET statut = ?1 WHERE id = ?2", params![st, bien_id]).ok();
+                }
+            }
         }
     }
     tx.commit().map_err(|e| e.to_string())?;
@@ -1006,25 +1006,53 @@ pub fn create_bien_wizard(app: tauri::AppHandle, state: State<AppState>, payload
 
     let safe_type_bien = match bien.type_bien.as_deref() {
         Some("residence_principale") => "residence_principale",
-        Some("secondaire") => "secondaire",
+        Some("secondaire") | Some("residence_secondaire") => "residence_secondaire",
         _ => "location",
+    };
+
+    let safe_statut = match bien.statut.as_deref() {
+        Some(s) if s.contains("principale") => "residence_principale",
+        Some(s) if s.contains("secondaire") => "residence_secondaire",
+        Some(s) if s.contains("vente") => "en_vente",
+        Some(s) if s.contains("vendu") => "vendu",
+        Some(s) if s.contains("vacant") => "vacant",
+        Some(s) => s,
+        None => "en_cours",
     };
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO biens (nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![bien.nom, bien.adresse, safe_type_bien, bien.statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes],
+        params![bien.nom, bien.adresse, safe_type_bien, safe_statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes],
     ).map_err(|e| format!("Erreur insertion bien: {}", e))?;
 
     let bien_id = db.last_insert_rowid();
 
+    // Enregistrer automatiquement le mode d'occupation dans les champs libres du bien
+    let mode_occ_val = match safe_statut {
+        "residence_principale" => "Résidence principale (Propriétaire)",
+        "residence_secondaire" => "Résidence secondaire",
+        "en_vente" => "En vente",
+        "vacant" => "Vacant",
+        _ => "Location longue durée (Nue)",
+    };
+    db.execute(
+        "INSERT INTO bien_champs_libres (bien_id, cle, valeur) VALUES (?1, 'mode_occupation', ?2)
+         ON CONFLICT(bien_id, cle) DO UPDATE SET valeur = excluded.valeur",
+        params![bien_id, mode_occ_val],
+    ).ok();
+
     // 2. Si locataire & bail fournis
     if let (Some(loc), Some(mut bail)) = (payload.locataire, payload.bail) {
         db.execute(
-            "INSERT INTO locataires (nom, prenom, telephone, email, garant_nom, garant_contact, notes)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![loc.nom, loc.prenom, loc.telephone, loc.email, loc.garant_nom, loc.garant_contact, loc.notes],
+            "INSERT INTO locataires (nom, prenom, telephone, email, revenus_mensuels, profession, garant_nom, garant_contact, notes, fichier_dossier)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                loc.nom, loc.prenom, loc.telephone, loc.email,
+                loc.revenus_mensuels, loc.profession,
+                loc.garant_nom, loc.garant_contact, loc.notes, loc.fichier_dossier
+            ],
         ).map_err(|e| format!("Erreur insertion locataire: {}", e))?;
         let loc_id = db.last_insert_rowid();
 
@@ -1055,7 +1083,20 @@ pub fn create_bien_wizard(app: tauri::AppHandle, state: State<AppState>, payload
         }
     }
 
-    // 4. Génération automatique immédiate des fichiers Excel
+    // 4. Champs libres additionnels renseignés lors de la création
+    if let Some(items) = payload.champs_libres {
+        for item in items {
+            if !item.valeur.trim().is_empty() {
+                db.execute(
+                    "INSERT INTO bien_champs_libres (bien_id, cle, valeur) VALUES (?1, ?2, ?3)
+                     ON CONFLICT(bien_id, cle) DO UPDATE SET valeur = excluded.valeur",
+                    params![bien_id, item.cle, item.valeur],
+                ).ok();
+            }
+        }
+    }
+
+    // 5. Génération automatique immédiate des fichiers Excel
     crate::excel::sync_all_property_excels(&db, &base_dir, bien_id).ok();
 
     Ok(BienCreationResult {

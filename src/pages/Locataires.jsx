@@ -9,25 +9,32 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import Icon from '../components/Icon'
 
 const EMPTY_LOC = {
-  nom: '', prenom: '', telephone: '', email: '',
-  garant_nom: '', garant_contact: '', notes: ''
+  bien_id: '', nom: '', prenom: '', telephone: '', email: '',
+  revenus_mensuels: '', profession: '', garant_nom: '', garant_contact: '', notes: '', fichier_dossier: ''
 }
 
 const EMPTY_CAND = {
   bien_id: '', nom: '', prenom: '', email: '', telephone: '',
-  revenus_mensuels: '', garant_nom: '', garant_contact: '', notes: '', statut: 'nouveau'
+  revenus_mensuels: '', profession: '', garant_nom: '', garant_contact: '', notes: '', fichier_dossier: '', statut: 'nouveau'
 }
 
 export default function Locataires({ onNavigate, onOpenMail }) {
   const [activeTab, setActiveTab] = useState('locataires') // 'locataires' | 'candidatures'
+  const [locSubFilter, setLocSubFilter] = useState('actuels') // 'actuels' | 'anciens' | 'all'
   const [locataires, setLocataires] = useState([])
   const [candidatures, setCandidatures] = useState([])
   const [biens, setBiens] = useState([])
+  const [baux, setBaux] = useState([])
+
+  // Modal Fin de bail / Résiliation
+  const [terminateModal, setTerminateModal] = useState(null)
+  // { bailId, locataireNom, dateFin: todayISO(), motifFin: 'Congé locataire', notesFin: '' }
 
   // Modal Locataire
   const [locModal, setLocModal] = useState(false)
   const [locForm, setLocForm] = useState(EMPTY_LOC)
   const [locEditing, setLocEditing] = useState(null)
+  const [locSourcePath, setLocSourcePath] = useState('')
 
   // Modal Candidature (Création & Édition)
   const [candModal, setCandModal] = useState(false)
@@ -87,10 +94,11 @@ export default function Locataires({ onNavigate, onOpenMail }) {
 
   const loadAll = async () => {
     try {
-      const [lRes, cRes, bRes] = await Promise.all([getLocataires(), getCandidatures(), getBiens()])
+      const [lRes, cRes, bRes, bauxRes] = await Promise.all([getLocataires(), getCandidatures(), getBiens(), getBaux()])
       setLocataires(lRes)
       setCandidatures(cRes)
       setBiens(bRes)
+      setBaux(bauxRes)
     } catch (e) {
       setError(e?.toString())
     }
@@ -99,20 +107,58 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   useEffect(() => { loadAll() }, [])
 
   // Handlers Locataires
-  const openCreateLoc = () => { setLocForm(EMPTY_LOC); setLocEditing(null); setLocModal(true) }
-  const openEditLoc = (l) => { setLocForm({ ...l }); setLocEditing(l.id); setLocModal(true) }
+  const openCreateLoc = () => {
+    setLocForm({ ...EMPTY_LOC, bien_id: biens[0]?.id || '' })
+    setLocEditing(null)
+    setLocSourcePath('')
+    setLocModal(true)
+  }
+
+  const openEditLoc = (l) => {
+    setLocForm({
+      ...l,
+      bien_id: l.bien_id || '',
+      revenus_mensuels: l.revenus_mensuels ?? '',
+      profession: l.profession || '',
+      garant_nom: l.garant_nom || '',
+      garant_contact: l.garant_contact || '',
+      notes: l.notes || '',
+      fichier_dossier: l.fichier_dossier || ''
+    })
+    setLocEditing(l.id)
+    setLocSourcePath('')
+    setLocModal(true)
+  }
+
+  const handlePickLocFile = async () => {
+    try {
+      const sel = await openFileDialog({
+        multiple: false,
+        title: 'Sélectionner les pièces du dossier locataire (PDF / Zip / Scan)',
+      })
+      if (sel) setLocSourcePath(sel)
+    } catch (e) { console.warn(e) }
+  }
+
   const handleLocSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
-      if (locEditing) await updateLocataire({ ...locForm, id: locEditing })
-      else await createLocataire(locForm)
+      const payload = {
+        ...locForm,
+        id: locEditing || undefined,
+        bien_id: locForm.bien_id ? parseInt(locForm.bien_id) : null,
+        revenus_mensuels: locForm.revenus_mensuels ? parseFloat(locForm.revenus_mensuels) : null,
+      }
+      if (locEditing) await updateLocataire(payload, locSourcePath || null)
+      else await createLocataire(payload, locSourcePath || null)
       setLocModal(false)
-      addToast(locEditing ? 'Locataire mis à jour' : 'Locataire créé')
+      addToast(locEditing ? 'Locataire mis à jour' : 'Locataire enregistré')
       loadAll()
     } catch (err) { setError(err?.toString()) }
     finally { setLoading(false) }
   }
+
   const handleLocDelete = async (id) => {
     if (!confirm('Supprimer ce locataire ?')) return
     try { await deleteLocataire(id); addToast('Locataire supprimé', 'info'); loadAll() }
@@ -132,10 +178,12 @@ export default function Locataires({ onNavigate, onOpenMail }) {
       ...cand,
       bien_id: cand.bien_id || '',
       revenus_mensuels: cand.revenus_mensuels ?? '',
+      profession: cand.profession || '',
       garant_nom: cand.garant_nom || '',
       garant_contact: cand.garant_contact || '',
       notes: cand.notes || '',
-      statut: cand.statut || 'nouveau'
+      statut: cand.statut || 'nouveau',
+      fichier_dossier: cand.fichier_dossier || ''
     })
     setCandEditing(cand.id)
     setCandSourcePath('')
@@ -219,14 +267,18 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     if (!convertModal) return
     setLoading(true)
     try {
-      // 1. Créer le locataire
+      // 1. Créer le locataire avec l'ensemble des données renseignées dans la candidature
       const locId = await createLocataire({
+        bien_id: convertModal.bien_id ? parseInt(convertModal.bien_id) : null,
         nom: convertModal.nom,
         prenom: convertModal.prenom,
         telephone: convertModal.telephone,
         email: convertModal.email,
+        revenus_mensuels: convertModal.revenus_mensuels ? parseFloat(convertModal.revenus_mensuels) : null,
+        profession: convertModal.profession,
         garant_nom: convertModal.garant_nom,
         garant_contact: convertModal.garant_contact,
+        fichier_dossier: convertModal.fichier_dossier,
         notes: convertModal.notes ? `Issu de candidature. ${convertModal.notes}` : 'Issu de candidature'
       })
 
@@ -262,13 +314,54 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     catch (e) { addToast(`Erreur ouverture : ${e}`, 'error') }
   }
 
-  const filteredLocs = locataires.filter(l =>
-    `${l.nom} ${l.prenom} ${l.email || ''} ${l.telephone || ''}`.toLowerCase().includes(search.toLowerCase())
-  )
+  // Identification des locataires actuels (bail actif) vs anciens (bail terminé / aucun bail actif)
+  const locatairesWithBail = locataires.map(l => {
+    const activeBail = baux.find(b => b.locataire_id === l.id && b.statut === 'actif')
+    const lastBail = baux.filter(b => b.locataire_id === l.id && b.statut === 'termine').sort((a,b) => (b.date_fin || '').localeCompare(a.date_fin || ''))[0]
+    return {
+      ...l,
+      isActuel: !!activeBail,
+      activeBail,
+      lastBail
+    }
+  })
+
+  const countActuels = locatairesWithBail.filter(l => l.isActuel).length
+  const countAnciens = locatairesWithBail.filter(l => !l.isActuel).length
+
+  const filteredLocs = locatairesWithBail.filter(l => {
+    const matchesSearch = `${l.nom} ${l.prenom} ${l.email || ''} ${l.telephone || ''} ${l.profession || ''}`.toLowerCase().includes(search.toLowerCase())
+    if (!matchesSearch) return false
+
+    if (locSubFilter === 'actuels') return l.isActuel
+    if (locSubFilter === 'anciens') return !l.isActuel
+    return true
+  })
 
   const filteredCands = candidatures.filter(c =>
-    `${c.nom} ${c.prenom} ${c.bien_nom || ''} ${c.email || ''}`.toLowerCase().includes(search.toLowerCase())
+    `${c.nom} ${c.prenom} ${c.bien_nom || ''} ${c.email || ''} ${c.profession || ''}`.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleConfirmTerminate = async (e) => {
+    e.preventDefault()
+    if (!terminateModal?.bailId) return
+    setLoading(true)
+    try {
+      await terminateBail(
+        terminateModal.bailId,
+        terminateModal.dateFin || todayISO(),
+        terminateModal.motifFin || 'Congé locataire',
+        terminateModal.notesFin || ''
+      )
+      addToast('Fin de bail enregistrée. Le locataire figure désormais dans les anciens locataires.', 'info')
+      setTerminateModal(null)
+      await loadAll()
+    } catch (err) {
+      addToast(`Erreur : ${err}`, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="page-content">
@@ -319,61 +412,147 @@ export default function Locataires({ onNavigate, onOpenMail }) {
 
       {/* ── VUE LOCATAIRES ── */}
       {activeTab === 'locataires' && (
-        filteredLocs.length === 0 ? (
-          <div className="table-wrapper">
-            <div className="empty-state">
-              <div className="empty-state-icon">👤</div>
-              <h3>Aucun locataire enregistré</h3>
-              <p>Ajoutez un locataire ou convertissez une candidature</p>
-            </div>
+        <>
+          {/* Sub-filtres Locataires Actuels vs Anciens */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--color-surface-2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)', width: 'fit-content' }}>
+            <button
+              className={`btn btn-sm ${locSubFilter === 'actuels' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setLocSubFilter('actuels')}
+            >
+              🟢 Locataires actuels ({countActuels})
+            </button>
+            <button
+              className={`btn btn-sm ${locSubFilter === 'anciens' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setLocSubFilter('anciens')}
+            >
+              📜 Anciens locataires ({countAnciens})
+            </button>
+            <button
+              className={`btn btn-sm ${locSubFilter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setLocSubFilter('all')}
+            >
+              Tous ({locataires.length})
+            </button>
           </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Locataire</th><th>Logement & Bail associé</th><th>Contact</th>
-                  <th>Garant</th><th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLocs.map(l => (
-                  <tr key={l.id}>
-                    <td className="fw-600">👤 {l.prenom} {l.nom}</td>
-                    <td>
-                      {l.bien_id ? (
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '2px 8px', fontSize: 12, fontWeight: 600 }}
-                            onClick={() => onNavigate && onNavigate('bien', l.bien_id)}
-                            title="Accéder directement à la fiche de ce logement"
-                          >
-                            🏠 {l.bien_nom || 'Voir logement'}
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ padding: '2px 6px', fontSize: 11 }}
-                            onClick={() => onNavigate && onNavigate('baux')}
-                            title="Voir les détails du bail"
-                          >
-                            🔑 Bail
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="badge badge-muted" style={{ fontSize: 11 }}>Aucun bail actif</span>
-                      )}
-                    </td>
+
+          {filteredLocs.length === 0 ? (
+            <div className="table-wrapper">
+              <div className="empty-state">
+                <div className="empty-state-icon">👤</div>
+                <h3>Aucun locataire dans cette catégorie</h3>
+                <p>Modifiez les filtres ou ajoutez un nouveau locataire</p>
+              </div>
+            </div>
+          ) : (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Statut</th>
+                    <th>Locataire</th>
+                    <th>Logement & Bail</th>
+                    <th>Contact</th>
+                    <th>Profession & Revenus</th>
+                    <th>Garant</th>
+                    <th>Pièces dossier</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLocs.map(l => (
+                    <tr key={l.id}>
+                      <td>
+                        {l.isActuel ? (
+                          <span className="badge badge-success" style={{ fontSize: 10, padding: '2px 6px' }}>🟢 Actuel</span>
+                        ) : (
+                          <div>
+                            <span className="badge badge-muted" style={{ fontSize: 10, padding: '2px 6px' }}>📜 Ancien</span>
+                            {l.lastBail?.motif_fin && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>
+                                {l.lastBail.motif_fin}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="fw-600">👤 {l.prenom} {l.nom}</td>
+                      <td>
+                        {l.bien_id ? (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '2px 8px', fontSize: 12, fontWeight: 600 }}
+                              onClick={() => onNavigate && onNavigate('bien', l.bien_id)}
+                              title="Accéder directement à la fiche de ce logement"
+                            >
+                              🏠 {l.bien_nom || 'Voir logement'}
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: '2px 6px', fontSize: 11 }}
+                              onClick={() => onNavigate && onNavigate('baux')}
+                              title="Voir les détails du bail"
+                            >
+                              🔑 Bail
+                            </button>
+                          </div>
+                        ) : l.lastBail ? (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Dernier logement : <strong>{l.lastBail.bien_nom || '—'}</strong>
+                            <br />
+                            Fin du bail : {formatDate(l.lastBail.date_fin)}
+                          </div>
+                        ) : (
+                          <span className="badge badge-muted" style={{ fontSize: 11 }}>Aucun bail</span>
+                        )}
+                      </td>
                     <td>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{l.email || '—'}</div>
                       <div className="text-muted" style={{ fontSize: 11 }}>{l.telephone || '—'}</div>
                     </td>
                     <td>
+                      <div className="fw-600">{l.revenus_mensuels ? formatEuro(l.revenus_mensuels) : '—'}</div>
+                      <div className="text-muted" style={{ fontSize: 11 }}>{l.profession || 'Non spécifié'}</div>
+                    </td>
+                    <td>
                       <div>{l.garant_nom || '—'}</div>
                       <div className="text-muted" style={{ fontSize: 11 }}>{l.garant_contact || '—'}</div>
                     </td>
+                    <td>
+                      {l.fichier_dossier ? (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '2px 8px', fontSize: 11 }}
+                          onClick={() => handleOpenDoc(l.fichier_dossier)}
+                          title="Voir les pièces du dossier"
+                        >
+                          📄 Dossier PDF
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aucun fichier</span>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
+                        {l.activeBail && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 11, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}
+                            onClick={() => setTerminateModal({
+                              bailId: l.activeBail.id,
+                              locataireNom: `${l.prenom} ${l.nom}`,
+                              dateFin: todayISO(),
+                              motifFin: 'Congé locataire',
+                              notesFin: ''
+                            })}
+                            title="Mettre fin au bail et enregistrer le motif de départ"
+                          >
+                            🚪 Fin de bail
+                          </button>
+                        )}
                         <button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '3px 8px', fontSize: 11, background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0' }}
@@ -395,7 +574,7 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                         >
                           ✉️ Mail
                         </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditLoc(l)} title="Modifier">
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditLoc(l)} title="Modifier les informations du locataire">
                           <Icon name="edit" size={14} />
                         </button>
                         <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleLocDelete(l.id)} title="Supprimer">
@@ -431,7 +610,8 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                 <tr>
                   <th>Candidat</th>
                   <th>Logement visé</th>
-                  <th>Revenus mensuels</th>
+                  <th>Contact</th>
+                  <th>Profession & Revenus</th>
                   <th>Garant</th>
                   <th>Pièces dossier</th>
                   <th>Statut</th>
@@ -445,10 +625,16 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                     <tr key={c.id}>
                       <td className="fw-600">
                         👤 {c.prenom} {c.nom}
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.email || c.telephone || ''}</div>
                       </td>
                       <td>🏠 {c.bien_nom || 'Non spécifié'}</td>
-                      <td className="fw-600">{c.revenus_mensuels ? formatEuro(c.revenus_mensuels) : '—'}</td>
+                      <td>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email || '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{c.telephone || '—'}</div>
+                      </td>
+                      <td>
+                        <div className="fw-600">{c.revenus_mensuels ? formatEuro(c.revenus_mensuels) : '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{c.profession || 'Non spécifié'}</div>
+                      </td>
                       <td className="text-muted">{c.garant_nom ? `${c.garant_nom}` : 'Sans garant'}</td>
                       <td>
                         {c.fichier_dossier ? (
@@ -519,6 +705,16 @@ export default function Locataires({ onNavigate, onOpenMail }) {
               <button className="modal-close" onClick={() => setLocModal(false)}>×</button>
             </div>
             <form onSubmit={handleLocSubmit}>
+              <div className="form-group">
+                <label className="form-label">Logement associé</label>
+                <select className="form-control" value={locForm.bien_id || ''} onChange={e => setLocForm({...locForm, bien_id: e.target.value})}>
+                  <option value="">Sélectionner un bien (optionnel)</option>
+                  {biens.map(b => (
+                    <option key={b.id} value={b.id}>{b.nom} ({b.adresse || 'Sans adresse'})</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Prénom *</label>
@@ -529,6 +725,7 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                   <input className="form-control" required value={locForm.nom} onChange={e => setLocForm({...locForm, nom: e.target.value})} placeholder="Nom" />
                 </div>
               </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Téléphone</label>
@@ -539,21 +736,47 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                   <input className="form-control" type="email" value={locForm.email || ''} onChange={e => setLocForm({...locForm, email: e.target.value})} placeholder="email@exemple.fr" />
                 </div>
               </div>
-              <hr className="divider" />
+
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Garant (nom)</label>
-                  <input className="form-control" value={locForm.garant_nom || ''} onChange={e => setLocForm({...locForm, garant_nom: e.target.value})} placeholder="Nom du garant" />
+                  <label className="form-label">Revenus mensuels (€) / Salaire</label>
+                  <input type="number" step="50" className="form-control" value={locForm.revenus_mensuels || ''} onChange={e => setLocForm({...locForm, revenus_mensuels: e.target.value})} placeholder="Ex: 2400" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Profession / Situation pro</label>
+                  <input className="form-control" value={locForm.profession || ''} onChange={e => setLocForm({...locForm, profession: e.target.value})} placeholder="Ex: CDI, Fonctionnaire, Cadre..." />
+                </div>
+              </div>
+
+              <hr className="divider" style={{ margin: '12px 0' }} />
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Garant (nom / organisme)</label>
+                  <input className="form-control" value={locForm.garant_nom || ''} onChange={e => setLocForm({...locForm, garant_nom: e.target.value})} placeholder="Nom du garant ou Visale" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Garant (contact)</label>
-                  <input className="form-control" value={locForm.garant_contact || ''} onChange={e => setLocForm({...locForm, garant_contact: e.target.value})} placeholder="Tel ou email" />
+                  <input className="form-control" value={locForm.garant_contact || ''} onChange={e => setLocForm({...locForm, garant_contact: e.target.value})} placeholder="Tél ou email du garant" />
                 </div>
               </div>
+
               <div className="form-group">
-                <label className="form-label">Notes</label>
-                <textarea className="form-control" value={locForm.notes || ''} onChange={e => setLocForm({...locForm, notes: e.target.value})} placeholder="Notes..." />
+                <label className="form-label">📎 Pièces du dossier (PDF / Zip / Scan)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="form-control" readOnly value={locSourcePath || locForm.fichier_dossier || ''} placeholder="Aucun fichier sélectionné" />
+                  <button type="button" className="btn btn-secondary" onClick={handlePickLocFile}>Parcourir...</button>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  📁 Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
+                </p>
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Notes & Observations</label>
+                <textarea className="form-control" value={locForm.notes || ''} onChange={e => setLocForm({...locForm, notes: e.target.value})} placeholder="Remarques..." />
+              </div>
+
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setLocModal(false)}>Annuler</button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>Enregistrer</button>
@@ -603,12 +826,23 @@ export default function Locataires({ onNavigate, onOpenMail }) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Revenus mensuels (€)</label>
-                  <input type="number" step="100" className="form-control" value={candForm.revenus_mensuels || ''} onChange={e => setCandForm({...candForm, revenus_mensuels: e.target.value})} placeholder="Ex: 2400" />
+                  <label className="form-label">Revenus mensuels (€) / Salaire</label>
+                  <input type="number" step="50" className="form-control" value={candForm.revenus_mensuels || ''} onChange={e => setCandForm({...candForm, revenus_mensuels: e.target.value})} placeholder="Ex: 2400" />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Profession / Situation pro</label>
+                  <input className="form-control" value={candForm.profession || ''} onChange={e => setCandForm({...candForm, profession: e.target.value})} placeholder="Ex: CDI, Fonctionnaire, Cadre..." />
+                </div>
+              </div>
+              <hr className="divider" style={{ margin: '12px 0' }} />
+              <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Nom du garant</label>
                   <input className="form-control" value={candForm.garant_nom || ''} onChange={e => setCandForm({...candForm, garant_nom: e.target.value})} placeholder="Garant / Visale" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact du garant</label>
+                  <input className="form-control" value={candForm.garant_contact || ''} onChange={e => setCandForm({...candForm, garant_contact: e.target.value})} placeholder="Tél ou email du garant" />
                 </div>
               </div>
               <div className="form-group">
@@ -629,6 +863,10 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   📁 Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
                 </p>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Notes & Observations</label>
+                <textarea className="form-control" value={candForm.notes || ''} onChange={e => setCandForm({...candForm, notes: e.target.value})} placeholder="Remarques..." />
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setCandModal(false)}>Annuler</button>

@@ -47,8 +47,8 @@ export const moveFileToSubfolder = (bienId, sourceRelativePath, targetSubfolder)
 
 // ─── Locataires ───────────────────────────────────────────────
 export const getLocataires = () => cmd('get_locataires')
-export const createLocataire = (locataire) => cmd('create_locataire', { locataire })
-export const updateLocataire = (locataire) => cmd('update_locataire', { locataire })
+export const createLocataire = (locataire, sourcePath = null) => cmd('create_locataire', { locataire, sourcePath })
+export const updateLocataire = (locataire, sourcePath = null) => cmd('update_locataire', { locataire, sourcePath })
 export const deleteLocataire = (id) => cmd('delete_locataire', { id })
 export const getLocataireStats = (locataireId) => cmd('get_locataire_stats', { locataireId })
 
@@ -57,7 +57,8 @@ export const getBaux = (bienId = null) => cmd('get_baux', { bienId })
 export const createBail = (bail) => cmd('create_bail', { bail })
 export const updateBail = (bail) => cmd('update_bail', { bail })
 export const deleteBail = (id) => cmd('delete_bail', { id })
-export const terminateBail = (bailId, dateFin = null) => cmd('terminate_bail', { bailId, dateFin })
+export const terminateBail = (bailId, dateFin = null, motifFin = null, notesFin = null) =>
+  cmd('terminate_bail', { bailId, dateFin, motifFin, notesFin })
 
 // ─── Candidatures ─────────────────────────────────────────────
 export const getCandidatures = (bienId = null) => cmd('get_candidatures', { bienId })
