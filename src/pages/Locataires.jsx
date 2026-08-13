@@ -587,7 +587,8 @@ export default function Locataires({ onNavigate, onOpenMail }) {
               </tbody>
             </table>
           </div>
-        )
+          )}
+        </>
       )}
 
       {/* ── VUE CANDIDATURES ── */}
