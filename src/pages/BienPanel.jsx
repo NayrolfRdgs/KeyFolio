@@ -19,11 +19,13 @@ import QuickDocumentModal from '../components/QuickDocumentModal'
 import ExcelGeneratorModal from '../components/ExcelGeneratorModal'
 import BienOverviewTab from '../components/biens/BienOverviewTab'
 import BienFilesTab from '../components/biens/BienFilesTab'
+import BienFinanceTab from '../components/biens/BienFinanceTab'
+import BienOccupationTab from '../components/biens/BienOccupationTab'
+import BienMaintenanceTab from '../components/biens/BienMaintenanceTab'
 import BienAlertsSidebar from '../components/biens/BienAlertsSidebar'
 import BienMapModal from '../components/biens/BienMapModal'
 import BienPhotosGalleryModal from '../components/biens/BienPhotosGalleryModal'
 import BienImage from '../components/BienImage'
-import { DetailedFinanceDashboard } from '../components/FinanceCharts'
 import NewBailModal from '../components/NewBailModal'
 
 const TABS = [
@@ -567,127 +569,36 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
 
                   {/* ── TAB FINANCES ── */}
                   {tab === 'finances' && (
-                    <div>
-                      {/* Graphiques Interactifs & Analytique Financière */}
-                      <DetailedFinanceDashboard bien={bien} champsMap={champsMap} paiements={paiements} depenses={depenses} />
-
-                      <div className="card" style={{ padding: 20 }}>
-                        <div className="finances-kpi-grid" style={{ marginBottom: 20 }}>
-                        <FinKpi label="Loyer mensuel" value={formatEuro(totalLoyer)} sub={`${formatEuro(loyerMensuel)} + ${formatEuro(charges)} charges`} color="#6366f1" />
-                        <FinKpi label="Encaissé ce mois" value={formatEuro(encaisseM)} sub={`${payesMois.length} paiement(s)`} color="#22c55e" />
-                        <FinKpi label="Dépenses ce mois" value={`-${formatEuro(depensesMois)}`} sub="charges du bien" color="#f59e0b" />
-                        <FinKpi label="Bilan net" value={formatEuro(bilanNet)} sub="encaissé - dépenses" color={bilanNet >= 0 ? '#22c55e' : '#ef4444'} />
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Loyers & Paiements</h4>
-                        <button className="btn btn-primary btn-sm" onClick={openNewPaiement}>
-                          <Icon name="plus" size={13} /> Saisir un paiement
-                        </button>
-                      </div>
-
-                      {paiements.length === 0 ? (
-                        <div className="empty-state" style={{ padding: '30px 0' }}>
-                          <div className="empty-state-icon">💳</div>
-                          <p>Aucun paiement enregistré pour ce logement</p>
-                        </div>
-                      ) : (
-                        <div className="table-wrapper">
-                          <table className="data-table">
-                            <thead><tr><th>Date prévue</th><th>Date réelle</th><th>Montant</th><th>Méthode</th><th>Statut</th><th></th></tr></thead>
-                            <tbody>
-                              {paiements.map(p => (
-                                <tr key={p.id}>
-                                  <td>{formatDate(p.date_prevue)}</td>
-                                  <td className="text-muted">{p.date_reelle ? formatDate(p.date_reelle) : '—'}</td>
-                                  <td className="fw-600">{formatEuro(p.montant)}</td>
-                                  <td className="text-muted">{p.methode || '—'}</td>
-                                  <td>{statutPaiementBadge(p.statut)}</td>
-                                  <td>
-                                    <div className="actions-cell">
-                                      {p.statut !== 'paye' && (
-                                        <button className="btn btn-success btn-sm" onClick={() => markPaid(p)}>Payer</button>
-                                      )}
-                                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => deletePmt(p.id)}><Icon name="trash" size={13} /></button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                    <BienFinanceTab
+                      bien={bien}
+                      champsMap={champsMap}
+                      paiements={paiements}
+                      depenses={depenses}
+                      totalLoyer={totalLoyer}
+                      loyerMensuel={loyerMensuel}
+                      charges={charges}
+                      encaisseM={encaisseM}
+                      payesMois={payesMois}
+                      depensesMois={depensesMois}
+                      bilanNet={bilanNet}
+                      onOpenNewPaiement={openNewPaiement}
+                      onMarkPaid={markPaid}
+                      onDeletePaiement={deletePmt}
+                    />
+                  )}
 
                   {/* ── TAB OCCUPATION ── */}
                   {tab === 'occupation' && (
-                    isOwnerOccupied ? (
-                      <div className="card" style={{ padding: 32, textAlign: 'center', background: 'var(--color-surface)', borderRadius: 14 }}>
-                        <div style={{ fontSize: 44, marginBottom: 12 }}>🏠</div>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>Logement en Occupation Personnelle</h3>
-                        <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 520, margin: '0 auto 18px auto', lineHeight: 1.5 }}>
-                          Ce logement est actuellement configuré comme <strong>{champsMap['mode_occupation'] || 'Résidence Principale'}</strong> (occupation personnelle par le propriétaire). La gestion des baux et des locataires est donc désactivée pour ce bien.
-                        </p>
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              setTab('generale')
-                              setIsEditingOverview(true)
-                            }}
-                          >
-                            ✏️ Modifier les caractéristiques / Mode d'occupation
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="card" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                          <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Baux du logement</h4>
-                          <button className="btn btn-primary btn-sm" onClick={openNewBail}>
-                            <Icon name="plus" size={13} /> Nouveau bail
-                          </button>
-                        </div>
-
-                        {baux.length === 0 ? (
-                          <div className="empty-state">
-                            <div className="empty-state-icon">🏠</div>
-                            <h3>Aucun bail pour ce logement</h3>
-                            <button className="btn btn-primary btn-sm" onClick={openNewBail}>+ Nouveau bail</button>
-                          </div>
-                        ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                          {baux.map(b => (
-                            <div key={b.id} className={`card ${b.statut === 'actif' ? 'border-primary' : ''}`} style={{ padding: 16 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span className={`badge ${b.statut === 'actif' ? 'badge-success' : 'badge-muted'}`}>
-                                      {b.statut === 'actif' ? 'Actif' : 'Terminé'}
-                                    </span>
-                                    <strong style={{ fontSize: 16 }}>
-                                      👤 {b.locataire_prenom} {b.locataire_nom}
-                                    </strong>
-                                  </div>
-                                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                                    Du {formatDate(b.date_debut)} au {b.date_fin ? formatDate(b.date_fin) : 'Indéterminé'}
-                                  </div>
-                                </div>
-
-                                <div style={{ textAlign: 'right' }}>
-                                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-primary)' }}>
-                                    {formatEuro(b.loyer_mensuel)} / mois
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    )
+                    <BienOccupationTab
+                      isOwnerOccupied={isOwnerOccupied}
+                      champsMap={champsMap}
+                      baux={baux}
+                      onOpenNewBail={openNewBail}
+                      onNavigateToEdit={() => {
+                        setTab('generale')
+                        setIsEditingOverview(true)
+                      }}
+                    />
                   )}
 
                   {/* ── TAB DOCUMENTS ── */}
@@ -701,43 +612,11 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
 
                   {/* ── TAB MAINTENANCE ── */}
                   {tab === 'maintenance' && (
-                    <div className="card" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Tickets de maintenance ({maintenance.length})</h4>
-                        <button className="btn btn-primary btn-sm" onClick={openNewMaintenance}>
-                          <Icon name="plus" size={13} /> Nouveau ticket
-                        </button>
-                      </div>
-
-                      {maintenance.length === 0 ? (
-                        <div className="empty-state">
-                          <div className="empty-state-icon">🔧</div>
-                          <p>Aucun ticket de maintenance pour ce logement</p>
-                        </div>
-                      ) : (
-                        <div className="table-wrapper">
-                          <table className="data-table">
-                            <thead><tr><th>Titre</th><th>Priorité</th><th>Statut</th><th>Prestataire</th><th>Coût</th><th></th></tr></thead>
-                            <tbody>
-                              {maintenance.map(m => (
-                                <tr key={m.id}>
-                                  <td className="fw-600">{m.titre}</td>
-                                  <td>{prioriteBadge(m.priorite)}</td>
-                                  <td>{statutMaintenanceBadge(m.statut)}</td>
-                                  <td className="text-muted">{m.prestataire || '—'}</td>
-                                  <td className="fw-600">{m.cout ? formatEuro(m.cout) : '—'}</td>
-                                  <td>
-                                    <div className="actions-cell">
-                                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => deleteMainI(m.id)}><Icon name="trash" size={13} /></button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
+                    <BienMaintenanceTab
+                      maintenance={maintenance}
+                      onOpenNewMaintenance={openNewMaintenance}
+                      onDeleteMaintenance={deleteMainI}
+                    />
                   )}
 
                   {/* ── TAB EMAIL ── */}
@@ -802,16 +681,6 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           }}
         />
       )}
-    </div>
-  )
-}
-
-function FinKpi({ label, value, sub, color, alert }) {
-  return (
-    <div className={`fin-kpi-card ${alert ? 'alert-card' : ''}`} style={{ borderTopColor: color }}>
-      <div className="fin-kpi-label">{label}</div>
-      <div className="fin-kpi-val" style={{ color, fontSize: 18, fontWeight: 800 }}>{value}</div>
-      <div className="fin-kpi-sub">{sub}</div>
     </div>
   )
 }
