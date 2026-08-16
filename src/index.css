@@ -2282,3 +2282,63 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   justify-content: center;
 }
 
+/* ─── Print & PDF Export Rules ──────────────────────────────── */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .no-print,
+  .modal-backdrop,
+  .sidebar,
+  .app-sidebar,
+  .sidebar-footer,
+  .toast-container,
+  .btn,
+  .filter-bar,
+  header,
+  nav {
+    display: none !important;
+  }
+
+  .modal-card,
+  .modal-content,
+  .quittance-printable {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  span.print-only {
+    display: inline !important;
+  }
+
+  div.print-only {
+    display: block !important;
+  }
+}
+
+

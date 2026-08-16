@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { applyTheme } from '../lib/theme'
+import { openExternalUrl } from '../lib/db'
 
-export default function SettingsModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('general')
+export default function SettingsModal({ isOpen, onClose, initialTab = 'general' }) {
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
 
@@ -13,7 +14,14 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [googleApiKey, setGoogleApiKey] = useState(localStorage.getItem('google_api_key') || '')
   const [currency, setCurrency] = useState(localStorage.getItem('app_currency') || '€')
   const [enableAlerts, setEnableAlerts] = useState(localStorage.getItem('enable_alerts') !== 'false')
+  const [enableUpdateNotifs, setEnableUpdateNotifs] = useState(localStorage.getItem('enable_update_notifs') !== 'false')
   const [accentColor, setAccentColor] = useState(localStorage.getItem('accent_color') || '#6366f1')
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [isOpen, initialTab])
 
   useEffect(() => {
     applyTheme(theme)
@@ -25,11 +33,12 @@ export default function SettingsModal({ isOpen, onClose }) {
     setSaving(true)
     try {
       localStorage.setItem('app_theme', theme)
-      localStorage.setItem('google_client_id', googleClientId)
-      localStorage.setItem('google_client_secret', googleClientSecret)
-      localStorage.setItem('google_api_key', googleApiKey)
+      localStorage.setItem('google_client_id', googleClientId.trim())
+      localStorage.setItem('google_client_secret', googleClientSecret.trim())
+      localStorage.setItem('google_api_key', googleApiKey.trim())
       localStorage.setItem('app_currency', currency)
       localStorage.setItem('enable_alerts', String(enableAlerts))
+      localStorage.setItem('enable_update_notifs', String(enableUpdateNotifs))
       localStorage.setItem('accent_color', accentColor)
 
       setMsg('✅ Options enregistrées avec succès !')
@@ -110,25 +119,40 @@ export default function SettingsModal({ isOpen, onClose }) {
               </div>
 
               <div className="form-group" style={{ marginTop: 8 }}>
-                <label className="form-label" style={{ fontWeight: 700 }}>Alertes & Notifications de Loyers</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    id="alerts-checkbox"
-                    checked={enableAlerts}
-                    onChange={(e) => setEnableAlerts(e.target.checked)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
-                  />
-                  <label htmlFor="alerts-checkbox" style={{ fontSize: 13, cursor: 'pointer' }}>
-                    Activer les alertes automatiques en cas de retard de loyers ou d'échéance de DPE
-                  </label>
+                <label className="form-label" style={{ fontWeight: 700 }}>Alertes & Notifications</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="alerts-checkbox"
+                      checked={enableAlerts}
+                      onChange={(e) => setEnableAlerts(e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                    <label htmlFor="alerts-checkbox" style={{ fontSize: 13, cursor: 'pointer' }}>
+                      Activer les alertes automatiques en cas de retard de loyers ou d'échéance de DPE
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="update-notifs-checkbox"
+                      checked={enableUpdateNotifs}
+                      onChange={(e) => setEnableUpdateNotifs(e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                    <label htmlFor="update-notifs-checkbox" style={{ fontSize: 13, cursor: 'pointer' }}>
+                      Activer les notifications de mise à jour au démarrage (Vérification GitHub Releases)
+                    </label>
+                  </div>
                 </div>
               </div>
 
               <div className="form-group" style={{ marginTop: 12, padding: 14, background: 'var(--color-surface-2)', borderRadius: 8 }}>
                 <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>Information Application</label>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  Application <strong>LePuits v6</strong> — Gestion Immobilière Native (Tauri v2 + SQLite)
+                  Application <strong>KeyFolio v0.1.0 (Beta)</strong> — Gestion Immobilière Native (Tauri v2 + Rust + SQLite)
                 </div>
               </div>
             </div>
@@ -228,8 +252,16 @@ export default function SettingsModal({ isOpen, onClose }) {
           {/* Tab 3: Google Client ID & APIs */}
           {activeTab === 'google' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ padding: 12, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12, color: '#1E40AF' }}>
-                🔑 Renseignez vos identifiants Google Cloud Console pour activer la synchronisation Google Drive, Google Maps et les emails Gmail.
+              <div style={{ padding: 12, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12, color: '#1E40AF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>🔑 Renseignez vos identifiants Google Cloud Console pour la connexion Gmail et Google Maps.</span>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  style={{ fontSize: 11, padding: '4px 10px' }}
+                  onClick={() => openExternalUrl('https://console.cloud.google.com/apis/credentials')}
+                >
+                  🌐 Ouvrir Google Cloud Console
+                </button>
               </div>
 
               <div className="form-group">
@@ -237,6 +269,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                 <input
                   type="text"
                   className="form-control"
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
                   placeholder="ex: 1234567890-xyz.apps.googleusercontent.com"
                   value={googleClientId}
                   onChange={(e) => setGoogleClientId(e.target.value)}
@@ -244,10 +277,11 @@ export default function SettingsModal({ isOpen, onClose }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 700 }}>Google Client Secret</label>
+                <label className="form-label" style={{ fontWeight: 700 }}>Google Client Secret (Optionnel)</label>
                 <input
                   type="password"
                   className="form-control"
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
                   placeholder="GOCSPX-..."
                   value={googleClientSecret}
                   onChange={(e) => setGoogleClientSecret(e.target.value)}
@@ -259,10 +293,22 @@ export default function SettingsModal({ isOpen, onClose }) {
                 <input
                   type="text"
                   className="form-control"
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
                   placeholder="AIzaSy..."
                   value={googleApiKey}
                   onChange={(e) => setGoogleApiKey(e.target.value)}
                 />
+              </div>
+
+              <div style={{ padding: 12, background: 'var(--color-surface-2)', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: 11, lineHeight: 1.6 }}>
+                <strong>💡 Comment créer son Client ID Google gratuit en 1 minute :</strong>
+                <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                  <li>Cliquez sur le bouton <strong>"🌐 Ouvrir Google Cloud Console"</strong> ci-dessus.</li>
+                  <li>Cliquez sur <strong>Créer des identifiants</strong> → <strong>ID client OAuth</strong>.</li>
+                  <li>Choisissez le type d'application : <strong>Application de bureau</strong> (Desktop App).</li>
+                  <li>Nommez-la <em>"KeyFolio"</em> et cliquez sur <strong>Créer</strong>.</li>
+                  <li>Copiez le <strong>Client ID</strong> et le <strong>Client Secret</strong> fournis et collez-les dans les champs ci-dessus !</li>
+                </ol>
               </div>
             </div>
           )}

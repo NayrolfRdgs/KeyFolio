@@ -22,8 +22,8 @@ export default function Sidebar({ currentPage, currentBienId, onNavigate, onOpen
     <aside className="sidebar">
       {/* Logo + icônes outils */}
       <div className="sidebar-logo">
-        <h1>🏠 LePuits</h1>
-        <p>Gestion immobilière</p>
+        <h1>🔑 KeyFolio</h1>
+        <span className="app-badge">Beta v0.1.0</span>
       </div>
 
       {/* Barre d'outils compacte — icônes uniquement */}
@@ -156,18 +156,18 @@ export default function Sidebar({ currentPage, currentBienId, onNavigate, onOpen
           Documents
         </button>
 
-        <button
-          id="nav-options"
-          className="nav-item"
-          onClick={onOpenSettings}
-          style={{ marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 10, color: 'var(--text-muted)' }}
-        >
-          ⚙️ Options & Réglages
-        </button>
       </nav>
 
-      <div className="sidebar-footer">
-        LePuits v6 — Phase 6
+      <div className="sidebar-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px' }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>KeyFolio v0.1.0</span>
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={onOpenSettings}
+          title="Options Générales & Réglages"
+          style={{ padding: 4, borderRadius: 6, fontSize: 14, cursor: 'pointer' }}
+        >
+          ⚙️
+        </button>
       </div>
     </aside>
   )

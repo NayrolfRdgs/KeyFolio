@@ -1113,13 +1113,21 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   ) : previewData ? (
                     <>
                       {previewData.mime_type === 'application/pdf' && (
-                        <iframe
-                          src={convertFileSrc(selectedFile.absolute_path || selectedFile.relative_path)}
-                          title={selectedFile.name}
+                        <object
+                          data={`data:application/pdf;base64,${previewData.base64_data}#toolbar=1&navpanes=0`}
+                          type="application/pdf"
                           width="100%"
                           height="100%"
-                          style={{ border: 'none', borderRadius: '8px', flex: 1, minHeight: '480px' }}
-                        />
+                          style={{ border: 'none', borderRadius: '8px', flex: 1, minHeight: '560px', width: '100%', height: '100%' }}
+                        >
+                          <iframe
+                            src={`data:application/pdf;base64,${previewData.base64_data}`}
+                            title={selectedFile.name}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 'none', borderRadius: '8px', flex: 1, minHeight: '560px' }}
+                          />
+                        </object>
                       )}
 
                       {previewData.mime_type.startsWith('image/') && (

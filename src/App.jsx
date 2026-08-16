@@ -13,6 +13,7 @@ import GlobalSearchModal   from './components/GlobalSearchModal'
 import ExcelGeneratorModal from './components/ExcelGeneratorModal'
 import WizardCreateBien    from './components/WizardCreateBien'
 import SettingsModal       from './components/SettingsModal'
+import UpdateBanner        from './components/UpdateBanner'
 import { initThemeListener } from './lib/theme'
 
 export default function App() {
@@ -29,7 +30,13 @@ export default function App() {
   const [excelGenModalOpen, setExcelGenModalOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState('general')
   const [documentFilePath, setDocumentFilePath] = useState(null)
+
+  const handleOpenSettings = (targetTab = 'general') => {
+    setSettingsTab(typeof targetTab === 'string' ? targetTab : 'general')
+    setSettingsOpen(true)
+  }
 
   const navigate = (p, param = null) => {
     setMailOptions(null)
@@ -42,11 +49,9 @@ export default function App() {
       // param peut être un objet { bienId, filePath } ou juste un id numérique
       if (typeof param === 'object' && param.bienId) {
         setSelectedBienId(param.bienId)
-        setCurrentBienId(param.bienId)
         setDocumentFilePath(param.filePath || null)
-      } else {
+      } else if (typeof param === 'number' || typeof param === 'string') {
         setSelectedBienId(param)
-        setCurrentBienId(param)
       }
       setPage('documents')
     } else {
@@ -54,65 +59,54 @@ export default function App() {
     }
   }
 
-  // Ouvrir un fichier dans la page Documents (au lieu de l'ouvrir en externe)
-  const openInDocuments = (bienId, filePath) => {
-    if (!bienId) return
-    navigate('documents', { bienId, filePath })
-  }
-
   const openMail = (bienId, options = null) => {
-    if (!bienId) return
     setCurrentBienId(bienId)
     setSelectedBienId(bienId)
-    setMailOptions(options ? { initialView: 'compose', ...options } : { initialView: 'compose' })
+    setMailBienId(bienId)
+    setMailOptions(options)
     setPage('bien')
   }
 
   const renderPage = () => {
     switch (page) {
       case 'dashboard':
-        return <Dashboard onNavigate={navigate} />
-      case 'bien':
-        return <BienPanel
-          key={`${currentBienId}-${mailOptions ? 'email' : 'gen'}`}
-          bienId={currentBienId}
-          initialTab={mailOptions ? 'email' : 'generale'}
-          mailOptions={mailOptions}
-          onNavigate={navigate}
-          onOpenMail={openMail}
-          onOpenInDocuments={openInDocuments}
-        />
+        return <Dashboard onNavigate={navigate} onOpenWizard={() => setWizardOpen(true)} />
       case 'biens':
-        return <Biens onNavigate={navigate} onWizardDone={() => {}} />
+        return <Biens onNavigate={navigate} onOpenWizard={() => setWizardOpen(true)} />
       case 'locataires':
         return <Locataires onNavigate={navigate} onOpenMail={openMail} />
       case 'baux':
         return <Baux onNavigate={navigate} onOpenMail={openMail} />
       case 'paiements':
-        return <Paiements />
+        return <Paiements onNavigate={navigate} onOpenMail={openMail} />
       case 'depenses':
-        return <Depenses />
+        return <Depenses onNavigate={navigate} />
       case 'documents':
-        return <Documents selectedBienId={selectedBienId} initialFilePath={documentFilePath} />
+        return <Documents onNavigate={navigate} initialFilePath={documentFilePath} />
       case 'maintenance':
-        return <Maintenance />
+        return <Maintenance onNavigate={navigate} />
+      case 'bien':
+        return <BienPanel bienId={currentBienId} onNavigate={navigate} initialOptions={mailOptions} onOpenSettings={handleOpenSettings} />
       default:
         return <Dashboard onNavigate={navigate} />
     }
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar
-        currentPage={page}
-        currentBienId={currentBienId}
-        onNavigate={navigate}
-        onOpenSearch={() => setSearchModalOpen(true)}
-        onOpenExcelGenerator={() => setExcelGenModalOpen(true)}
-        onOpenMail={openMail}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <main className="app-main">{renderPage()}</main>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <UpdateBanner />
+      <div className="app-layout" style={{ flex: 1, minHeight: 0 }}>
+        <Sidebar
+          currentPage={page}
+          currentBienId={currentBienId}
+          onNavigate={navigate}
+          onOpenSearch={() => setSearchModalOpen(true)}
+          onOpenExcelGenerator={() => setExcelGenModalOpen(true)}
+          onOpenMail={openMail}
+          onOpenSettings={handleOpenSettings}
+        />
+        <main className="app-main">{renderPage()}</main>
+      </div>
 
       {searchModalOpen && (
         <GlobalSearchModal
@@ -136,9 +130,9 @@ export default function App() {
 
       <SettingsModal
         isOpen={settingsOpen}
+        initialTab={settingsTab}
         onClose={() => setSettingsOpen(false)}
       />
     </div>
   )
 }
-

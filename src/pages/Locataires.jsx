@@ -26,10 +26,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const [biens, setBiens] = useState([])
   const [baux, setBaux] = useState([])
 
-  // Modal Fin de bail / Résiliation
-  const [terminateModal, setTerminateModal] = useState(null)
-  // { bailId, locataireNom, dateFin: todayISO(), motifFin: 'Congé locataire', notesFin: '' }
-
   // Modal Locataire
   const [locModal, setLocModal] = useState(false)
   const [locForm, setLocForm] = useState(EMPTY_LOC)
@@ -342,27 +338,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     `${c.nom} ${c.prenom} ${c.bien_nom || ''} ${c.email || ''} ${c.profession || ''}`.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleConfirmTerminate = async (e) => {
-    e.preventDefault()
-    if (!terminateModal?.bailId) return
-    setLoading(true)
-    try {
-      await terminateBail(
-        terminateModal.bailId,
-        terminateModal.dateFin || todayISO(),
-        terminateModal.motifFin || 'Congé locataire',
-        terminateModal.notesFin || ''
-      )
-      addToast('Fin de bail enregistrée. Le locataire figure désormais dans les anciens locataires.', 'info')
-      setTerminateModal(null)
-      await loadAll()
-    } catch (err) {
-      addToast(`Erreur : ${err}`, 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="page-content">
       <div className="page-header">
@@ -537,22 +512,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
-                        {l.activeBail && (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '3px 8px', fontSize: 11, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}
-                            onClick={() => setTerminateModal({
-                              bailId: l.activeBail.id,
-                              locataireNom: `${l.prenom} ${l.nom}`,
-                              dateFin: todayISO(),
-                              motifFin: 'Congé locataire',
-                              notesFin: ''
-                            })}
-                            title="Mettre fin au bail et enregistrer le motif de départ"
-                          >
-                            🚪 Fin de bail
-                          </button>
-                        )}
                         <button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '3px 8px', fontSize: 11, background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0' }}

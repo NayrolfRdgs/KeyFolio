@@ -28,6 +28,7 @@ export const copyFileToBien = ({ bienId, subfolder, sourcePath, typeDoc = null, 
   cmd('copy_file_to_bien', { bienId, subfolder, sourcePath, typeDoc, dateDocument, notes })
 
 export const openFilePath = (path) => cmd('open_file_path', { path })
+export const saveFileToDisk = (targetPath, base64Data) => cmd('save_file_to_disk', { targetPath, base64Data })
 export const getFilePreview = (path) => cmd('get_file_preview', { path })
 export const readExcelFilePreview = (path) => cmd('read_excel_file_preview', { path })
 export const readExcelSheet = (path, sheetName) => cmd('read_excel_sheet', { path, sheetName })
@@ -59,6 +60,12 @@ export const updateBail = (bail) => cmd('update_bail', { bail })
 export const deleteBail = (id) => cmd('delete_bail', { id })
 export const terminateBail = (bailId, dateFin = null, motifFin = null, notesFin = null) =>
   cmd('terminate_bail', { bailId, dateFin, motifFin, notesFin })
+export const saveEtatDesLieux = (bienId, locataireNom, dateEdl, htmlContent) =>
+  cmd('save_etat_des_lieux', { bienId, locataireNom, dateEdl, htmlContent })
+export const saveEtatDesLieuxPdf = (bienId, locataireNom, dateEdl, pdfBase64) =>
+  cmd('save_etat_des_lieux_pdf', { bienId, locataireNom, dateEdl, pdfBase64 })
+export const saveContratBailPdf = (bailId, bienId, locataireNom, dateDebut, pdfBase64) =>
+  cmd('save_contrat_bail_pdf', { bailId, bienId, locataireNom, dateDebut, pdfBase64 })
 
 // ─── Candidatures ─────────────────────────────────────────────
 export const getCandidatures = (bienId = null) => cmd('get_candidatures', { bienId })

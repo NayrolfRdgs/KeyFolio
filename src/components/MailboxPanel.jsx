@@ -75,9 +75,28 @@ Cette révision est effectuée conformément à l'article de votre contrat de ba
 Cordialement,
 [BAILLEUR]`
   },
+  {
+    id: 'fin_bail',
+    label: '🚪 Clôture de bail & Solde de tout compte',
+    subject: 'Clôture de votre bail et solde de tout compte — [LOGEMENT]',
+    body: `Madame, Monsieur,
+
+Nous vous confirmons par la présente la clôture effective de votre bail d'habitation pour le logement situé au [LOGEMENT].
+
+L'état des lieux de sortie contradictoire a bien été établi et les clés du logement ont été restituées.
+
+Concernant le solde de tout compte et la restitution de votre dépôt de garantie (caution) :
+- Montant initial versé : [CAUTION] €
+- Solde net à vous restituer : [SOLDE_CAUTION] € (par virement bancaire sous les délais légaux).
+
+Nous vous remercions pour la relation locative tout au long de cette période et vous souhaitons une excellente continuation.
+
+Cordialement,
+[BAILLEUR]`
+  },
 ]
 
-export default function MailboxPanel({ bienId, bienNom, initialView = null, initialTemplate = null, initialBailId = null, initialRentAmount = null, recipientEmail = null }) {
+export default function MailboxPanel({ bienId, bienNom, initialView = null, initialTemplate = null, initialBailId = null, initialRentAmount = null, recipientEmail = null, onOpenSettings }) {
   const isMounted = useRef(true)
   const [view, setView] = useState('inbox') // 'inbox' | 'compose' | 'config'
   const [config, setConfig] = useState(DEFAULT_CONFIG)
@@ -294,11 +313,21 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
   }
 
   const handleGoogleOAuth = async () => {
+    const savedClientId = (localStorage.getItem('google_client_id') || '').trim()
+    const savedClientSecret = (localStorage.getItem('google_client_secret') || '').trim()
+
+    if (!savedClientId) {
+      if (onOpenSettings) {
+        onOpenSettings('google')
+      } else {
+        alert("🔑 Renseignez d'abord votre Client ID Google dans les Options (⚙️ Réglages).")
+      }
+      return
+    }
+
     setStatus('🔑 Lancement de la connexion Google... Votre navigateur Web s\'ouvre pour autoriser l\'accès.')
-    if (customClientId) localStorage.setItem('google_custom_client_id', customClientId.trim())
-    if (customClientSecret) localStorage.setItem('google_custom_client_secret', customClientSecret.trim())
     try {
-      const userEmail = await startGoogleOauth(bienId, customClientId.trim() || null, customClientSecret.trim() || null)
+      const userEmail = await startGoogleOauth(bienId, savedClientId, savedClientSecret || null)
       setStatus(`✅ Compte Gmail (${userEmail}) connecté avec succès !`)
       setConfig(prev => ({
         ...prev,
@@ -337,13 +366,21 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
     const chargeAmount = activeBail ? (activeBail.charges_mensuelles || 0) : '[CHARGES]'
     const totalAmount = typeof rentAmount === 'number' && typeof chargeAmount === 'number' ? (rentAmount + chargeAmount) : '[TOTAL]'
 
-    processedSubject = processedSubject.replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
+    const cautionAmount = activeBail?.depot_garantie ? activeBail.depot_garantie.toString() : '0'
+    const logementName = bienNom || activeBail?.bien_nom || 'notre logement'
+
+    processedSubject = processedSubject
+      .replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
+      .replace(/\[LOGEMENT\]/g, logementName)
     processedBody = processedBody
       .replace(/\[MOIS\]/g, `${curMonth} ${curYear}`)
       .replace(/\[MONTANT\]/g, rentAmount.toString())
       .replace(/\[NOUVEAU_MONTANT\]/g, rentAmount.toString())
       .replace(/\[CHARGES\]/g, chargeAmount.toString())
       .replace(/\[TOTAL\]/g, totalAmount.toString())
+      .replace(/\[LOGEMENT\]/g, logementName)
+      .replace(/\[CAUTION\]/g, cautionAmount)
+      .replace(/\[SOLDE_CAUTION\]/g, cautionAmount)
       .replace(/\[DATE\]/g, todayStr)
       .replace(/\[LOCATAIRE\]/g, tenantName)
       .replace(/\[BAILLEUR\]/g, "Le Propriétaire")
@@ -711,91 +748,6 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
               Connectez votre compte Gmail en un clic. Une fenêtre officielle Google s'ouvre pour valider l'accès à votre boîte mail.
             </p>
 
-            {/* Champs Identifiants Client ID Google */}
-            <div style={{ background: 'var(--color-surface)', padding: 14, borderRadius: 8, border: '1px solid var(--color-border)', marginBottom: 14 }}>
-              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>🔑 Identifiants Google Cloud OAuth (Renseignez votre Client ID ci-dessous)</span>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ padding: '2px 8px', fontSize: 11 }}
-                  onClick={() => openExternalUrl('https://console.cloud.google.com/apis/credentials')}
-                >
-                  🌐 Accéder à Google Cloud Console
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                    Client ID Google (ex: 123456789-xxxx.apps.googleusercontent.com)
-                  </label>
-                  <input
-                    className="form-control"
-                    style={{ fontSize: 12, fontFamily: 'monospace' }}
-                    placeholder="Collez votre Client ID Google Cloud ici"
-                    value={customClientId}
-                    onChange={e => {
-                      setCustomClientId(e.target.value)
-                      localStorage.setItem('google_custom_client_id', e.target.value)
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                    Client Secret Google (Optionnel, ex: GOCSPX-xxxx)
-                  </label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    style={{ fontSize: 12, fontFamily: 'monospace' }}
-                    placeholder="Collez votre Client Secret Google ici"
-                    value={customClientSecret}
-                    onChange={e => {
-                      setCustomClientSecret(e.target.value)
-                      localStorage.setItem('google_custom_client_secret', e.target.value)
-                    }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-link btn-sm"
-                onClick={() => setShowCloudTutorial(!showCloudTutorial)}
-                style={{ padding: 0, marginTop: 8, fontSize: 11, color: 'var(--color-accent)' }}
-              >
-                {showCloudTutorial ? '📖 Masquer le tutoriel Client ID' : '💡 Comment créer son Client ID Google gratuit en 1 minute ?'}
-              </button>
-
-              {showCloudTutorial && (
-                <div style={{ marginTop: 10, padding: 10, background: 'var(--color-bg-subtle)', borderRadius: 6, fontSize: 11, lineHeight: 1.6 }}>
-                  <strong>Tutoriel 1 minute :</strong>
-                  <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                    <li>Cliquez sur le bouton <strong>"🌐 Accéder à Google Cloud Console"</strong> ci-dessus.</li>
-                    <li>Cliquez sur <strong>Créer des identifiants</strong> → <strong>ID client OAuth</strong>.</li>
-                    <li>Choisissez le type d'application : <strong>Application de bureau</strong> (Desktop App).</li>
-                    <li>Nommez-la <em>"LePuits"</em> et cliquez sur <strong>Créer</strong>.</li>
-                    <li>Copiez le <strong>Client ID</strong> et le <strong>Client Secret</strong> fournis et collez-les dans les deux champs ci-dessus !</li>
-                  </ol>
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-border)' }}>
-                    <strong style={{ color: 'var(--color-danger)' }}>⚠️ Si vous avez l'erreur 403 (access_denied / Appli en cours de test) :</strong>
-                    <br />
-                    Sur Google Cloud, allez sur la page <strong>Écran de consentement OAuth</strong> → faites défiler jusqu'à <strong>Utilisateurs de test</strong> → cliquez sur <strong>+ ADD USERS</strong> et ajoutez votre adresse Gmail !
-                    <br />
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      style={{ marginTop: 6, padding: '3px 8px', fontSize: 11 }}
-                      onClick={() => openExternalUrl('https://console.cloud.google.com/apis/credentials/consent')}
-                    >
-                      🌐 Ouvrir l'Écran de consentement (Ajouter mon adresse Gmail en testeur)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
@@ -804,6 +756,13 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                 style={{ background: 'linear-gradient(135deg, #4285f4, #34a853)', border: 'none', fontWeight: 600, padding: '10px 20px', fontSize: 14 }}
               >
                 🔑 Se connecter avec Google (Autoriser)
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => onOpenSettings && onOpenSettings('google')}
+              >
+                ⚙️ Configurer mon Client ID Google
               </button>
               {configSaved && config.imap_host === 'imap.gmail.com' && (
                 <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: 12 }}>
