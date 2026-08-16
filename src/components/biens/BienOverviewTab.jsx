@@ -5,7 +5,7 @@ import {
   getBienChampsLibres, saveBienChampsLibresBatch,
   copyFileToBien, openFilePath, openExternalUrl, getBaux, updateBien
 } from '../../lib/db'
-import { OverviewFinanceChart } from '../FinanceCharts'
+import { OverviewFinanceChart } from './FinanceCharts'
 
 export const CATEGORY_COLORS = {
   '🏠 Identification générale': '#6366f1',

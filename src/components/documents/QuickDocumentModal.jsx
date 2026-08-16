@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
-import { getBiens, copyFileToBien } from '../lib/db'
-import { SUBFOLDERS } from '../lib/utils'
-import Icon from './Icon'
+import { getBiens, copyFileToBien } from '../../lib/db'
+import { SUBFOLDERS } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 export default function QuickDocumentModal({ initialBienId = null, onClose, onSuccess }) {
   const [biens, setBiens] = useState([])

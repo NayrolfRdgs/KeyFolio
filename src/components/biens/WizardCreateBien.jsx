@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
-import { createBienWizard } from '../lib/db'
-import { SUBFOLDERS } from '../lib/utils'
-import Icon from './Icon'
-import { ALL_FIELDS } from './biens/BienOverviewTab'
+import { createBienWizard } from '../../lib/db'
+import { SUBFOLDERS } from '../../lib/utils'
+import Icon from '../common/Icon'
+import { ALL_FIELDS } from './BienOverviewTab'
 
 // Étapes dynamiques selon le type d'occupation
 function getSteps(occupation) {

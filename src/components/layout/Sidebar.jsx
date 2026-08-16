@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { getBiens } from '../lib/db'
-import Icon from './Icon'
+import { getBiens } from '../../lib/db'
+import Icon from '../common/Icon'
 
 const statutColor = {
   en_cours:  { dot: '#22c55e', bg: 'rgba(34,197,94,0.15)' },

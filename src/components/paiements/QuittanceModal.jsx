@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import Icon from './Icon'
-import { formatEuro, formatDate, todayISO } from '../lib/utils'
-import { buildQuittancePDF } from '../lib/pdfGenerator'
-import { saveFileToDisk, openFilePath } from '../lib/db'
+import Icon from '../common/Icon'
+import { formatEuro, formatDate, todayISO } from '../../lib/utils'
+import { buildQuittancePDF } from '../../lib/pdfGenerator'
+import { saveFileToDisk, openFilePath } from '../../lib/db'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
 export default function QuittanceModal({ paiement, bien, locataire, bail, onClose, onSendMail }) {

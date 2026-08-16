@@ -4,13 +4,16 @@ import {
   getBaux, updateBail, getBiens, getLocataires,
   attachQuittanceToPaiement, openFilePath
 } from '../lib/db'
-import { formatDate, formatEuro, statutPaiementBadge, labelStatutPaiement, todayISO } from '../lib/utils'
+import { labelStatutPaiement, todayISO } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
-import Icon from '../components/Icon'
-import QuickDocumentModal from '../components/QuickDocumentModal'
-import QuittanceModal from '../components/QuittanceModal'
+import Icon from '../components/common/Icon'
+import QuickDocumentModal from '../components/documents/QuickDocumentModal'
+import QuittanceModal from '../components/paiements/QuittanceModal'
 import PaiementKpis from '../components/paiements/PaiementKpis'
 import PaiementModal from '../components/paiements/PaiementModal'
+import PaiementsFilterBar from '../components/paiements/PaiementsFilterBar'
+import CautionsTable from '../components/paiements/CautionsTable'
+import PaiementsTable from '../components/paiements/PaiementsTable'
 
 const EMPTY = {
   bail_id: '', date_prevue: '', date_reelle: '',
@@ -26,7 +29,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
   const [filterStatut, setFilterStatut] = useState('')
   const [filterBien, setFilterBien] = useState('')
 
-  const [modal, setModal]         = useState(false)
+  const [modal, setModal]                 = useState(false)
   const [quickDocModal, setQuickDocModal] = useState(false)
   const [quittancePaiement, setQuittancePaiement] = useState(null)
   
@@ -58,7 +61,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
     setModal(true)
   }
 
-  // ── Actions Loyers ──
+  // Actions Loyers
   const markPaid = async (p) => {
     const updated = { ...p, statut: 'paye', date_reelle: p.date_reelle || todayISO() }
     try {
@@ -98,100 +101,105 @@ export default function Paiements({ onNavigate, onOpenMail }) {
     }
   }
 
-  const handleDropFileOnRow = async (e, p) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragOverId(null)
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0]
-      const filePath = file.path || file.name
-      if (filePath) {
-        try {
-          await attachQuittanceToPaiement(p.id, filePath)
-          addToast(`Justificatif "${file.name}" attaché et paiement validé !`)
-          loadAll()
-        } catch(err) {
-          addToast(`Erreur: ${err}`, 'error')
-        }
-      }
-    }
-  }
-
-  // ── Actions Cautions / Dépôts de garantie ──
-  const handleValidateCaution = async (b) => {
+  // Actions Dépôt de garantie / Caution
+  const handleCautionStatusChange = async (bail, newStatut) => {
     try {
-      const updatedBail = {
-        ...b,
-        statut_garantie: 'recu'
-      }
-      await updateBail(updatedBail)
-      addToast(`✅ Dépôt de garantie (${formatEuro(b.depot_garantie || 0)}) validé et marqué comme REÇU pour ${b.locataire_prenom} ${b.locataire_nom} !`)
+      await updateBail({ ...bail, statut_garantie: newStatut })
+      addToast(`Statut caution mis à jour : ${newStatut}`)
       loadAll()
-    } catch (err) {
-      addToast(`Erreur validation caution : ${err}`, 'error')
+    } catch(err) {
+      addToast(`Erreur: ${err}`, 'error')
     }
   }
 
-  const handleCautionStatusChange = async (b, newStatus) => {
+  const handleValidateCaution = async (bail) => {
     try {
-      const updatedBail = {
-        ...b,
-        statut_garantie: newStatus
-      }
-      await updateBail(updatedBail)
-      addToast(`Statut du dépôt de garantie mis à jour.`)
+      await updateBail({ ...bail, statut_garantie: 'recu' })
+      addToast(`✅ Dépôt de garantie (${bail.locataire_prenom} ${bail.locataire_nom}) validé comme REÇU !`)
       loadAll()
-    } catch (err) {
-      addToast(`Erreur : ${err}`, 'error')
+    } catch(err) {
+      addToast(`Erreur: ${err}`, 'error')
     }
   }
 
-  const handleAttachCautionDoc = async (b) => {
+  const handleAttachCautionDoc = async (bail) => {
     try {
       const selected = await openFileDialog({
         multiple: false,
-        title: 'Sélectionner le justificatif de caution (PDF / Reçu / Attestation)',
-        filters: [{ name: 'Documents & Images', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'] }]
+        title: 'Sélectionner le justificatif de caution',
+        filters: [{ name: 'Documents & Images', extensions: ['pdf', 'png', 'jpg', 'jpeg'] }]
       })
       if (selected) {
-        const updatedBail = {
-          ...b,
-          fichier_caution: selected,
-          statut_garantie: 'recu'
-        }
-        await updateBail(updatedBail)
-        addToast(`Justificatif de caution rattaché et statut validé !`)
+        await updateBail({ ...bail, fichier_caution: selected, statut_garantie: 'recu' })
+        addToast(`Justificatif de caution attaché !`)
         loadAll()
       }
-    } catch (err) {
-      addToast(`Erreur : ${err}`, 'error')
+    } catch(err) {
+      addToast(`Erreur: ${err}`, 'error')
     }
   }
 
-  const handleOpenDoc = async (relPath) => {
+  const handleOpenDoc = async (path) => {
     try {
-      await openFilePath(relPath)
-    } catch(err) {
-      addToast(`Impossible d'ouvrir le fichier : ${err}`, 'error')
+      await openFilePath(path)
+    } catch (e) {
+      addToast(`Erreur ouverture fichier: ${e}`, 'error')
+    }
+  }
+
+  // Drag and Drop
+  const handleDragOver = (e, paiementId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverId(paiementId)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    setDragOverId(null)
+  }
+
+  const handleDrop = async (e, paiementId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverId(null)
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      const path = file.path || file.name
+      if (path) {
+        try {
+          await attachQuittanceToPaiement(paiementId, path)
+          addToast('Justificatif rattaché par glisser-déposer !')
+          loadAll()
+        } catch (err) {
+          addToast(`Erreur lors du dépôt: ${err}`, 'error')
+        }
+      }
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
     try {
       const payload = {
-        ...form, id: editing,
+        ...form,
         bail_id: parseInt(form.bail_id),
         montant: parseFloat(form.montant),
         date_reelle: form.date_reelle || null,
-        fichier_quittance: form.fichier_quittance || null,
+        notes: form.notes || null,
+        fichier_quittance: form.fichier_quittance || null
       }
-      if (editing) await updatePaiement(payload)
-      else         await createPaiement(payload)
+      if (editing) {
+        await updatePaiement({ id: editing, ...payload })
+        addToast('Paiement mis à jour avec succès')
+      } else {
+        await createPaiement(payload)
+        addToast('Paiement créé avec succès')
+      }
       setModal(false)
-      addToast(editing ? 'Paiement mis à jour' : 'Paiement créé')
       loadAll()
     } catch(err) { setError(err?.toString()) }
     finally { setLoading(false) }
@@ -199,54 +207,49 @@ export default function Paiements({ onNavigate, onOpenMail }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Supprimer ce paiement ?')) return
-    try { await deletePaiement(id); addToast('Paiement supprimé', 'info'); loadAll() }
-    catch(err) { setError(err?.toString()) }
+    try {
+      await deletePaiement(id)
+      addToast('Paiement supprimé', 'info')
+      loadAll()
+    } catch(err) { setError(err?.toString()) }
   }
 
   // Filtrage
-  const bauxWithDeposit = baux.filter(b => b.depot_garantie && b.depot_garantie > 0)
-  const cautionsEnAttente = bauxWithDeposit.filter(b => b.statut_garantie === 'en_attente' && b.statut === 'actif')
-  const totalCautionsRecues = bauxWithDeposit.filter(b => b.statut_garantie === 'recu').reduce((sum, b) => sum + (b.depot_garantie || 0), 0)
-
   const filteredPaiements = paiements.filter(p => {
-    const matchBien = !filterBien || p.bien_id === parseInt(filterBien)
     const matchStatut = !filterStatut || p.statut === filterStatut
-    const matchTab =
-      activeTab === 'all' || activeTab === 'loyers' ? true :
-      activeTab === 'impayes' ? (p.statut === 'impaye' || p.statut === 'en_retard') : false
-    return matchBien && matchStatut && matchTab
+    const matchBien   = !filterBien || p.bien_id === parseInt(filterBien)
+    const matchTab    = activeTab === 'all' || activeTab === 'loyers' ||
+                        (activeTab === 'impayes' && (p.statut === 'impaye' || p.statut === 'en_retard'))
+    return matchStatut && matchBien && matchTab
   })
 
-  const totalFiltered = filteredPaiements.reduce((s, p) => s + p.montant, 0)
-  const totalPaye     = filteredPaiements.filter(p => p.statut === 'paye').reduce((s, p) => s + p.montant, 0)
-  const countImpayes  = paiements.filter(p => p.statut === 'impaye' || p.statut === 'en_retard').length
+  const bauxWithDeposit = baux.filter(b => {
+    const hasDeposit = b.depot_garantie && parseFloat(b.depot_garantie) > 0
+    const matchBien = !filterBien || b.bien_id === parseInt(filterBien)
+    return hasDeposit && matchBien
+  })
 
-  const labelStatutCaution = (statut) => {
-    switch (statut) {
-      case 'recu': return { label: '✅ Reçu / Encaissé', cls: 'badge-success' }
-      case 'restitue': return { label: '↩️ Restitué', cls: 'badge-neutral' }
-      case 'partiel_restitue': return { label: '⚠️ Retenue partielle', cls: 'badge-warning' }
-      case 'en_attente':
-      default:
-        return { label: '⏳ En attente', cls: 'badge-danger' }
-    }
-  }
+  const cautionsEnAttente = baux.filter(b => b.statut_garantie === 'en_attente' && b.depot_garantie > 0)
+  const totalPaye     = paiements.filter(p => p.statut === 'paye').reduce((s, p) => s + p.montant, 0)
+  const totalFiltered = filteredPaiements.reduce((s, p) => s + p.montant, 0)
+  const countImpayes  = paiements.filter(p => p.statut === 'impaye' || p.statut === 'en_retard').length
+  const totalCautionsRecues = bauxWithDeposit.filter(b => b.statut_garantie === 'recu').reduce((s, b) => s + (parseFloat(b.depot_garantie) || 0), 0)
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div>
-          <h2>Paiements, Loyers & Cautions</h2>
+          <h2>Paiements & Cautions</h2>
           <p className="page-subtitle">
-            Suivi des échéances de loyers, validation des dépôts de garantie et génération de quittances PDF
+            Suivi des loyers, encaissement des cautions, génération de quittances et justificatifs de virement
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)}>
-            📎 Déposer un document
+          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} title="Déposer un justificatif PDF">
+            📎 Déposer un reçu
           </button>
-          <button id="btn-add-paiement" className="btn btn-primary" onClick={openCreate}>
-            <Icon name="plus" size={14} /> Saisir une échéance
+          <button className="btn btn-primary" onClick={openCreate}>
+            + Encaisser un loyer
           </button>
         </div>
       </div>
@@ -262,350 +265,67 @@ export default function Paiements({ onNavigate, onOpenMail }) {
         countCautionsEnAttente={cautionsEnAttente.length}
       />
 
-      {/* Bannière Cautions en Attente si existantes */}
-      {cautionsEnAttente.length > 0 && (
-        <div className="card" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', padding: '14px 18px', borderRadius: 10, marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 24 }}>⏳</span>
-              <div>
-                <strong style={{ color: '#92400E', fontSize: 14 }}>
-                  {cautionsEnAttente.length} dépôt{cautionsEnAttente.length > 1 ? 's' : ''} de garantie en attente de versement !
-                </strong>
-                <div style={{ fontSize: 12, color: '#B45309', marginTop: 2 }}>
-                  Validez la réception des cautions dès l'encaissement du virement ou du chèque.
-                </div>
-              </div>
-            </div>
-            <button
-              className="btn btn-sm"
-              style={{ background: '#F59E0B', color: '#FFF', fontWeight: 700, border: 'none' }}
-              onClick={() => setActiveTab('cautions')}
-            >
-              Voir les cautions en attente →
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Onglets et filtres */}
+      <PaiementsFilterBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        paiementsCount={paiements.length}
+        bauxWithDepositCount={bauxWithDeposit.length}
+        cautionsEnAttenteCount={cautionsEnAttente.length}
+        countImpayes={countImpayes}
+        filterStatut={filterStatut}
+        setFilterStatut={setFilterStatut}
+        filterBien={filterBien}
+        setFilterBien={setFilterBien}
+        biens={biens}
+      />
 
-      {/* Sous-filtres d'onglets */}
-      <div className="filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button
-            className={`btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab('all')}
-          >
-            📋 Tous les flux
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'loyers' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab('loyers')}
-          >
-            🏠 Loyers ({paiements.length})
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'cautions' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab('cautions')}
-          >
-            💶 Dépôts de garantie ({bauxWithDeposit.length})
-            {cautionsEnAttente.length > 0 && ` ⚠️ ${cautionsEnAttente.length}`}
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'impayes' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab('impayes')}
-            style={countImpayes > 0 ? { background: '#FEF2F2', color: '#DC2626', borderColor: '#FECACA' } : {}}
-          >
-            🔴 Impayés & En retard ({countImpayes})
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {activeTab !== 'cautions' && (
-            <select className="form-control" style={{ maxWidth: 180 }} value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-              <option value="">Tous les statuts</option>
-              <option value="impaye">Impayé</option>
-              <option value="paye">Payé</option>
-              <option value="en_retard">En retard</option>
-              <option value="partiel">Partiel</option>
-            </select>
-          )}
-
-          <select className="form-control" style={{ maxWidth: 180 }} value={filterBien} onChange={e => setFilterBien(e.target.value)}>
-            <option value="">Tous les logements</option>
-            {biens.map(b => <option key={b.id} value={b.id}>🏠 {b.nom}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* ── SECTION CAUTIONS / DÉPÔTS DE GARANTIE ── */}
+      {/* Section Cautions */}
       {(activeTab === 'cautions' || activeTab === 'all') && (
-        <div style={{ marginBottom: activeTab === 'all' ? 24 : 0 }}>
-          {activeTab === 'all' && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                💶 Dépôts de garantie & Cautions ({bauxWithDeposit.length})
-              </h3>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Montant total garanti : {formatEuro(totalCautionsRecues)}
-              </span>
-            </div>
-          )}
-
-          {bauxWithDeposit.length === 0 ? (
-            <div className="table-wrapper" style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-              Aucun dépôt de garantie enregistré sur les baux.
-            </div>
-          ) : (
-            <div className="table-wrapper" style={{ marginBottom: 16 }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Logement</th>
-                    <th>Locataire</th>
-                    <th>Date d'entrée</th>
-                    <th>Montant caution</th>
-                    <th>Statut caution</th>
-                    <th>Justificatif</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bauxWithDeposit.map(b => {
-                    const st = labelStatutCaution(b.statut_garantie || 'en_attente')
-                    const isEnAttente = (b.statut_garantie || 'en_attente') === 'en_attente'
-                    return (
-                      <tr key={b.id} style={{ background: isEnAttente ? '#FFFBEB' : undefined }}>
-                        <td className="fw-600">
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ padding: '2px 6px', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}
-                            onClick={() => onNavigate && onNavigate('bien', b.bien_id)}
-                          >
-                            🏠 {b.bien_nom || '—'}
-                          </button>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ padding: '2px 6px', fontSize: 13, fontWeight: 500 }}
-                            onClick={() => onNavigate && onNavigate('locataires')}
-                          >
-                            👤 {b.locataire_prenom} {b.locataire_nom}
-                          </button>
-                        </td>
-                        <td className="text-muted">{formatDate(b.date_debut)}</td>
-                        <td className="fw-600" style={{ fontSize: 14 }}>{formatEuro(b.depot_garantie)}</td>
-                        <td>
-                          <select
-                            className={`badge ${st.cls}`}
-                            style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '4px 8px', fontWeight: 600 }}
-                            value={b.statut_garantie || 'en_attente'}
-                            onChange={(e) => handleCautionStatusChange(b, e.target.value)}
-                          >
-                            <option value="en_attente" style={{ color: '#000' }}>⏳ En attente</option>
-                            <option value="recu" style={{ color: '#000' }}>✅ Reçu / Encaissé</option>
-                            <option value="restitue" style={{ color: '#000' }}>↩️ Restitué</option>
-                            <option value="partiel_restitue" style={{ color: '#000' }}>⚠️ Retenue partielle</option>
-                          </select>
-                        </td>
-                        <td>
-                          {b.fichier_caution ? (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '2px 8px', fontSize: 11 }}
-                              onClick={() => handleOpenDoc(b.fichier_caution)}
-                              title="Ouvrir le justificatif de caution"
-                            >
-                              📄 Reçu PDF
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              style={{ padding: '2px 8px', fontSize: 11, border: '1px dashed var(--border-color)' }}
-                              onClick={() => handleAttachCautionDoc(b)}
-                              title="Attacher un justificatif de virement"
-                            >
-                              📎 Attacher reçu
-                            </button>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
-                            {isEnAttente && (
-                              <button
-                                className="btn btn-success btn-sm"
-                                style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
-                                onClick={() => handleValidateCaution(b)}
-                                title="Valider l'encaissement de la caution en 1 clic"
-                              >
-                                ✔️ Valider reçue
-                              </button>
-                            )}
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
-                              onClick={() => {
-                                if (onOpenMail && b.bien_id) {
-                                  onOpenMail(b.bien_id, {
-                                    recipientEmail: b.locataire_email || '',
-                                    initialBailId: b.id
-                                  })
-                                }
-                              }}
-                              title="Contacter le locataire"
-                            >
-                              ✉️ Mail
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <CautionsTable
+          bauxWithDeposit={bauxWithDeposit}
+          totalCautionsRecues={totalCautionsRecues}
+          isAllTab={activeTab === 'all'}
+          onNavigate={onNavigate}
+          onCautionStatusChange={handleCautionStatusChange}
+          onOpenDoc={handleOpenDoc}
+          onAttachCautionDoc={handleAttachCautionDoc}
+          onValidateCaution={handleValidateCaution}
+          onOpenMail={(b) => {
+            if (onOpenMail && b.bien_id) {
+              onOpenMail(b.bien_id, {
+                recipientEmail: b.locataire_email || '',
+                initialBailId: b.id
+              })
+            }
+          }}
+        />
       )}
 
-      {/* ── SECTION LOYERS & ÉCHÉANCIER ── */}
+      {/* Section Loyers */}
       {activeTab !== 'cautions' && (
-        <div>
-          {activeTab === 'all' && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                🏠 Échéancier des Loyers ({filteredPaiements.length})
-              </h3>
-            </div>
-          )}
-
-          {filteredPaiements.length === 0 ? (
-            <div className="table-wrapper">
-              <div className="empty-state">
-                <div className="empty-state-icon">💳</div>
-                <h3>Aucun paiement correspondant</h3>
-                <p>Les loyers s'affichent automatiquement dès qu'un bail actif est créé.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Bien</th>
-                    <th>Locataire</th>
-                    <th>Date prévue</th>
-                    <th>Date payé</th>
-                    <th>Montant</th>
-                    <th>Justificatif / Virement</th>
-                    <th>Statut</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPaiements.map(p => {
-                    const isOver = dragOverId === p.id
-                    const isPaye = p.statut === 'paye'
-                    const targetBail = baux.find(b => b.id === p.bail_id)
-                    const targetBien = biens.find(b => b.id === (targetBail?.bien_id || p.bien_id))
-                    const targetLoc = locataires.find(l => l.id === (targetBail?.locataire_id || p.locataire_id))
-
-                    return (
-                      <tr
-                        key={p.id}
-                        className={isOver ? 'drop-zone-highlight' : ''}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverId(p.id) }}
-                        onDragLeave={() => setDragOverId(null)}
-                        onDrop={(e) => handleDropFileOnRow(e, p)}
-                        style={{ transition: 'all 0.15s ease' }}
-                      >
-                        <td className="fw-600">🏠 {p.bien_nom || '—'}</td>
-                        <td>👤 {p.locataire_nom || '—'}</td>
-                        <td className="text-muted">{formatDate(p.date_prevue)}</td>
-                        <td className="text-muted">{p.date_reelle ? formatDate(p.date_reelle) : '—'}</td>
-                        <td className="fw-600">{formatEuro(p.montant)}</td>
-                        <td>
-                          {p.fichier_quittance ? (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
-                              onClick={() => handleOpenDoc(p.fichier_quittance)}
-                              title="Ouvrir le justificatif attaché"
-                            >
-                              📄 Justificatif PDF
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              style={{ padding: '2px 8px', fontSize: 11, border: '1px dashed var(--border-color)' }}
-                              onClick={() => handleAttachQuittance(p)}
-                              title="Attacher un PDF de virement ou justificatif"
-                            >
-                              📎 Glisser PDF ici
-                            </button>
-                          )}
-                        </td>
-                        <td>
-                          <select
-                            className={`badge ${statutPaiementBadge(p.statut)}`}
-                            style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '4px 8px', fontWeight: 600 }}
-                            value={p.statut}
-                            onChange={(e) => handleStatusChange(p, e.target.value)}
-                          >
-                            <option value="impaye" style={{ color: '#000' }}>🔴 Impayé</option>
-                            <option value="paye" style={{ color: '#000' }}>🟢 Payé</option>
-                            <option value="en_retard" style={{ color: '#000' }}>🟠 En retard</option>
-                            <option value="partiel" style={{ color: '#000' }}>🟡 Partiel</option>
-                          </select>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
-                            {!isPaye && (
-                              <button
-                                className="btn btn-success btn-sm"
-                                style={{ padding: '3px 10px', fontSize: 12, fontWeight: 600 }}
-                                onClick={() => markPaid(p)}
-                                title="Marquer comme payé"
-                              >
-                                ✔️ Payé
-                              </button>
-                            )}
-
-                            {isPaye && (
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '3px 8px', fontSize: 11, background: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE' }}
-                                onClick={() => setQuittancePaiement({
-                                  paiement: p,
-                                  bien: targetBien,
-                                  locataire: targetLoc,
-                                  bail: targetBail
-                                })}
-                                title="Générer ou imprimer la quittance de loyer officielle"
-                              >
-                                📄 Quittance
-                              </button>
-                            )}
-
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEdit(p)} title="Modifier">
-                              <Icon name="edit" size={14} />
-                            </button>
-                            <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleDelete(p.id)} title="Supprimer">
-                              <Icon name="trash" size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <PaiementsTable
+          paiements={filteredPaiements}
+          isAllTab={activeTab === 'all'}
+          biens={biens}
+          locataires={locataires}
+          baux={baux}
+          dragOverId={dragOverId}
+          onNavigate={onNavigate}
+          onOpenDoc={handleOpenDoc}
+          onAttachQuittance={handleAttachQuittance}
+          onStatusChange={handleStatusChange}
+          onMarkPaid={markPaid}
+          onOpenQuittanceModal={setQuittancePaiement}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        />
       )}
 
-      {/* ── Modale Saisie Paiement ── */}
+      {/* Modale Saisie Paiement */}
       <PaiementModal
         modal={modal}
         editing={editing}
@@ -617,7 +337,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
         handleSubmit={handleSubmit}
       />
 
-      {/* ── Modale Déposer Document ── */}
+      {/* Modale Déposer Document */}
       {quickDocModal && (
         <QuickDocumentModal
           onClose={() => setQuickDocModal(false)}
@@ -625,7 +345,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
         />
       )}
 
-      {/* ── Modale Quittance de Loyer PDF ── */}
+      {/* Modale Quittance de Loyer PDF */}
       {quittancePaiement && (
         <QuittanceModal
           paiement={quittancePaiement.paiement}

@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { getBienEmailConfig, saveBienEmailConfig, clearBienEmailConfig, getBaux, fetchEmails, createMaintenance, sendEmail, openExternalUrl, startGoogleOauth, saveEmailAttachmentToBien } from '../lib/db'
-import Icon from './Icon'
-import MailList from './mailbox/MailList'
-import MailDetail from './mailbox/MailDetail'
+import { getBienEmailConfig, saveBienEmailConfig, clearBienEmailConfig, getBaux, fetchEmails, createMaintenance, sendEmail, openExternalUrl, startGoogleOauth, saveEmailAttachmentToBien } from '../../lib/db'
+import Icon from '../common/Icon'
+import MailList from './MailList'
+import MailDetail from './MailDetail'
 
 const DEFAULT_CONFIG = {
   email_adresse: '',

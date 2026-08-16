@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { getBiens, generateQuestionnaireExcel } from '../lib/db'
-import { SUBFOLDERS } from '../lib/utils'
-import Icon from './Icon'
+import { getBiens, generateQuestionnaireExcel } from '../../lib/db'
+import { SUBFOLDERS } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 const PRESET_TEMPLATES = [
   {

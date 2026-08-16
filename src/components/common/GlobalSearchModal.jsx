@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { globalSearch } from '../lib/db'
-import Icon from './Icon'
+import { globalSearch } from '../../lib/db'
+import Icon from '../common/Icon'
 
 export default function GlobalSearchModal({ onClose, onNavigate }) {
   const [query, setQuery] = useState('')

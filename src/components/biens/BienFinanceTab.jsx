@@ -1,7 +1,7 @@
 import React from 'react'
-import Icon from '../Icon'
+import Icon from '../common/Icon'
 import { formatEuro, formatDate, statutPaiementBadge } from '../../lib/utils'
-import { DetailedFinanceDashboard } from '../FinanceCharts'
+import { DetailedFinanceDashboard } from './FinanceCharts'
 
 function FinKpi({ label, value, sub, color, alert }) {
   return (

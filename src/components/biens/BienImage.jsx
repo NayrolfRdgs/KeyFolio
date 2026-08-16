@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { getFilePreview } from '../lib/db'
+import { getFilePreview } from '../../lib/db'
 
 export default function BienImage({ src, alt, style, className, onClick }) {
   const [imgUrl, setImgUrl] = useState('')

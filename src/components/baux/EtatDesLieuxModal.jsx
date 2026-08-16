@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import Icon from './Icon'
-import { formatEuro, formatDate, todayISO } from '../lib/utils'
-import { saveEtatDesLieuxPdf, saveFileToDisk, openFilePath } from '../lib/db'
-import { buildEtatDesLieuxPDF } from '../lib/pdfGenerator'
+import Icon from '../common/Icon'
+import { formatEuro, formatDate, todayISO } from '../../lib/utils'
+import { saveEtatDesLieuxPdf, saveFileToDisk, openFilePath } from '../../lib/db'
+import { buildEtatDesLieuxPDF } from '../../lib/pdfGenerator'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
 // Helper pour extraire les informations sauvegardées depuis notes_fin

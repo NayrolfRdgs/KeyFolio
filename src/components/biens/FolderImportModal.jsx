@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { open as openDirectoryDialog } from '@tauri-apps/plugin-dialog'
-import { importBienFolder } from '../lib/db'
-import Icon from './Icon'
+import { importBienFolder } from '../../lib/db'
+import Icon from '../common/Icon'
 
 export default function FolderImportModal({ onClose, onSuccess }) {
   const [folderPath, setFolderPath] = useState('')

@@ -1,5 +1,5 @@
 import React from 'react'
-import Icon from '../Icon'
+import Icon from '../common/Icon'
 import { formatEuro, prioriteBadge, statutMaintenanceBadge } from '../../lib/utils'
 
 export default function BienMaintenanceTab({

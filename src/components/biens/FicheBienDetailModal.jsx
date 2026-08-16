@@ -4,9 +4,9 @@ import {
   getBaux, getPaiements, getDepenses, getDocuments, getMaintenance,
   syncBienExcel, updateBien,
   getBienEmailConfig, saveBienEmailConfig, clearBienEmailConfig
-} from '../lib/db'
-import { labelTypeBien, formatDate } from '../lib/utils'
-import Icon from './Icon'
+} from '../../lib/db'
+import { labelTypeBien, formatDate } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 const DEFAULT_EMAIL_CONFIG = {
   bien_id: null,

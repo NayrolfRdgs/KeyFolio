@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { readExcelSheet, saveExcelFile, openFilePath } from '../lib/db'
+import { readExcelSheet, saveExcelFile, openFilePath } from '../../lib/db'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

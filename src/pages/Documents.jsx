@@ -15,10 +15,10 @@ import {
 import { formatBytes } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
-import Icon from '../components/Icon'
-import ExcelGeneratorModal from '../components/ExcelGeneratorModal'
+import Icon from '../components/common/Icon'
+import ExcelGeneratorModal from '../components/documents/ExcelGeneratorModal'
 
-// Sous-composants découplés
+import DocumentsTreeSidebar from '../components/documents/DocumentsTreeSidebar'
 import TreeNodeItem, { getFileIcon } from '../components/documents/TreeNodeItem'
 import FolderContentView from '../components/documents/FolderContentView'
 import DocumentPreviewer from '../components/documents/DocumentPreviewer'
@@ -592,83 +592,28 @@ export default function Documents({ selectedBienId, initialFilePath }) {
       {/* Split Explorer Layout */}
       <div className="explorer-layout">
         {/* Arborescence Verticale Gauche */}
-        <div className="explorer-tree-panel">
-          <div className="explorer-tree-header">
-            <select
-              className="form-control"
-              style={{ fontWeight: 600, marginBottom: 8 }}
-              value={currentBienId}
-              onChange={(e) => setCurrentBienId(e.target.value)}
-            >
-              {biens.map((b) => (
-                <option key={b.id} value={b.id}>
-                  🏠 {b.nom}
-                </option>
-              ))}
-            </select>
-
-            {/* Barre de recherche + Boutons rapides Réduire/Déplier */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                className="form-control"
-                placeholder="🔍 Filtrer..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={collapseAllFolders}
-                title="Tout réduire"
-                style={{ whiteSpace: 'nowrap', padding: '5px 8px', fontSize: 11 }}
-              >
-                📐 Réduire
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={expandAllFolders}
-                title="Tout déplier"
-                style={{ whiteSpace: 'nowrap', padding: '5px 8px', fontSize: 11 }}
-              >
-                📂 Déplier
-              </button>
-            </div>
-          </div>
-
-          <div className="explorer-tree-content">
-            {loading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-                Scan dynamique du disque...
-              </div>
-            ) : treeNodes.length === 0 ? (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-                Dossier du bien vide.
-              </div>
-            ) : (
-              treeNodes.map((node) => (
-                <TreeNodeItem
-                  key={node.relative_path}
-                  node={node}
-                  depth={0}
-                  searchQuery={search}
-                  expandedPaths={expandedPaths}
-                  toggleExpand={toggleExpand}
-                  selectedFile={selectedFile}
-                  onSelectFile={handleSelectFile}
-                  onSelectFolder={handleSelectFolder}
-                  countFilesRecursive={countFilesRecursive}
-                  onDragStart={handleDragStart}
-                  onFolderDrop={handleFolderDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onContextMenu={handleContextMenu}
-                />
-              ))
-            )}
-          </div>
-        </div>
+        <DocumentsTreeSidebar
+          biens={biens}
+          currentBienId={currentBienId}
+          setCurrentBienId={setCurrentBienId}
+          search={search}
+          setSearch={setSearch}
+          onCollapseAll={collapseAllFolders}
+          onExpandAll={expandAllFolders}
+          loading={loading}
+          treeNodes={treeNodes}
+          expandedPaths={expandedPaths}
+          toggleExpand={toggleExpand}
+          selectedFile={selectedFile}
+          onSelectFile={handleSelectFile}
+          onSelectFolder={handleSelectFolder}
+          countFilesRecursive={countFilesRecursive}
+          onDragStart={handleDragStart}
+          onFolderDrop={handleFolderDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onContextMenu={handleContextMenu}
+        />
 
         {/* Panneau principal droite */}
         <div

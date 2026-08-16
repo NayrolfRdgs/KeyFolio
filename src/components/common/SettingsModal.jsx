@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { applyTheme } from '../lib/theme'
-import { openExternalUrl } from '../lib/db'
+import { applyTheme } from '../../lib/theme'
+import { openExternalUrl } from '../../lib/db'
 
 export default function SettingsModal({ isOpen, onClose, initialTab = 'general' }) {
   const [activeTab, setActiveTab] = useState(initialTab)

@@ -1,5 +1,5 @@
 import React from 'react'
-import Icon from '../Icon'
+import Icon from '../common/Icon'
 import { formatBytes } from '../../lib/utils'
 import { getFileIcon } from './TreeNodeItem'
 

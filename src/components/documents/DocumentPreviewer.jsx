@@ -1,5 +1,5 @@
 import React from 'react'
-import SpreadsheetViewer from '../SpreadsheetViewer'
+import SpreadsheetViewer from './SpreadsheetViewer'
 import { formatBytes } from '../../lib/utils'
 
 export function extractUrlFromContent(text) {

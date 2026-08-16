@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { sendEmail } from '../lib/db'
+import { sendEmail } from '../../lib/db'
 
 export default function QuickMailModal({
   bienId,

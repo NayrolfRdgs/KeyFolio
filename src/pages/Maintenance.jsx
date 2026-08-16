@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getMaintenance, createMaintenance, updateMaintenance, deleteMaintenance, getBiens } from '../lib/db'
 import { formatDate, formatEuro, prioriteBadge, labelPriorite, statutMaintenanceBadge, todayISO } from '../lib/utils'
-import Icon from '../components/Icon'
-import QuickDocumentModal from '../components/QuickDocumentModal'
+import Icon from '../components/common/Icon'
+import QuickDocumentModal from '../components/documents/QuickDocumentModal'
 
 const EMPTY = {
   bien_id: '', titre: '', description: '', priorite: 'normal',

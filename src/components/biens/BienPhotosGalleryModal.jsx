@@ -1,5 +1,5 @@
 import React from 'react'
-import BienImage from '../BienImage'
+import BienImage from './BienImage'
 
 export default function BienPhotosGalleryModal({
   isOpen,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { sendEmail } from '../lib/db'
+import { sendEmail } from '../../lib/db'
 
 export default function RentRevisionModal({ bail, newRentAmount, oldRentAmount, onClose, onSent }) {
   const locataireName = bail ? `${bail.locataire_prenom || ''} ${bail.locataire_nom || ''}`.trim() : 'Locataire'

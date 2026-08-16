@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { formatEuro } from '../lib/utils'
+import { formatEuro } from '../../lib/utils'
 
 /**
  * Graphique Financier Synthétique pour la Carte FINANCES (Onglet Infos)

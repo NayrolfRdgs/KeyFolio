@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { openExternalUrl } from '../lib/db'
+import { openExternalUrl } from '../../lib/db'
 
 const CURRENT_VERSION = '0.1.0'
 const REPO_URL = 'https://github.com/NayrolfRdgs/KeyFolio'

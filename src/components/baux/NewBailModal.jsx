@@ -3,9 +3,9 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import {
   getCandidatures, getLocataires, createLocataire,
   createBail, terminateBail, updateCandidatureStatut
-} from '../lib/db'
-import { todayISO, formatEuro } from '../lib/utils'
-import Icon from './Icon'
+} from '../../lib/db'
+import { todayISO, formatEuro } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false)

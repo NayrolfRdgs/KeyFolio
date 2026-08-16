@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { getBiens, deleteBien } from '../lib/db'
 import { labelTypeBien } from '../lib/utils'
-import Icon from '../components/Icon'
-import WizardCreateBien from '../components/WizardCreateBien'
-import FicheBienDetailModal from '../components/FicheBienDetailModal'
-import FolderImportModal from '../components/FolderImportModal'
-import QuickDocumentModal from '../components/QuickDocumentModal'
-import ExcelGeneratorModal from '../components/ExcelGeneratorModal'
+import Icon from '../components/common/Icon'
+import WizardCreateBien from '../components/biens/WizardCreateBien'
+import FicheBienDetailModal from '../components/biens/FicheBienDetailModal'
+import FolderImportModal from '../components/biens/FolderImportModal'
+import QuickDocumentModal from '../components/documents/QuickDocumentModal'
+import ExcelGeneratorModal from '../components/documents/ExcelGeneratorModal'
 
 export default function Biens({ onNavigate }) {
   const [biens, setBiens] = useState([])

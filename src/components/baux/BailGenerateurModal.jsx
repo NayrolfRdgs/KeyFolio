@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import Icon from './Icon'
-import { formatEuro, formatDate, todayISO } from '../lib/utils'
+import Icon from '../common/Icon'
+import { formatEuro, formatDate, todayISO } from '../../lib/utils'
 import {
   saveContratBailPdf, saveFileToDisk, openFilePath,
   updateBien, getBienChampsLibres, saveBienChampsLibresBatch,
   updateLocataire, updateBail
-} from '../lib/db'
-import { buildContratBailPDF } from '../lib/pdfGenerator'
+} from '../../lib/db'
+import { buildContratBailPDF } from '../../lib/pdfGenerator'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
 export default function BailGenerateurModal({

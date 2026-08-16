@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getDepenses, createDepense, updateDepense, deleteDepense, getBiens } from '../lib/db'
 import { formatDate, formatEuro, todayISO } from '../lib/utils'
-import Icon from '../components/Icon'
-import QuickDocumentModal from '../components/QuickDocumentModal'
+import Icon from '../components/common/Icon'
+import QuickDocumentModal from '../components/documents/QuickDocumentModal'
 
 const CATEGORIES = ['travaux','energie','assurance','taxe','entretien','frais_gestion','autre']
 const LABELS_CAT = {
