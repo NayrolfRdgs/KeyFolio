@@ -8,6 +8,12 @@ import { formatEuro, formatDate, todayISO } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import Icon from '../components/Icon'
 
+// Modales découplées
+import LocataireFormModal from '../components/locataires/LocataireFormModal'
+import CandidatureFormModal from '../components/locataires/CandidatureFormModal'
+import ConvertCandidatureModal from '../components/locataires/ConvertCandidatureModal'
+import LocataireStatsModal from '../components/locataires/LocataireStatsModal'
+
 const EMPTY_LOC = {
   bien_id: '', nom: '', prenom: '', telephone: '', email: '',
   revenus_mensuels: '', profession: '', garant_nom: '', garant_contact: '', notes: '', fichier_dossier: ''
@@ -39,7 +45,7 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const [candSourcePath, setCandSourcePath] = useState('')
 
   // Modal Processus complet de Création de Bail à partir d'une Candidature
-  const [convertModal, setConvertModal] = useState(null) // candid item
+  const [convertModal, setConvertModal] = useState(null)
   const [convertBailForm, setConvertBailForm] = useState({
     date_debut: todayISO(),
     date_fin: '',
@@ -59,7 +65,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const [statsLocTarget, setStatsLocTarget] = useState(null)
   const [locStatsData, setLocStatsData] = useState(null)
   const [locPaiementsList, setLocPaiementsList] = useState([])
-  const [locBauxList, setLocBauxList] = useState([])
 
   const handleOpenLocStats = async (loc) => {
     setLoading(true)
@@ -73,7 +78,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
       const pFiltered = pAll.filter(p => locBauxIds.includes(p.bail_id))
       setLocStatsData(st)
       setLocPaiementsList(pFiltered)
-      setLocBauxList(bAll.filter(b => b.locataire_id === loc.id))
       setStatsLocTarget(loc)
     } catch (e) {
       setError(e?.toString())
@@ -103,34 +107,15 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   useEffect(() => { loadAll() }, [])
 
   // Handlers Locataires
-  const openCreateLoc = () => {
-    setLocForm({ ...EMPTY_LOC, bien_id: biens[0]?.id || '' })
-    setLocEditing(null)
-    setLocSourcePath('')
-    setLocModal(true)
-  }
-
-  const openEditLoc = (l) => {
-    setLocForm({
-      ...l,
-      bien_id: l.bien_id || '',
-      revenus_mensuels: l.revenus_mensuels ?? '',
-      profession: l.profession || '',
-      garant_nom: l.garant_nom || '',
-      garant_contact: l.garant_contact || '',
-      notes: l.notes || '',
-      fichier_dossier: l.fichier_dossier || ''
-    })
-    setLocEditing(l.id)
-    setLocSourcePath('')
-    setLocModal(true)
-  }
+  const openCreateLoc = () => { setLocForm(EMPTY_LOC); setLocEditing(null); setLocSourcePath(''); setLocModal(true) }
+  const openEditLoc = (l) => { setLocForm({ ...l }); setLocEditing(l.id); setLocSourcePath(''); setLocModal(true) }
 
   const handlePickLocFile = async () => {
     try {
       const sel = await openFileDialog({
         multiple: false,
-        title: 'Sélectionner les pièces du dossier locataire (PDF / Zip / Scan)',
+        title: 'Sélectionner le dossier du locataire (PDF, Zip, Image)',
+        filters: [{ name: 'Dossiers & Documents', extensions: ['pdf', 'zip', 'png', 'jpg', 'jpeg'] }]
       })
       if (sel) setLocSourcePath(sel)
     } catch (e) { console.warn(e) }
@@ -146,10 +131,14 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         bien_id: locForm.bien_id ? parseInt(locForm.bien_id) : null,
         revenus_mensuels: locForm.revenus_mensuels ? parseFloat(locForm.revenus_mensuels) : null,
       }
-      if (locEditing) await updateLocataire(payload, locSourcePath || null)
-      else await createLocataire(payload, locSourcePath || null)
+      if (locEditing) {
+        await updateLocataire(payload, locSourcePath || null)
+        addToast('Locataire mis à jour')
+      } else {
+        await createLocataire(payload, locSourcePath || null)
+        addToast('Locataire créé avec succès')
+      }
       setLocModal(false)
-      addToast(locEditing ? 'Locataire mis à jour' : 'Locataire enregistré')
       loadAll()
     } catch (err) { setError(err?.toString()) }
     finally { setLoading(false) }
@@ -162,35 +151,15 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   }
 
   // Handlers Candidatures
-  const openCreateCand = () => {
-    setCandForm({ ...EMPTY_CAND, bien_id: biens[0]?.id || '' })
-    setCandEditing(null)
-    setCandSourcePath('')
-    setCandModal(true)
-  }
-
-  const openEditCand = (cand) => {
-    setCandForm({
-      ...cand,
-      bien_id: cand.bien_id || '',
-      revenus_mensuels: cand.revenus_mensuels ?? '',
-      profession: cand.profession || '',
-      garant_nom: cand.garant_nom || '',
-      garant_contact: cand.garant_contact || '',
-      notes: cand.notes || '',
-      statut: cand.statut || 'nouveau',
-      fichier_dossier: cand.fichier_dossier || ''
-    })
-    setCandEditing(cand.id)
-    setCandSourcePath('')
-    setCandModal(true)
-  }
+  const openCreateCand = () => { setCandForm(EMPTY_CAND); setCandEditing(null); setCandSourcePath(''); setCandModal(true) }
+  const openEditCand = (c) => { setCandForm({ ...c }); setCandEditing(c.id); setCandSourcePath(''); setCandModal(true) }
 
   const handlePickCandFile = async () => {
     try {
       const sel = await openFileDialog({
         multiple: false,
-        title: 'Sélectionner les pièces du dossier (PDF / Zip / Images)',
+        title: 'Sélectionner le dossier de candidature (PDF / Zip)',
+        filters: [{ name: 'Dossiers & Documents', extensions: ['pdf', 'zip', 'png', 'jpg', 'jpeg'] }]
       })
       if (sel) setCandSourcePath(sel)
     } catch (e) { console.warn(e) }
@@ -244,7 +213,7 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     catch (err) { setError(err?.toString()) }
   }
 
-  // Lancement du Processus complet de Création de Bail à partir d'une Candidature
+  // Conversion Candidature -> Bail
   const openConvertModal = (cand) => {
     setConvertModal(cand)
     setConvertBailForm({
@@ -263,7 +232,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     if (!convertModal) return
     setLoading(true)
     try {
-      // 1. Créer le locataire avec l'ensemble des données renseignées dans la candidature
       const locId = await createLocataire({
         bien_id: convertModal.bien_id ? parseInt(convertModal.bien_id) : null,
         nom: convertModal.nom,
@@ -278,7 +246,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         notes: convertModal.notes ? `Issu de candidature. ${convertModal.notes}` : 'Issu de candidature'
       })
 
-      // 2. Lancer le processus de création de bail (clôture automatique de l'ancien s'il y en a un + archivage dans Baux_anciens + enregistrement du nouveau dans Bail_en_cours)
       await createBail({
         bien_id: parseInt(convertModal.bien_id),
         locataire_id: locId,
@@ -292,25 +259,22 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         fichier_bail: convertBailForm.fichier_bail || null
       })
 
-      // 3. Passer le statut de la candidature en 'converti'
       await updateCandidatureStatut(convertModal.id, 'converti')
 
       setConvertModal(null)
-      addToast(`🎉 Processus de création de bail finalisé ! Bail actif créé pour ${convertModal.prenom} ${convertModal.nom}`)
+      addToast(`🎉 Processus de création de bail finalisé pour ${convertModal.prenom} ${convertModal.nom}`)
       loadAll()
-    } catch (err) {
-      setError(err?.toString())
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { setError(err?.toString()) }
+    finally { setLoading(false) }
   }
 
-  const handleOpenDoc = async (relPath) => {
-    try { await openFilePath(relPath) }
+  const handleOpenDoc = async (relOrAbsPath) => {
+    if (!relOrAbsPath) return
+    try { await openFilePath(relOrAbsPath) }
     catch (e) { addToast(`Erreur ouverture : ${e}`, 'error') }
   }
 
-  // Identification des locataires actuels (bail actif) vs anciens (bail terminé / aucun bail actif)
+  // Locataires avec bail calculé
   const locatairesWithBail = locataires.map(l => {
     const activeBail = baux.find(b => b.locataire_id === l.id && b.statut === 'actif')
     const lastBail = baux.filter(b => b.locataire_id === l.id && b.statut === 'termine').sort((a,b) => (b.date_fin || '').localeCompare(a.date_fin || ''))[0]
@@ -328,7 +292,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const filteredLocs = locatairesWithBail.filter(l => {
     const matchesSearch = `${l.nom} ${l.prenom} ${l.email || ''} ${l.telephone || ''} ${l.profession || ''}`.toLowerCase().includes(search.toLowerCase())
     if (!matchesSearch) return false
-
     if (locSubFilter === 'actuels') return l.isActuel
     if (locSubFilter === 'anciens') return !l.isActuel
     return true
@@ -388,7 +351,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
       {/* ── VUE LOCATAIRES ── */}
       {activeTab === 'locataires' && (
         <>
-          {/* Sub-filtres Locataires Actuels vs Anciens */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--color-surface-2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)', width: 'fit-content' }}>
             <button
               className={`btn btn-sm ${locSubFilter === 'actuels' ? 'btn-primary' : 'btn-ghost'}`}
@@ -484,68 +446,68 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                           <span className="badge badge-muted" style={{ fontSize: 11 }}>Aucun bail</span>
                         )}
                       </td>
-                    <td>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}>{l.email || '—'}</div>
-                      <div className="text-muted" style={{ fontSize: 11 }}>{l.telephone || '—'}</div>
-                    </td>
-                    <td>
-                      <div className="fw-600">{l.revenus_mensuels ? formatEuro(l.revenus_mensuels) : '—'}</div>
-                      <div className="text-muted" style={{ fontSize: 11 }}>{l.profession || 'Non spécifié'}</div>
-                    </td>
-                    <td>
-                      <div>{l.garant_nom || '—'}</div>
-                      <div className="text-muted" style={{ fontSize: 11 }}>{l.garant_contact || '—'}</div>
-                    </td>
-                    <td>
-                      {l.fichier_dossier ? (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '2px 8px', fontSize: 11 }}
-                          onClick={() => handleOpenDoc(l.fichier_dossier)}
-                          title="Voir les pièces du dossier"
-                        >
-                          📄 Dossier PDF
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aucun fichier</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '3px 8px', fontSize: 11, background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0' }}
-                          onClick={() => handleOpenLocStats(l)}
-                          title="Voir le bilan financier complet et l'historique des loyers"
-                        >
-                          📊 Bilan & Stats
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                          onClick={() => {
-                            const targetBienId = l.bien_id || (biens[0]?.id)
-                            if (targetBienId && onOpenMail) {
-                              onOpenMail(targetBienId, { recipientEmail: l.email || '' })
-                            }
-                          }}
-                          title="Ouvrir la boîte mail pour ce locataire"
-                        >
-                          ✉️ Mail
-                        </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditLoc(l)} title="Modifier les informations du locataire">
-                          <Icon name="edit" size={14} />
-                        </button>
-                        <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleLocDelete(l.id)} title="Supprimer">
-                          <Icon name="trash" size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{l.email || '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{l.telephone || '—'}</div>
+                      </td>
+                      <td>
+                        <div className="fw-600">{l.revenus_mensuels ? formatEuro(l.revenus_mensuels) : '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{l.profession || 'Non spécifié'}</div>
+                      </td>
+                      <td>
+                        <div>{l.garant_nom || '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{l.garant_contact || '—'}</div>
+                      </td>
+                      <td>
+                        {l.fichier_dossier ? (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '2px 8px', fontSize: 11 }}
+                            onClick={() => handleOpenDoc(l.fichier_dossier)}
+                            title="Voir les pièces du dossier"
+                          >
+                            📄 Dossier PDF
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aucun fichier</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 11, background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0' }}
+                            onClick={() => handleOpenLocStats(l)}
+                            title="Voir le bilan financier complet et l'historique des loyers"
+                          >
+                            📊 Bilan & Stats
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            onClick={() => {
+                              const targetBienId = l.bien_id || (biens[0]?.id)
+                              if (targetBienId && onOpenMail) {
+                                onOpenMail(targetBienId, { recipientEmail: l.email || '' })
+                              }
+                            }}
+                            title="Ouvrir la boîte mail pour ce locataire"
+                          >
+                            ✉️ Mail
+                          </button>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditLoc(l)} title="Modifier">
+                            <Icon name="edit" size={14} />
+                          </button>
+                          <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleLocDelete(l.id)} title="Supprimer">
+                            <Icon name="trash" size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
@@ -583,28 +545,37 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                   const isConverti = c.statut === 'converti'
                   return (
                     <tr key={c.id}>
-                      <td className="fw-600">
-                        👤 {c.prenom} {c.nom}
-                      </td>
-                      <td>🏠 {c.bien_nom || 'Non spécifié'}</td>
+                      <td className="fw-600">📂 {c.prenom} {c.nom}</td>
                       <td>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email || '—'}</div>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '2px 6px', fontSize: 12, fontWeight: 600 }}
+                          onClick={() => c.bien_id && onNavigate && onNavigate('bien', c.bien_id)}
+                        >
+                          🏠 {c.bien_nom || 'Voir bien'}
+                        </button>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: 13 }}>{c.email || '—'}</div>
                         <div className="text-muted" style={{ fontSize: 11 }}>{c.telephone || '—'}</div>
                       </td>
                       <td>
                         <div className="fw-600">{c.revenus_mensuels ? formatEuro(c.revenus_mensuels) : '—'}</div>
                         <div className="text-muted" style={{ fontSize: 11 }}>{c.profession || 'Non spécifié'}</div>
                       </td>
-                      <td className="text-muted">{c.garant_nom ? `${c.garant_nom}` : 'Sans garant'}</td>
+                      <td>
+                        <div>{c.garant_nom || '—'}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>{c.garant_contact || '—'}</div>
+                      </td>
                       <td>
                         {c.fichier_dossier ? (
                           <button
                             className="btn btn-secondary btn-sm"
                             style={{ padding: '2px 8px', fontSize: 11 }}
                             onClick={() => handleOpenDoc(c.fichier_dossier)}
-                            title="Voir les pièces du dossier"
+                            title="Ouvrir les pièces du dossier"
                           >
-                            📄 Dossier PDF
+                            📄 Pièces PDF
                           </button>
                         ) : (
                           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aucun fichier</span>
@@ -612,15 +583,16 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                       </td>
                       <td>
                         <select
-                          className={`badge ${c.statut === 'retenu' ? 'badge-success' : c.statut === 'refuse' ? 'badge-danger' : c.statut === 'converti' ? 'badge-info' : 'badge-warning'}`}
-                          style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '4px 8px', fontWeight: 600 }}
+                          className="form-control"
+                          style={{ fontSize: 12, padding: '3px 8px', height: 'auto', width: 'auto', minWidth: 120 }}
                           value={c.statut}
-                          onChange={(e) => handleCandStatutChange(c.id, e.target.value)}
+                          onChange={e => handleCandStatutChange(c.id, e.target.value)}
+                          disabled={isConverti}
                         >
-                          <option value="nouveau" style={{ color: '#000' }}>🟡 Nouveau</option>
-                          <option value="retenu" style={{ color: '#000' }}>🟢 Retenu</option>
-                          <option value="refuse" style={{ color: '#000' }}>🔴 Refusé</option>
-                          <option value="converti" style={{ color: '#000' }}>🔑 Converti en Bail</option>
+                          <option value="nouveau">🟡 Nouveau</option>
+                          <option value="retenu">🟢 Retenu</option>
+                          <option value="refuse">🔴 Refusé</option>
+                          <option value="converti">🔑 Converti en Bail</option>
                         </select>
                       </td>
                       <td style={{ textAlign: 'right' }}>
@@ -628,18 +600,26 @@ export default function Locataires({ onNavigate, onOpenMail }) {
                           {!isConverti && (
                             <button
                               className="btn btn-success btn-sm"
-                              style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600 }}
+                              style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
                               onClick={() => openConvertModal(c)}
-                              title="Lancer le processus de création de bail"
+                              title="Convertir ce dossier en bail actif pour ce logement"
                             >
-                              🔑 Créer le Bail
+                              🔑 Créer Bail
                             </button>
                           )}
                           <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            onClick={() => openEditCand(c)}
-                            title="Modifier la candidature"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            onClick={() => {
+                              if (c.bien_id && onOpenMail) {
+                                onOpenMail(c.bien_id, { recipientEmail: c.email || '' })
+                              }
+                            }}
+                            title="Envoyer un e-mail au candidat"
                           >
+                            ✉️ Mail
+                          </button>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditCand(c)} title="Modifier">
                             <Icon name="edit" size={14} />
                           </button>
                           <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleCandDelete(c.id)} title="Supprimer">
@@ -656,367 +636,49 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         )
       )}
 
-      {/* ── Modale Saisie Locataire ── */}
-      {locModal && (
-        <div className="modal-backdrop" onClick={() => setLocModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{locEditing ? 'Modifier le locataire' : 'Nouveau locataire'}</h3>
-              <button className="modal-close" onClick={() => setLocModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleLocSubmit}>
-              <div className="form-group">
-                <label className="form-label">Logement associé</label>
-                <select className="form-control" value={locForm.bien_id || ''} onChange={e => setLocForm({...locForm, bien_id: e.target.value})}>
-                  <option value="">Sélectionner un bien (optionnel)</option>
-                  {biens.map(b => (
-                    <option key={b.id} value={b.id}>{b.nom} ({b.adresse || 'Sans adresse'})</option>
-                  ))}
-                </select>
-              </div>
+      {/* ── Modales découplées ── */}
+      <LocataireFormModal
+        isOpen={locModal}
+        isEditing={locEditing}
+        form={locForm}
+        setForm={setLocForm}
+        sourcePath={locSourcePath}
+        onPickFile={handlePickLocFile}
+        onSubmit={handleLocSubmit}
+        onClose={() => setLocModal(false)}
+        loading={loading}
+      />
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Prénom *</label>
-                  <input className="form-control" required value={locForm.prenom} onChange={e => setLocForm({...locForm, prenom: e.target.value})} placeholder="Prénom" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Nom *</label>
-                  <input className="form-control" required value={locForm.nom} onChange={e => setLocForm({...locForm, nom: e.target.value})} placeholder="Nom" />
-                </div>
-              </div>
+      <CandidatureFormModal
+        isOpen={candModal}
+        isEditing={candEditing}
+        form={candForm}
+        setForm={setCandForm}
+        biens={biens}
+        sourcePath={candSourcePath}
+        onPickFile={handlePickCandFile}
+        onSubmit={handleCandSubmit}
+        onClose={() => setCandModal(false)}
+        loading={loading}
+      />
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Téléphone</label>
-                  <input className="form-control" type="tel" value={locForm.telephone || ''} onChange={e => setLocForm({...locForm, telephone: e.target.value})} placeholder="06 xx xx xx xx" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input className="form-control" type="email" value={locForm.email || ''} onChange={e => setLocForm({...locForm, email: e.target.value})} placeholder="email@exemple.fr" />
-                </div>
-              </div>
+      <ConvertCandidatureModal
+        candidature={convertModal}
+        form={convertBailForm}
+        setForm={setConvertBailForm}
+        onPickFile={handlePickConvertBailFile}
+        onSubmit={handleConvertSubmit}
+        onClose={() => setConvertModal(null)}
+        loading={loading}
+      />
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Revenus mensuels (€) / Salaire</label>
-                  <input type="number" step="50" className="form-control" value={locForm.revenus_mensuels || ''} onChange={e => setLocForm({...locForm, revenus_mensuels: e.target.value})} placeholder="Ex: 2400" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Profession / Situation pro</label>
-                  <input className="form-control" value={locForm.profession || ''} onChange={e => setLocForm({...locForm, profession: e.target.value})} placeholder="Ex: CDI, Fonctionnaire, Cadre..." />
-                </div>
-              </div>
-
-              <hr className="divider" style={{ margin: '12px 0' }} />
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Garant (nom / organisme)</label>
-                  <input className="form-control" value={locForm.garant_nom || ''} onChange={e => setLocForm({...locForm, garant_nom: e.target.value})} placeholder="Nom du garant ou Visale" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Garant (contact)</label>
-                  <input className="form-control" value={locForm.garant_contact || ''} onChange={e => setLocForm({...locForm, garant_contact: e.target.value})} placeholder="Tél ou email du garant" />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">📎 Pièces du dossier (PDF / Zip / Scan)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="form-control" readOnly value={locSourcePath || locForm.fichier_dossier || ''} placeholder="Aucun fichier sélectionné" />
-                  <button type="button" className="btn btn-secondary" onClick={handlePickLocFile}>Parcourir...</button>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  📁 Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
-                </p>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Notes & Observations</label>
-                <textarea className="form-control" value={locForm.notes || ''} onChange={e => setLocForm({...locForm, notes: e.target.value})} placeholder="Remarques..." />
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setLocModal(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>Enregistrer</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modale Saisie / Édition Candidature ── */}
-      {candModal && (
-        <div className="modal-backdrop" onClick={() => setCandModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{candEditing ? 'Modifier la candidature' : 'Nouvelle candidature'}</h3>
-              <button className="modal-close" onClick={() => setCandModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCandSubmit}>
-              <div className="form-group">
-                <label className="form-label">Logement visé *</label>
-                <select className="form-control" required value={candForm.bien_id} onChange={e => setCandForm({...candForm, bien_id: e.target.value})}>
-                  <option value="">Sélectionner un bien</option>
-                  {biens.map(b => (
-                    <option key={b.id} value={b.id}>{b.nom} ({b.adresse || 'Sans adresse'})</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Prénom *</label>
-                  <input className="form-control" required value={candForm.prenom} onChange={e => setCandForm({...candForm, prenom: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Nom *</label>
-                  <input className="form-control" required value={candForm.nom} onChange={e => setCandForm({...candForm, nom: e.target.value})} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input className="form-control" type="email" value={candForm.email || ''} onChange={e => setCandForm({...candForm, email: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Téléphone</label>
-                  <input className="form-control" type="tel" value={candForm.telephone || ''} onChange={e => setCandForm({...candForm, telephone: e.target.value})} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Revenus mensuels (€) / Salaire</label>
-                  <input type="number" step="50" className="form-control" value={candForm.revenus_mensuels || ''} onChange={e => setCandForm({...candForm, revenus_mensuels: e.target.value})} placeholder="Ex: 2400" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Profession / Situation pro</label>
-                  <input className="form-control" value={candForm.profession || ''} onChange={e => setCandForm({...candForm, profession: e.target.value})} placeholder="Ex: CDI, Fonctionnaire, Cadre..." />
-                </div>
-              </div>
-              <hr className="divider" style={{ margin: '12px 0' }} />
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Nom du garant</label>
-                  <input className="form-control" value={candForm.garant_nom || ''} onChange={e => setCandForm({...candForm, garant_nom: e.target.value})} placeholder="Garant / Visale" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Contact du garant</label>
-                  <input className="form-control" value={candForm.garant_contact || ''} onChange={e => setCandForm({...candForm, garant_contact: e.target.value})} placeholder="Tél ou email du garant" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Statut</label>
-                <select className="form-control" value={candForm.statut || 'nouveau'} onChange={e => setCandForm({...candForm, statut: e.target.value})}>
-                  <option value="nouveau">🟡 Nouveau</option>
-                  <option value="retenu">🟢 Retenu</option>
-                  <option value="refuse">🔴 Refusé</option>
-                  <option value="converti">🔑 Converti en Bail</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">📎 Pièces du dossier (PDF / Zip / Scan)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="form-control" readOnly value={candSourcePath || candForm.fichier_dossier || ''} placeholder="Aucun fichier sélectionné" />
-                  <button type="button" className="btn btn-secondary" onClick={handlePickCandFile}>Parcourir...</button>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  📁 Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Notes & Observations</label>
-                <textarea className="form-control" value={candForm.notes || ''} onChange={e => setCandForm({...candForm, notes: e.target.value})} placeholder="Remarques..." />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setCandModal(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {candEditing ? 'Mettre à jour' : 'Enregistrer la candidature'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modale Processus de Création de Bail à partir de la Candidature ── */}
-      {convertModal && (
-        <div className="modal-backdrop" onClick={() => setConvertModal(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>🔑 Processus de Création de Bail pour {convertModal.prenom} {convertModal.nom}</h3>
-              <button className="modal-close" onClick={() => setConvertModal(null)}>×</button>
-            </div>
-            <form onSubmit={handleConvertSubmit}>
-              <div className="alert alert-info" style={{ fontSize: 12, marginBottom: 14 }}>
-                ℹ️ La création du bail actif enregistrera le locataire et clôturera tout bail en cours pour <strong>{convertModal.bien_nom}</strong> en l'archivant dans les baux antérieurs (<em>07_LOCATION/Bail/Baux_anciens</em>).
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Date de début du bail *</label>
-                  <input type="date" className="form-control" required value={convertBailForm.date_debut} onChange={e => setConvertBailForm({...convertBailForm, date_debut: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Date de fin (optionnelle)</label>
-                  <input type="date" className="form-control" value={convertBailForm.date_fin} onChange={e => setConvertBailForm({...convertBailForm, date_fin: e.target.value})} placeholder="En cours" />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Loyer net mensuel (€) *</label>
-                  <input type="number" step="0.01" className="form-control" required value={convertBailForm.loyer_mensuel} onChange={e => setConvertBailForm({...convertBailForm, loyer_mensuel: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Charges mensuelles (€)</label>
-                  <input type="number" step="0.01" className="form-control" value={convertBailForm.charges_mensuelles} onChange={e => setConvertBailForm({...convertBailForm, charges_mensuelles: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Dépôt de garantie (€)</label>
-                  <input type="number" step="0.01" className="form-control" value={convertBailForm.depot_garantie} onChange={e => setConvertBailForm({...convertBailForm, depot_garantie: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Jour d'échéance du loyer</label>
-                  <input type="number" min="1" max="28" className="form-control" value={convertBailForm.jour_paiement} onChange={e => setConvertBailForm({...convertBailForm, jour_paiement: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">📎 Contrat de bail (PDF / Scan)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="form-control" readOnly value={convertBailForm.fichier_bail} placeholder="Aucun contrat sélectionné" />
-                  <button type="button" className="btn btn-secondary" onClick={handlePickConvertBailFile}>Parcourir...</button>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  📁 Le fichier sera automatiquement copié dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
-                </p>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setConvertModal(null)}>Annuler</button>
-                <button type="submit" className="btn btn-success" disabled={loading}>
-                  🔑 Lancer & Valider le Bail Actif
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modale Bilan Financier & Historique du Locataire ── */}
-      {statsLocTarget && locStatsData && (
-        <div className="modal-backdrop" onClick={() => setStatsLocTarget(null)}>
-          <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 850 }}>
-            <div className="modal-header">
-              <div>
-                <h3 style={{ margin: 0 }}>📊 Bilan Financier & Historique — {statsLocTarget.prenom} {statsLocTarget.nom}</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                  Synthèse complète des encaissements, ponctualité et état des cautionnements
-                </p>
-              </div>
-              <button className="modal-close" onClick={() => setStatsLocTarget(null)}>×</button>
-            </div>
-
-            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* Grille des KPIs */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                <div className="dash-card" style={{ padding: '12px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Total Encaissé</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#15803D', marginTop: 4 }}>
-                    {formatEuro(locStatsData.total_encaisse)}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>sur {formatEuro(locStatsData.total_du)} appelés</div>
-                </div>
-
-                <div className="dash-card" style={{ padding: '12px 14px', background: locStatsData.impayes_count > 0 ? '#FEF2F2' : '#F8FAFC', border: locStatsData.impayes_count > 0 ? '1px solid #FECACA' : '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: locStatsData.impayes_count > 0 ? '#991B1B' : 'var(--text-muted)', textTransform: 'uppercase' }}>Reste Dû / Impayés</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: locStatsData.impayes_count > 0 ? '#DC2626' : 'var(--text-primary)', marginTop: 4 }}>
-                    {formatEuro(locStatsData.total_du - locStatsData.total_encaisse)}
-                  </div>
-                  <div style={{ fontSize: 11, color: locStatsData.impayes_count > 0 ? '#B91C1C' : 'var(--text-muted)', marginTop: 2 }}>
-                    {locStatsData.impayes_count} échéance(s) en retard
-                  </div>
-                </div>
-
-                <div className="dash-card" style={{ padding: '12px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase' }}>Régularité %</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#1D4ED8', marginTop: 4 }}>
-                    {locStatsData.taux_regularite}%
-                  </div>
-                  <div style={{ fontSize: 11, color: '#1E40AF', marginTop: 2 }}>taux d'échéances réglées à temps</div>
-                </div>
-
-                <div className="dash-card" style={{ padding: '12px 14px', background: '#FEF3C7', border: '1px solid #FDE68A' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>Dépôt de Garantie</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#B45309', marginTop: 4 }}>
-                    {formatEuro(locStatsData.total_depot_garantie)}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
-                    Statut : {locStatsData.statut_caution_resume}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tableau de l'historique des paiements */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 700 }}>📋 Historique des Loyers & Règlement ({locPaiementsList.length})</h4>
-                {locPaiementsList.length === 0 ? (
-                  <div className="alert alert-info" style={{ fontSize: 12 }}>Aucun règlement enregistré pour ce locataire.</div>
-                ) : (
-                  <div className="table-wrapper" style={{ maxHeight: 280, overflowY: 'auto' }}>
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Date prévue</th>
-                          <th>Montant</th>
-                          <th>Statut</th>
-                          <th>Méthode</th>
-                          <th>Quittance / Justificatif</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {locPaiementsList.map(p => (
-                          <tr key={p.id}>
-                            <td className="fw-600">{formatDate(p.date_prevue)}</td>
-                            <td>{formatEuro(p.montant)}</td>
-                            <td>
-                              <span className={`badge ${p.statut === 'paye' ? 'badge-success' : 'badge-danger'}`}>
-                                {p.statut === 'paye' ? 'Payé' : 'Impayé / En retard'}
-                              </span>
-                            </td>
-                            <td>{p.methode || 'virement'}</td>
-                            <td>
-                              {p.fichier_quittance ? (
-                                <button
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '2px 8px', fontSize: 11 }}
-                                  onClick={() => openFilePath(p.fichier_quittance)}
-                                >
-                                  📄 Ouvrir justificatif
-                                </button>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: 11 }}>—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setStatsLocTarget(null)}>Fermer</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LocataireStatsModal
+        locataire={statsLocTarget}
+        stats={locStatsData}
+        paiements={locPaiementsList}
+        onOpenFile={handleOpenDoc}
+        onClose={() => setStatsLocTarget(null)}
+      />
 
       {/* Toast Notifications */}
       {toasts.length > 0 && (
