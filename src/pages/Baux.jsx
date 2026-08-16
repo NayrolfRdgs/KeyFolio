@@ -5,6 +5,8 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import Icon from '../components/Icon'
 import EtatDesLieuxModal from '../components/EtatDesLieuxModal'
 import BailGenerateurModal from '../components/BailGenerateurModal'
+import BailFormModal from '../components/baux/BailFormModal'
+import BailClotureModal from '../components/baux/BailClotureModal'
 
 const EMPTY = {
   bien_id: '', locataire_id: '', date_debut: todayISO(), date_fin: '',
@@ -480,339 +482,28 @@ export default function Baux({ onNavigate, onOpenMail }) {
         </div>
       )}
 
-      {/* ── Modale Saisie / Édition Bail Enrichie ── */}
-      {modal && (
-        <div className="modal-backdrop" onClick={() => setModal(false)}>
-          <div className="modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editing ? 'Modifier le bail' : 'Nouveau contrat de bail'}</h3>
-              <button className="modal-close" onClick={() => setModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              {!editing && form.statut === 'actif' && (
-                <div className="alert alert-info" style={{ fontSize: 12, marginBottom: 12 }}>
-                  ℹ️ Si un bail était déjà actif sur ce logement, il sera automatiquement clôturé et son fichier archivé dans <strong>07_LOCATION/Bail/Baux_anciens</strong>.
-                </div>
-              )}
+      {/* ── Modale Saisie / Édition Bail ── */}
+      <BailFormModal
+        isOpen={modal}
+        isEditing={editing}
+        form={form}
+        setField={f}
+        biens={biens}
+        locataires={locataires}
+        onPickBailFile={handlePickBailFile}
+        onOpenBailGenerator={handleOpenBailGenerator}
+        onSubmit={handleSubmit}
+        onClose={() => setModal(false)}
+        loading={loading}
+      />
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Bien immobilier *</label>
-                  <select className="form-control" required value={form.bien_id} onChange={f('bien_id')}>
-                    <option value="">Sélectionner un logement</option>
-                    {biens.map(b => (
-                      <option key={b.id} value={b.id}>{b.nom} ({b.adresse || 'Sans adresse'})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Locataire *</label>
-                  <select className="form-control" required value={form.locataire_id} onChange={f('locataire_id')}>
-                    <option value="">Sélectionner un locataire</option>
-                    {locataires.map(l => (
-                      <option key={l.id} value={l.id}>{l.prenom} {l.nom}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Type de contrat de bail</label>
-                  <select className="form-control" value={form.type_bail || 'meuble'} onChange={f('type_bail')}>
-                    <option value="meuble">Meublé (Résidence principale - 1 an)</option>
-                    <option value="nu">Non meublé / Nu (3 ans)</option>
-                    <option value="etudiant">Étudiant meublé (9 mois)</option>
-                    <option value="mobilite">Bail Mobilité (1 à 10 mois)</option>
-                    <option value="colocation">Bail de Colocation</option>
-                    <option value="professionnel">Bail Professionnel / Commercial</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Jour d'échéance (du 1 au 28)</label>
-                  <input type="number" min="1" max="28" className="form-control" value={form.jour_paiement} onChange={f('jour_paiement')} />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Date de début *</label>
-                  <input type="date" className="form-control" required value={form.date_debut} onChange={f('date_debut')} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Date de fin (optionnel)</label>
-                  <input type="date" className="form-control" value={form.date_fin || ''} onChange={f('date_fin')} placeholder="Laisser vide si en cours" />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Loyer hors charges (€) *</label>
-                  <input type="number" step="0.01" className="form-control" required value={form.loyer_mensuel} onChange={f('loyer_mensuel')} placeholder="750.00" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Provisions sur charges (€)</label>
-                  <input type="number" step="0.01" className="form-control" value={form.charges_mensuelles} onChange={f('charges_mensuelles')} />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Dépôt de garantie (€)</label>
-                  <input type="number" step="0.01" className="form-control" value={form.depot_garantie} onChange={f('depot_garantie')} placeholder="750.00" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Statut de la caution</label>
-                  <select className="form-control" value={form.statut_garantie || 'en_attente'} onChange={f('statut_garantie')}>
-                    <option value="en_attente">⏳ En attente de versement</option>
-                    <option value="recu">✅ Reçu / Encaissé</option>
-                    <option value="restitue">↩️ Restitué au locataire</option>
-                    <option value="partiel_restitue">⚠️ Retenu partiel / Sinistre</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
-                  ⚡ Index des compteurs à l'entrée (Optionnel)
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Électricité (kWh)</label>
-                    <input type="text" className="form-control" style={{ fontSize: 12 }} placeholder="ex: 14250" value={form.compteur_elec_entree || ''} onChange={f('compteur_elec_entree')} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Eau (m³)</label>
-                    <input type="text" className="form-control" style={{ fontSize: 12 }} placeholder="ex: 345" value={form.compteur_eau_entree || ''} onChange={f('compteur_eau_entree')} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Gaz (m³)</label>
-                    <input type="text" className="form-control" style={{ fontSize: 12 }} placeholder="ex: 120" value={form.compteur_gaz_entree || ''} onChange={f('compteur_gaz_entree')} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Statut du bail</label>
-                <select className="form-control" value={form.statut} onChange={f('statut')}>
-                  <option value="actif">Actif (Bail en cours)</option>
-                  <option value="termine">Terminé (Bail antérieur / Archivé)</option>
-                  <option value="resilie">Résilié</option>
-                </select>
-              </div>
-
-              {/* Générateur et attachement de contrat */}
-              <div className="form-group" style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label className="form-label" style={{ margin: 0, fontWeight: 700, color: '#1E40AF' }}>
-                    📄 Contrat de bail de location (PDF)
-                  </label>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    style={{ background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700 }}
-                    onClick={handleOpenBailGenerator}
-                  >
-                    ✨ Générer le Bail officiel (PDF ALUR)
-                  </button>
-                </div>
-                
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="form-control" readOnly value={form.fichier_bail || ''} placeholder="Aucun contrat joint (cliquez sur Générer ou Parcourir)" />
-                  <button type="button" className="btn btn-secondary" onClick={handlePickBailFile}>Parcourir...</button>
-                </div>
-                <p style={{ fontSize: 11, color: '#1E40AF', marginTop: 4 }}>
-                  📁 Le contrat est automatiquement archivé dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
-                </p>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Enregistrement...' : editing ? 'Mettre à jour' : 'Créer le bail'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modale Fin de Bail & Clôture Enrichie ── */}
-      {terminateModal && (
-        <div className="modal-backdrop" onClick={() => setTerminateModal(null)}>
-          <div className="modal-card" style={{ maxWidth: 620, width: '92%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid var(--border-color)', paddingBottom: 10 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🚪 Clôturer le bail — {terminateModal.locataireNom}</h3>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Logement : {terminateModal.bienNom}</span>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setTerminateModal(null)}>✕</button>
-            </div>
-
-            <form onSubmit={handleConfirmTerminate}>
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                <div className="form-group">
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Date effective de départ *</label>
-                  <input
-                    type="date" className="form-control" required
-                    value={terminateModal.dateFin || todayISO()}
-                    onChange={e => setTerminateModal({ ...terminateModal, dateFin: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Motif de fin de bail *</label>
-                  <select
-                    className="form-control" required
-                    value={terminateModal.motifFin || 'Congé locataire'}
-                    onChange={e => setTerminateModal({ ...terminateModal, motifFin: e.target.value })}
-                  >
-                    <option value="Congé locataire">Congé donné par le locataire (Départ)</option>
-                    <option value="Congé bailleur (Vente)">Congé bailleur — Vente du logement</option>
-                    <option value="Congé bailleur (Reprise)">Congé bailleur — Reprise personnelle</option>
-                    <option value="Résiliation impayés / Contentieux">Résiliation impayés / Contentieux</option>
-                    <option value="Expiration normale du contrat">Expiration normale du contrat</option>
-                    <option value="Autre motif">Autre motif</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Dépôt de garantie / Caution */}
-              <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                  💶 Restitution du dépôt de garantie (Caution initiale : {formatEuro(terminateModal.bail?.depot_garantie || 0)})
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Modalité de restitution</label>
-                    <select
-                      className="form-control"
-                      value={terminateModal.restitutionCaution}
-                      onChange={e => setTerminateModal({ ...terminateModal, restitutionCaution: e.target.value })}
-                    >
-                      <option value="restitue">✅ Restitution intégrale</option>
-                      <option value="partiel_restitue">⚠️ Retenue partielle (Réparations/Charges)</option>
-                      <option value="en_attente">⏳ En attente de régularisation</option>
-                    </select>
-                  </div>
-                  {terminateModal.restitutionCaution === 'partiel_restitue' && (
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Montant retenu (€)</label>
-                      <input
-                        type="number" step="0.01" className="form-control"
-                        placeholder="ex: 150.00"
-                        value={terminateModal.montantRetenu}
-                        onChange={e => setTerminateModal({ ...terminateModal, montantRetenu: e.target.value })}
-                      />
-                    </div>
-                  )}
-                </div>
-                {terminateModal.restitutionCaution === 'partiel_restitue' && (
-                  <div style={{ marginTop: 8 }}>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Motif de la retenue</label>
-                    <input
-                      type="text" className="form-control" style={{ fontSize: 12 }}
-                      placeholder="ex: Nettoyage approfondi, régularisation charges d'eau..."
-                      value={terminateModal.motifRetenue}
-                      onChange={e => setTerminateModal({ ...terminateModal, motifRetenue: e.target.value })}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Compteurs de sortie & Clés */}
-              <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                  ⚡ Relevé des compteurs de sortie & Clés
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Électricité (kWh)</label>
-                    <input
-                      type="text" className="form-control" style={{ fontSize: 12 }}
-                      placeholder="Index..."
-                      value={terminateModal.compteurElec}
-                      onChange={e => setTerminateModal({ ...terminateModal, compteurElec: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Eau (m³)</label>
-                    <input
-                      type="text" className="form-control" style={{ fontSize: 12 }}
-                      placeholder="Index..."
-                      value={terminateModal.compteurEau}
-                      onChange={e => setTerminateModal({ ...terminateModal, compteurEau: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Gaz (m³)</label>
-                    <input
-                      type="text" className="form-control" style={{ fontSize: 12 }}
-                      placeholder="Index..."
-                      value={terminateModal.compteurGaz}
-                      onChange={e => setTerminateModal({ ...terminateModal, compteurGaz: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Restitution des clés</label>
-                  <input
-                    type="text" className="form-control" style={{ fontSize: 12 }}
-                    value={terminateModal.clesRemises}
-                    onChange={e => setTerminateModal({ ...terminateModal, clesRemises: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 700 }}>Observations / Notes complémentaires</label>
-                <textarea
-                  className="form-control" rows={2}
-                  placeholder="ex: Appartement rendu propre, pas de dégradation majeure..."
-                  value={terminateModal.notesFin || ''}
-                  onChange={e => setTerminateModal({ ...terminateModal, notesFin: e.target.value })}
-                />
-              </div>
-
-              {/* Options complémentaires : État des lieux & Email */}
-              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 12, borderRadius: 8, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    id="generate-edl-check"
-                    checked={terminateModal.generateEdl}
-                    onChange={e => setTerminateModal({ ...terminateModal, generateEdl: e.target.checked })}
-                    style={{ width: 16, height: 16, cursor: 'pointer' }}
-                  />
-                  <label htmlFor="generate-edl-check" style={{ fontSize: 13, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
-                    📋 Ouvrir et générer l'État des Lieux de Sortie officiel (PDF / Impression)
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    id="send-mail-check"
-                    checked={terminateModal.sendClosingMail}
-                    onChange={e => setTerminateModal({ ...terminateModal, sendClosingMail: e.target.checked })}
-                    style={{ width: 16, height: 16, cursor: 'pointer' }}
-                  />
-                  <label htmlFor="send-mail-check" style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF', cursor: 'pointer' }}>
-                    ✉️ Étape suivante : Rédiger et envoyer un email de solde de tout compte au locataire
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setTerminateModal(null)}>Annuler</button>
-                <button type="submit" className="btn btn-warning" disabled={loading}>
-                  {loading ? '⏳ Clôture en cours...' : '🚪 Confirmer la clôture du bail'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ── Modale Fin de Bail & Clôture ── */}
+      <BailClotureModal
+        modalData={terminateModal}
+        setModalData={setTerminateModal}
+        onSubmit={handleConfirmTerminate}
+        onClose={() => setTerminateModal(null)}
+      />
 
       {/* ── Modale État des Lieux de Sortie ── */}
       {edlModalData && (
