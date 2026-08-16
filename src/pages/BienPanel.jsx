@@ -19,6 +19,9 @@ import QuickDocumentModal from '../components/QuickDocumentModal'
 import ExcelGeneratorModal from '../components/ExcelGeneratorModal'
 import BienOverviewTab from '../components/biens/BienOverviewTab'
 import BienFilesTab from '../components/biens/BienFilesTab'
+import BienAlertsSidebar from '../components/biens/BienAlertsSidebar'
+import BienMapModal from '../components/biens/BienMapModal'
+import BienPhotosGalleryModal from '../components/biens/BienPhotosGalleryModal'
 import BienImage from '../components/BienImage'
 import { DetailedFinanceDashboard } from '../components/FinanceCharts'
 import NewBailModal from '../components/NewBailModal'
@@ -746,213 +749,35 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
               </div>
 
         {/* Colonne Droite Persistante (ALERTES, DOCUMENTS RAPIDES, ACTIVITÉ) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          
-          {/* Bloc ALERTES */}
-          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                ALERTES ({impayes.length > 0 ? '3' : '2'})
-              </h4>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 16 }}>⚠️</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>DPE à renouveler</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Valide jusqu'à la fin d'année</div>
-                </div>
-              </div>
-
-              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 16 }}>🛡️</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6' }}>Assurance PNO</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Attestation annuelle à jour</div>
-                </div>
-              </div>
-
-              {impayes.length > 0 && (
-                <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 16 }}>🚨</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Loyers en retard ({impayes.length})</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Paiement de loyer non reçu</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Bloc DOCUMENTS RAPIDES */}
-          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                DOCUMENTS RAPIDES ({bienFiles.length})
-              </h4>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {bienFiles.slice(0, 5).map((f, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', background: 'var(--color-surface-2)', borderRadius: 6, fontSize: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                    <span>📄</span>
-                    <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                      {f.filename}
-                    </span>
-                  </div>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: '1px 6px', fontSize: 10 }}
-                    onClick={() => {
-                      if (onOpenInDocuments) onOpenInDocuments(bienId, f.relative_path || f.absolute_path)
-                      else if (onNavigate) onNavigate('documents', { bienId, filePath: f.relative_path || f.absolute_path })
-                    }}
-                  >
-                    Voir dans Documents
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ width: '100%', marginTop: 10, fontSize: 11 }}
-              onClick={() => {
-                if (onOpenInDocuments) onOpenInDocuments(bienId)
-                else if (onNavigate) onNavigate('documents', bienId)
-              }}
-            >
-              Voir tous les documents ({bienFiles.length}) →
-            </button>
-          </div>
-
-          {/* Bloc ACTIVITÉ RÉCENTE */}
-          <div className="card" style={{ padding: 16, background: 'var(--color-surface)', borderRadius: 12 }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              ACTIVITÉS RÉCENTES
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ fontSize: 14 }}>💵</span>
-                <div>
-                  <div style={{ fontWeight: 700 }}>Paiement enregistré</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Loyer de {formatEuro(loyerMensuel)}</div>
-                </div>
-              </div>
-
-              {activeBail && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontSize: 14 }}>📑</span>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>Bail actif</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{activeBail.locataire_prenom} {activeBail.locataire_nom}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <BienAlertsSidebar
+          bienId={bienId}
+          impayes={impayes}
+          bienFiles={bienFiles}
+          loyerMensuel={loyerMensuel}
+          activeBail={activeBail}
+          onOpenInDocuments={onOpenInDocuments}
+          onNavigate={onNavigate}
+        />
       </div>
 
       {/* ── MAP INTERACTIVE MODAL ── */}
-      {mapModalOpen && (
-        <div className="modal-overlay" onClick={() => setMapModalOpen(false)}>
-          <div className="modal-content card" style={{ maxWidth: 720, width: '92%', padding: 20 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🗺️ Carte & Localisation : {bien.nom}</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setMapModalOpen(false)}>✕</button>
-            </div>
-            
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-              📍 <strong>Adresse :</strong> {propertyAddress || 'Adresse non renseignée'}
-            </p>
-
-            {propertyAddress ? (
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color)', height: 360, position: 'relative' }}>
-                <iframe
-                  title="Carte du logement"
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  scrolling="no"
-                  marginHeight="0"
-                  marginWidth="0"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(propertyAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                />
-              </div>
-            ) : (
-              <div style={{ padding: 40, textAlign: 'center', background: 'var(--color-surface-2)', borderRadius: 8 }}>
-                📍 Renseignez l'adresse complète du logement pour afficher la carte interactive.
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-              {propertyAddress && (
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => openFilePath(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyAddress)}`)}
-                >
-                  📍 Ouvrir dans Google Maps (Navigateur)
-                </button>
-              )}
-              <button className="btn btn-ghost btn-sm" onClick={() => setMapModalOpen(false)}>
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BienMapModal
+        isOpen={mapModalOpen}
+        bienNom={bien.nom}
+        propertyAddress={propertyAddress}
+        onOpenBrowser={openFilePath}
+        onClose={() => setMapModalOpen(false)}
+      />
 
       {/* ── GALERIE PHOTOS MODAL ── */}
-      {galleryModalOpen && (
-        <div className="modal-overlay" onClick={() => setGalleryModalOpen(false)}>
-          <div className="modal-content card" style={{ maxWidth: 850, width: '94%', padding: 20 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>📷 Galerie photos ({allPhotoPaths.length})</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setGalleryModalOpen(false)}>✕</button>
-            </div>
-
-            {allPhotoPaths.length > 0 ? (
-              <div>
-                <div style={{ width: '100%', height: 420, borderRadius: 10, overflow: 'hidden', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                  <BienImage src={allPhotoPaths[activePhotoIdx] || allPhotoPaths[0]} alt="Full view" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-                  {allPhotoPaths.map((p, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        width: 70, height: 50, flexShrink: 0, borderRadius: 6, overflow: 'hidden', cursor: 'pointer',
-                        border: activePhotoIdx === idx ? '2px solid var(--color-accent)' : '1px solid var(--border-color)',
-                        opacity: activePhotoIdx === idx ? 1 : 0.6
-                      }}
-                      onClick={() => setActivePhotoIdx(idx)}
-                    >
-                      <BienImage src={p} alt={`Thumb ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                Aucune photo pour le moment.
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-              <button className="btn btn-primary btn-sm" onClick={() => handleUploadPhotos('00_ACHAT-VENTE/Annonce - Photos')}>
-                + Ajouter des photos
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setGalleryModalOpen(false)}>
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BienPhotosGalleryModal
+        isOpen={galleryModalOpen}
+        photoPaths={allPhotoPaths}
+        activePhotoIdx={activePhotoIdx}
+        setActivePhotoIdx={setActivePhotoIdx}
+        onUploadPhotos={handleUploadPhotos}
+        onClose={() => setGalleryModalOpen(false)}
+      />
 
       {/* ── MODALS AUXILIAIRES ── */}
       {quickDocBienId && (
