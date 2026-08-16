@@ -24,6 +24,9 @@ pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "04_FISCAL_FINANCIER/Revenus fonciers",
     "04_FISCAL_FINANCIER/Taxe fonciere",
     "04_FISCAL_FINANCIER/Taxe habitation",
+    "04_FISCAL_FINANCIER/Bilans et syntheses",
+    "04_FISCAL_FINANCIER/Declarations fiscales - LMNP - 2044",
+    "05_TRAVAUX/Devis",
     "05_TRAVAUX/Factures travaux/Chauffage",
     "05_TRAVAUX/Factures travaux/Electricite",
     "05_TRAVAUX/Factures travaux/Plomberie",
@@ -46,6 +49,8 @@ pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "07_LOCATION/Assurance PNO",
     "07_LOCATION/Depot de garantie",
     "07_LOCATION/Quittances de loyer",
+    "07_LOCATION/Avis d echeance et Relances",
+    "07_LOCATION/Regularisations de charges",
     "08_DIVERS",
 ];
 
@@ -70,7 +75,15 @@ pub fn get_base_dir(app: &tauri::AppHandle) -> PathBuf {
 
 /// Retourne le chemin vers le fichier SQLite.
 pub fn get_db_path(app: &tauri::AppHandle) -> PathBuf {
-    get_base_dir(app).join("lepuits.db")
+    let base = get_base_dir(app);
+    let keyfolio_db = base.join("keyfolio.db");
+    let legacy_db = base.join("lepuits.db");
+
+    if !keyfolio_db.exists() && legacy_db.exists() {
+        std::fs::rename(&legacy_db, &keyfolio_db).ok();
+    }
+
+    keyfolio_db
 }
 
 /// Normalise un nom de bien pour créer un nom de dossier propre

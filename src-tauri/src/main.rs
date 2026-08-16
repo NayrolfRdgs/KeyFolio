@@ -7,5 +7,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    lepuits_lib::run()
+    keyfolio_lib::run()
 }

@@ -1,12 +1,12 @@
 [package]
-name = "lepuits"
+name = "keyfolio"
 version = "0.1.0"
-description = "LePuits - Gestion Immobilière Portable"
+description = "KeyFolio - Gestion Immobilière Portable"
 authors = ["Flow (Florian) — FlowCreativeStudio <https://github.com/NayrolfRdgs>"]
 edition = "2021"
 
 [lib]
-name = "lepuits_lib"
+name = "keyfolio_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -614,3 +614,199 @@ pub fn get_locataire_stats(state: State<AppState>, locataire_id: i64) -> Result<
     })
 }
 
+#[tauri::command]
+pub fn save_etat_des_lieux(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bien_id: i64,
+    locataire_nom: String,
+    date_edl: String,
+    html_content: String,
+) -> Result<String, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+        "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+        params![bien_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    ).map_err(|e| format!("Bien introuvable: {}", e))?;
+
+    let bien_rel_path = match chemin_dossier {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => {
+            let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                .map_err(|e| format!("Erreur dossier: {}", e))?;
+            db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, bien_id]).ok();
+            rel_path
+        }
+    };
+
+    let subfolder = "07_LOCATION/Etat des lieux/Sortie";
+    let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
+    std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+
+    let safe_nom = locataire_nom.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_");
+    let safe_date = date_edl.replace('/', "-");
+    let filename = format!("Etat_des_lieux_sortie_{}_{}.html", safe_date, safe_nom);
+    let target_file = target_dir.join(&filename);
+
+    std::fs::write(&target_file, html_content).map_err(|e| format!("Erreur écriture fichier: {}", e))?;
+
+    let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, filename);
+
+    db.execute(
+        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+         VALUES (?1, 'etat_des_lieux', ?2, ?3, ?4, ?5)",
+        params![
+            bien_id,
+            subfolder,
+            rel_file,
+            date_edl,
+            format!("État des lieux de sortie - {}", locataire_nom)
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(rel_file)
+}
+
+#[tauri::command]
+pub fn save_etat_des_lieux_pdf(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bien_id: i64,
+    locataire_nom: String,
+    date_edl: String,
+    pdf_base64: String,
+) -> Result<String, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+        "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+        params![bien_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    ).map_err(|e| format!("Bien introuvable: {}", e))?;
+
+    let bien_rel_path = match chemin_dossier {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => {
+            let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                .map_err(|e| format!("Erreur dossier: {}", e))?;
+            db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, bien_id]).ok();
+            rel_path
+        }
+    };
+
+    let subfolder = "07_LOCATION/Etat des lieux/Sortie";
+    let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
+    std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+
+    let safe_nom = locataire_nom.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_");
+    let safe_date = date_edl.replace('/', "-");
+    let filename = format!("Etat_des_lieux_sortie_{}_{}.pdf", safe_date, safe_nom);
+    let target_file = target_dir.join(&filename);
+
+    use base64::Engine;
+    let clean_b64 = if let Some(idx) = pdf_base64.find("base64,") {
+        &pdf_base64[idx + 7..]
+    } else {
+        &pdf_base64
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(clean_b64.trim())
+        .map_err(|e| format!("Erreur décodage base64 PDF: {}", e))?;
+
+    std::fs::write(&target_file, bytes).map_err(|e| format!("Erreur écriture fichier PDF: {}", e))?;
+
+    let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, filename);
+
+    db.execute(
+        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+         VALUES (?1, 'etat_des_lieux', ?2, ?3, ?4, ?5)",
+        params![
+            bien_id,
+            subfolder,
+            rel_file,
+            date_edl,
+            format!("État des lieux de sortie (PDF) - {}", locataire_nom)
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(rel_file)
+}
+
+#[tauri::command]
+pub fn save_contrat_bail_pdf(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bail_id: Option<i64>,
+    bien_id: i64,
+    locataire_nom: String,
+    date_debut: String,
+    pdf_base64: String,
+) -> Result<String, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+        "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+        params![bien_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    ).map_err(|e| format!("Bien introuvable: {}", e))?;
+
+    let bien_rel_path = match chemin_dossier {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => {
+            let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                .map_err(|e| format!("Erreur dossier: {}", e))?;
+            db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, bien_id]).ok();
+            rel_path
+        }
+    };
+
+    let subfolder = "07_LOCATION/Bail/Bail_en_cours";
+    let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
+    std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+
+    let safe_nom = locataire_nom.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_");
+    let safe_date = date_debut.replace('/', "-");
+    let filename = format!("Contrat_de_bail_{}_{}.pdf", safe_date, safe_nom);
+    let target_file = target_dir.join(&filename);
+
+    use base64::Engine;
+    let clean_b64 = if let Some(idx) = pdf_base64.find("base64,") {
+        &pdf_base64[idx + 7..]
+    } else {
+        &pdf_base64
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(clean_b64.trim())
+        .map_err(|e| format!("Erreur décodage base64 PDF: {}", e))?;
+
+    std::fs::write(&target_file, bytes).map_err(|e| format!("Erreur écriture fichier PDF: {}", e))?;
+
+    let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, filename);
+
+    if let Some(b_id) = bail_id {
+        db.execute("UPDATE baux SET fichier_bail = ?1 WHERE id = ?2", params![rel_file, b_id]).ok();
+    }
+
+    db.execute(
+        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+         VALUES (?1, 'bail', ?2, ?3, ?4, ?5)",
+        params![
+            bien_id,
+            subfolder,
+            rel_file,
+            date_debut,
+            format!("Contrat de bail (PDF) - {}", locataire_nom)
+        ],
+    ).ok();
+
+    Ok(rel_file)
+}
+
+
+
+

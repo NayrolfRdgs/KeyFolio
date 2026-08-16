@@ -61,6 +61,7 @@ pub fn run() {
             commands::biens::sync_bien_excel,
             commands::biens::import_bien_folder,
             commands::biens::generate_questionnaire_excel,
+            commands::biens::save_file_to_disk,
 
             // Commandes Locataires & Baux
             commands::locataires::get_locataires,
@@ -78,6 +79,9 @@ pub fn run() {
             commands::locataires::update_candidature,
             commands::locataires::update_candidature_statut,
             commands::locataires::delete_candidature,
+            commands::locataires::save_etat_des_lieux,
+            commands::locataires::save_etat_des_lieux_pdf,
+            commands::locataires::save_contrat_bail_pdf,
 
             // Commandes Paiements & Loyers
             commands::paiements::get_paiements,

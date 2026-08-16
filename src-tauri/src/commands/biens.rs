@@ -705,10 +705,29 @@ pub fn delete_document_file(app: tauri::AppHandle, state: State<AppState>, id: i
     Ok(())
 }
 
+/// Validation stricte de sécurité des chemins de fichiers pour empêcher les attaques de traversée de dossier (`../`).
+pub fn validate_safe_path(base_dir: &std::path::Path, target_relative: &str) -> Result<std::path::PathBuf, String> {
+    if target_relative.contains("..") {
+        return Err("Sécurité : Le chemin spécifié contient un motif de traversée interdit ('..')".to_string());
+    }
+
+    let full_path = base_dir.join(target_relative);
+
+    if full_path.exists() {
+        if let (Ok(canonical_base), Ok(canonical_target)) = (base_dir.canonicalize(), full_path.canonicalize()) {
+            if !canonical_target.starts_with(&canonical_base) {
+                return Err("Alerte de Sécurité : accès interdit hors de l'arborescence KeyFolio".to_string());
+            }
+        }
+    }
+
+    Ok(full_path)
+}
+
 #[tauri::command]
 pub fn delete_file_by_path(app: tauri::AppHandle, state: State<AppState>, relative_path: String) -> Result<(), String> {
     let base_dir = crate::db::get_base_dir(&app);
-    let abs_path = base_dir.join(&relative_path);
+    let abs_path = validate_safe_path(&base_dir, &relative_path)?;
 
     if abs_path.exists() {
         std::fs::remove_file(&abs_path).map_err(|e| format!("Impossible de supprimer le fichier: {}", e))?;
@@ -728,10 +747,14 @@ pub fn rename_document_file(
     new_filename: String,
 ) -> Result<String, String> {
     let base_dir = crate::db::get_base_dir(&app);
-    let old_abs_path = base_dir.join(&relative_path);
+    let old_abs_path = validate_safe_path(&base_dir, &relative_path)?;
 
     if !old_abs_path.exists() {
         return Err("Le fichier source n'existe pas".to_string());
+    }
+
+    if new_filename.contains("..") || new_filename.contains('/') || new_filename.contains('\\') {
+        return Err("Nom de fichier invalide".to_string());
     }
 
     let parent = old_abs_path.parent().ok_or_else(|| "Dossier parent invalide".to_string())?;
@@ -760,6 +783,7 @@ pub fn move_file_to_subfolder(
     target_subfolder: String,
 ) -> Result<String, String> {
     let base_dir = crate::db::get_base_dir(&app);
+    let old_abs_path = validate_safe_path(&base_dir, &source_relative_path)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
     let chemin_dossier: String = db.query_row(
@@ -1150,3 +1174,20 @@ pub fn generate_questionnaire_excel(
         &base_dir, &chemin_dossier, &filename, &title, headers, sample_rows, has_totals, has_cumul
     )
 }
+
+#[tauri::command]
+pub fn save_file_to_disk(target_path: String, base64_data: String) -> Result<(), String> {
+    use base64::Engine;
+    let clean_b64 = if let Some(idx) = base64_data.find("base64,") {
+        &base64_data[idx + 7..]
+    } else {
+        &base64_data
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(clean_b64.trim())
+        .map_err(|e| format!("Erreur décodage base64: {}", e))?;
+
+    std::fs::write(&target_path, bytes).map_err(|e| format!("Erreur écriture fichier: {}", e))?;
+    Ok(())
+}
+
