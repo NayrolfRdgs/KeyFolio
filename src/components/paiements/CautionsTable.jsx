@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { formatDate, formatEuro } from '../../lib/utils'
+import Icon from '../common/Icon'
+import CautionEditModal from './CautionEditModal'
 
 export const labelStatutCaution = (st) => {
   switch(st) {
@@ -20,8 +22,11 @@ export default function CautionsTable({
   onOpenDoc,
   onAttachCautionDoc,
   onValidateCaution,
+  onUpdateCaution,
   onOpenMail
 }) {
+  const [editingBail, setEditingBail] = useState(null)
+
   return (
     <div style={{ marginBottom: isAllTab ? 24 : 0 }}>
       {isAllTab && (
@@ -78,7 +83,16 @@ export default function CautionsTable({
                       </button>
                     </td>
                     <td className="text-muted">{formatDate(b.date_debut)}</td>
-                    <td className="fw-600" style={{ fontSize: 14 }}>{formatEuro(b.depot_garantie)}</td>
+                    <td className="fw-600" style={{ fontSize: 14 }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '2px 6px', fontSize: 14, fontWeight: 700 }}
+                        onClick={() => setEditingBail(b)}
+                        title="Cliquer pour modifier le montant ou les infos de caution"
+                      >
+                        {formatEuro(b.depot_garantie)} ✏️
+                      </button>
+                    </td>
                     <td>
                       <select
                         className={`badge ${st.cls}`}
@@ -126,6 +140,13 @@ export default function CautionsTable({
                           </button>
                         )}
                         <button
+                          className="btn btn-ghost btn-icon btn-sm"
+                          onClick={() => setEditingBail(b)}
+                          title="Modifier les détails de la caution"
+                        >
+                          <Icon name="edit" size={14} />
+                        </button>
+                        <button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '3px 8px', fontSize: 11 }}
                           onClick={() => onOpenMail(b)}
@@ -141,6 +162,15 @@ export default function CautionsTable({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modale d'édition de caution */}
+      {editingBail && (
+        <CautionEditModal
+          bail={editingBail}
+          onClose={() => setEditingBail(null)}
+          onSave={onUpdateCaution}
+        />
       )}
     </div>
   )

@@ -345,7 +345,8 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
     let headers = vec![
         "ID Bail", "Nom Locataire", "Prénom", "Téléphone", "Email",
         "Garant", "Contact Garant", "Date Début", "Date Fin",
-        "Loyer Mensuel (€)", "Charges (€)", "Dépôt Garantie (€)", "Jour Paiement", "Statut Bail", "Fichier Bail"
+        "Loyer Mensuel (€)", "Charges (€)", "Dépôt Garantie (€)", "Statut Caution", "Justificatif Caution",
+        "Jour Paiement", "Statut Bail", "Fichier Bail", "Motif Fin", "Notes Clôture"
     ];
 
     for (col, h) in headers.iter().enumerate() {
@@ -355,8 +356,8 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
     let mut stmt = conn.prepare("
         SELECT b.id, l.nom, l.prenom, l.telephone, l.email,
                l.garant_nom, l.garant_contact, b.date_debut, b.date_fin,
-               b.loyer_mensuel, b.charges_mensuelles, b.depot_garantie,
-               b.jour_paiement, b.statut, b.fichier_bail
+               b.loyer_mensuel, b.charges_mensuelles, b.depot_garantie, b.statut_garantie, b.fichier_caution,
+               b.jour_paiement, b.statut, b.fichier_bail, b.motif_fin, b.notes_fin
         FROM baux b
         JOIN locataires l ON b.locataire_id = l.id
         WHERE b.bien_id = ?1
@@ -377,9 +378,13 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
             row.get::<_, f64>(9)?,
             row.get::<_, Option<f64>>(10)?,
             row.get::<_, Option<f64>>(11)?,
-            row.get::<_, Option<i64>>(12)?,
+            row.get::<_, Option<String>>(12)?,
             row.get::<_, Option<String>>(13)?,
-            row.get::<_, Option<String>>(14)?,
+            row.get::<_, Option<i64>>(14)?,
+            row.get::<_, Option<String>>(15)?,
+            row.get::<_, Option<String>>(16)?,
+            row.get::<_, Option<String>>(17)?,
+            row.get::<_, Option<String>>(18)?,
         ))
     }).map_err(|e| e.to_string())?;
 
@@ -387,7 +392,8 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
     for r in rows {
         if let Ok((
             id, nom, prenom, tel, email, garant, g_contact, d_debut, d_fin,
-            loyer, charges, depot, jour, statut, fichier
+            loyer, charges, depot, st_garantie, f_caution, jour, statut, fichier,
+            m_fin, n_fin
         )) = r {
             worksheet.write(row_idx, 0, id as f64).map_err(|e| e.to_string())?;
             worksheet.write(row_idx, 1, nom).map_err(|e| e.to_string())?;
@@ -401,9 +407,13 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
             worksheet.write_with_format(row_idx, 9, loyer, &curr_fmt).map_err(|e| e.to_string())?;
             worksheet.write_with_format(row_idx, 10, charges.unwrap_or(0.0), &curr_fmt).map_err(|e| e.to_string())?;
             worksheet.write_with_format(row_idx, 11, depot.unwrap_or(0.0), &curr_fmt).map_err(|e| e.to_string())?;
-            worksheet.write(row_idx, 12, (jour.unwrap_or(5)) as f64).map_err(|e| e.to_string())?;
-            worksheet.write(row_idx, 13, statut.unwrap_or_default()).map_err(|e| e.to_string())?;
-            worksheet.write(row_idx, 14, fichier.unwrap_or_default()).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 12, st_garantie.unwrap_or_else(|| "en_attente".to_string())).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 13, f_caution.unwrap_or_default()).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 14, (jour.unwrap_or(5)) as f64).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 15, statut.unwrap_or_default()).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 16, fichier.unwrap_or_default()).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 17, m_fin.unwrap_or_default()).map_err(|e| e.to_string())?;
+            worksheet.write(row_idx, 18, n_fin.unwrap_or_default()).map_err(|e| e.to_string())?;
             row_idx += 1;
         }
     }

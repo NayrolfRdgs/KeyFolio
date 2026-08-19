@@ -139,6 +139,16 @@ export default function Paiements({ onNavigate, onOpenMail }) {
     }
   }
 
+  const handleUpdateCaution = async (updatedBail) => {
+    try {
+      await updateBail(updatedBail)
+      addToast(`✅ Dépôt de garantie mis à jour et synchronisé dans l'Excel !`)
+      loadAll()
+    } catch(err) {
+      addToast(`Erreur mise à jour caution: ${err}`, 'error')
+    }
+  }
+
   const handleOpenDoc = async (path) => {
     try {
       await openFilePath(path)
@@ -291,6 +301,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
           onOpenDoc={handleOpenDoc}
           onAttachCautionDoc={handleAttachCautionDoc}
           onValidateCaution={handleValidateCaution}
+          onUpdateCaution={handleUpdateCaution}
           onOpenMail={(b) => {
             if (onOpenMail && b.bien_id) {
               onOpenMail(b.bien_id, {

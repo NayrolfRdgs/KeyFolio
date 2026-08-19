@@ -366,19 +366,27 @@ pub fn terminate_bail(
 }
 
 #[tauri::command]
-pub fn update_bail(state: State<AppState>, bail: Bail) -> Result<(), String> {
+pub fn update_bail(app: tauri::AppHandle, state: State<AppState>, bail: Bail) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "UPDATE baux SET bien_id=?1, locataire_id=?2, date_debut=?3, date_fin=?4,
                          loyer_mensuel=?5, charges_mensuelles=?6, depot_garantie=?7,
-                         jour_paiement=?8, statut=?9, fichier_bail=?10
-         WHERE id=?11",
+                         statut_garantie=?8, fichier_caution=?9,
+                         jour_paiement=?10, statut=?11, fichier_bail=?12,
+                         motif_fin=?13, notes_fin=?14
+         WHERE id=?15",
         params![
             bail.bien_id, bail.locataire_id, bail.date_debut, bail.date_fin,
             bail.loyer_mensuel, bail.charges_mensuelles, bail.depot_garantie,
-            bail.jour_paiement, bail.statut, bail.fichier_bail, bail.id
+            bail.statut_garantie, bail.fichier_caution,
+            bail.jour_paiement, bail.statut, bail.fichier_bail,
+            bail.motif_fin, bail.notes_fin, bail.id
         ],
     ).map_err(|e| e.to_string())?;
+
+    crate::excel::sync_all_property_excels(&db, &base_dir, bail.bien_id).ok();
+
     Ok(())
 }
 
