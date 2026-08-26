@@ -96,7 +96,7 @@ biens_data/
 - Mémorisation et reprise des données sans perte lors de la réouverture.
 
 ### 💶 4. Suivi des Loyers, Cautions & Impayés
-- **Suivi des Cautions** : Onglet dédié avec indicateurs visuels, validation d'encaissement en 1 clic et modale d'édition rapide du montant et des justificatifs.
+- **Suivi des Cautions & Dépôts de Garantie** : Onglet dédié avec indicateurs visuels, validation d'encaissement en 1 clic et modale d'édition rapide du montant et des justificatifs.
 - **Génération de Quittances PDF Vectorielles** : Calcul automatique du loyer hors charges et provisions, avec émission certifiée et envoi immédiat par e-mail.
 - **Détection des Retards et Impayés** : Signalement visuel instantané et relances par mail en 1 clic.
 
@@ -119,120 +119,129 @@ biens_data/
 
 ---
 
-## 🗺️ Roadmap Complète & Évolutions Futures
+## 🗺️ KeyFolio — Vision & Roadmap Complète
+
+> **Document de synthèse** : Tout reste **optionnel et modulaire**, rien n'est imposé à l'utilisateur.
+
+### 📍 Où en est le logiciel aujourd'hui
+- Application desktop portable (Tauri 2 / Rust / React 19).
+- 100% locale et hors-ligne par défaut, gratuite, sans abonnement.
+- Base SQLite locale + arborescence de dossiers lisible sans logiciel.
+- Gestion multi-biens : locataires, baux, paiements, dépenses, maintenance.
+- Messagerie intégrée (IMAP/SMTP + Google) par logement.
+- Génération de documents PDF (quittances, baux ALUR, états des lieux).
+- Suivi des cautions et loyers, révisions IRL.
+- Synchronisation Excel (tableaux d'amortissement, baux).
+- Visualiseur de tableurs Excel/CSV intégré, recherche globale.
+- Repo GitHub public, LICENSE (PolyForm Noncommercial), SECURITY.md, README complets.
+- Première bêta publique déjà lancée sur GitHub.
 
 ```mermaid
 timeline
-    title Feuille de Route KeyFolio
-    section Déjà Livré (v0.1 - v0.3)
-        Architecture 100% Locale & Portable : Base SQLite + Dossiers biens_data
-        Générateurs PDF Vectoriels : Quittances, Baux ALUR, États des Lieux
-        Suivi Cautions & Loyers : Gestion des dépôts, impayés, régularisations
-        Synchronisation Excel Réelle : Tableaux d'amortissement 30 ans & baux
-    section Priorité 0 - Alertes & Confort
-        Notifications d'échéances proactives : Fin de bail, PNO, diagnostics DDT, IRL
-        Comparateur de Rentabilité : Tableau de bord multi-biens & cashflow
-        Versioning des Documents : Historique des baux & avenants
-    section Étape 1 - Automatisation & OCR
-        Extraction OCR Légère : Lecture factures / devis PDF sans alourdir la RAM
-        Rapprochement Bancaire : Import relevés CSV/OFX & pointage automatique
-        Indice IRL Automatique : Révision 1-clic (API INSEE + fallback offline)
-    section Étape 2 - Fiscalité & Déclarations
-        Liasse Fiscale 2044 & 2042-C-PRO : Synthèse revenus fonciers
-        Déclaration LMNP Régime Réel : Liasses 2031 & 2033 (Amortissements)
-        Régularisation Annuelle des Charges : Décompte charges récupérables
-    section Étape 3 - Nouveaux Modes & Compagnon
-        Location Saisonnière / Airbnb : Mode dédié avec synchro iCal multi-plateformes
-        Mode Succession / Transmission : Export pack notaire & repreneur 1-clic
-        Gestion des Sinistres & Assurances : Suivi des litiges, dégâts des eaux & indemnisation
-        Compagnon Mobile EDL (P2P Local) : État des lieux sur tablette avec photos horodatées
-        Sauvegarde Chiffrée 1-Clic : Export ZIP chiffré AES-256 vers NAS ou clé USB
-        Multi-Sociétés / SCI : Gestion SCI à l'IS/IR et répartition des associés
+    title Vision & Roadmap KeyFolio
+    section 📍 Acquis & Actuel
+        Desktop Portable Tauri 2 / Rust / React 19 : 100% local, gratuit, hors-ligne
+        Gestion Multi-Biens & Baux ALUR : Quittances PDF, EDL, Cautions, Messagerie
+        Double Persistance SQLite + Excel : Tableaux d'amortissement & arborescence
+    section 🔴 Court Terme (Prioritaire)
+        Validation Stricte des Chemins : Sécurité et confinement des dossiers
+        Vérification Automatique des Mises à Jour : Check GitHub Releases & bannière
+        Site Web Vitrine : Présentation du projet et futurs points d'entrée
+        Canal Retours Testeurs : Structuration des feedbacks de la communauté bêta
+    section 🟠 Enrichissement Bailleur
+        Échéances au Lancement : Affichage clair des alertes clés (PNO, bail, DPE, IRL)
+        Gestion des Sinistres : Dégâts des eaux, assurances, indemnisation
+        Comparateur de Rentabilité : Rendement brut/net, cash-flow multi-biens
+        Versioning des Baux & Documents : Historique des avenants sans écrasement
+        Mode Succession / Transmission : Export pack notaire & héritier 1-clic
+        Location Saisonnière / Airbnb : Calendrier iCal, taxe de séjour, rotation ménage
+        Automatisation & OCR Local Léger : Extraction factures (Tesseract / Sidecar)
+        Rapprochement Bancaire : Import CSV/OFX & pointage automatique des loyers
+        Indice IRL Automatique : API INSEE avec repli 100% hors-ligne
+        Fiscalité Déclarative : Synthèse 2044, LMNP réel (2031/2033), régul charges
+    section 🟡 Architecture & Comptes
+        Comptes & Permissions Locales : Rôles stockés en SQLite hors-ligne
+        4 Modes de Stockage au Choix : Local, Clé/NAS chiffré AES, Cloud, Docker
+        Backend Unifié : Mêmes API pour le mode Cloud et l'auto-hébergement Docker
+        Export Libre & Souverain : PDF, Excel, ZIP chiffré sans rétention
+    section 🟢 Accessibilité & Simplicité
+        Mode Guidé / Assisté : Questions en langage naturel pas-à-pas
+        Mode "Gérer pour un Proche" : Rôle aidant / tiers de confiance
+        Kit Papier KeyFolio : Classeur physique & formulaires papier miroir de l'app
+        Assistance IA Conversationnelle : Aide à la compréhension documentaire
 ```
 
 ---
 
-### 🔔 0. Alertes Proactives (Priorité Haute — Rapide & Fort Impact)
-- [ ] **Notifications locales des échéances clés** :
-  - Fin de bail approchante (préavis 3 mois / 6 mois).
-  - Échéance de renouvellement de l'assurance PNO (Propriétaire Non Occupant) et assurance habitation locataire.
-  - Péremption d'un diagnostic technique obligatoire (DPE 10 ans, électricité/gaz 3 ans, ERP 6 mois).
-  - Date anniversaire pour la révision légale du loyer (indice IRL).
-- [ ] **100% local et instantané** : Simple calcul basé sur les dates en base de données avec notification native Windows / macOS via Tauri sans aucun service externe.
+### 🔴 1. Court terme — À finaliser en priorité
+- [ ] **Validation stricte des chemins de fichiers** : Sécurité maximale, contrôle systématique avec `canonicalize()` pour éviter tout accès hors du dossier du bien.
+- [ ] **Vérification de mise à jour automatique** : Bannière au démarrage et vérification périodique via GitHub Releases.
+- [ ] **Génération PDF native des quittances** : Consolidation du rendu vectoriel et de l'envoi direct.
+- [ ] **Lancement d'un site web vitrine** : Présenter le projet, la philosophie souveraine et servir de futur point d'entrée applicatif.
+- [ ] **Canal de retour structuré avec les bêta-testeurs** : Recueil qualitatif des retours d'expérience au-delà des simples issues GitHub.
 
 ---
 
-### 🧠 1. Automatisation & Intelligence Locale (Hors-Ligne)
-- [ ] **Extraction OCR Locale Légère des Factures** : Déposez une facture d'artisan ou d'énergie (PDF/Scan), l'application extrait automatiquement la date, le montant HT/TTC, la TVA et la catégorie fiscale, et classe le fichier dans `05_TRAVAUX` ou `06_ENERGIE_CONTRATS`. *(Voir point de vigilance sur le choix du moteur)*.
-- [ ] **Rapprochement Bancaire CSV / OFX / QIF** : Importez votre extrait bancaire mensuel pour lettrer et valider automatiquement les loyers perçus sans saisie manuelle.
-- [ ] **Indexation Automatique des Loyers (API INSEE IRL avec Fallback)** : Récupération du dernier indice officiel pour proposer le nouveau loyer avec lettre de révision légale prête à l'envoi.
+### 🟠 2. Fonctionnalités à ajouter au produit actuel (Public bailleur particulier)
+- [ ] **Échéances affichées à l'ouverture (Mode local/portable)** : L'application n'ayant pas de processus en arrière-plan, les échéances (*fin de bail, assurance PNO, diagnostics à renouveler, révision de loyer*) sont calculées et affichées sur le tableau de bord dès le lancement — pas de notification système intrusive, juste une information claire et directe dès l'ouverture.
+- [ ] **Vraies notifications proactives (Email, notifications web)** : Réservées aux modes connectés (Cloud ou Docker auto-hébergé), nécessitant un serveur actif en permanence pour surveiller les dates et déclencher les alertes avant même l'ouverture de l'application.
+- [ ] **Gestion des sinistres & assurances** : Suivi des dégâts des eaux, incendies, échanges avec la compagnie d'assurance/expert et statut d'indemnisation.
+- [ ] **Comparateur de rentabilité multi-biens** : Tableau de bord comparatif du rendement brut/net et du cash-flow par logement.
+- [ ] **Historique et versioning des documents** : Conservation des versions antérieures d'un bail lors d'avenants ou renouvellements de diagnostics, sans écrasement destructif.
+- [ ] **Mode "Succession / Transmission"** : Export complet, autonome et lisible d'un bien pour un héritier, notaire ou repreneur.
+- [ ] **Location courte durée / Airbnb** : Mode alternatif activable par bien (*calendrier iCal multi-plateformes, taxe de séjour, ménage/maintenance entre séjours, fiscalité meublé de tourisme*) — à valider selon la demande des utilisateurs bêta.
+- [ ] **Automatisation & OCR local** : Extraction automatique des factures (*montant, TVA, catégorie*) et classement automatique — en veillant à la légèreté du moteur embarqué (*Tesseract C++/Rust*).
+- [ ] **Rapprochement bancaire** : Import de relevés bancaires CSV/OFX et pointage automatique des loyers encaissés.
+- [ ] **Indice IRL automatique** : Récupération du dernier indice officiel via l'API INSEE *(seule exception documentée au 100% hors-ligne, avec repli systématique en saisie manuelle)*.
+- [ ] **Fiscalité avancée** : Aide au remplissage de la déclaration 2044, liasse LMNP réel (2031/2033) et régularisation annuelle des charges locatives.
 
 ---
 
-### 📑 2. Fiscalité Avancée & Déclarations Officielles
-- [ ] **Export Déclaration 2044 (Revenus Fonciers / Régime Réel)** : Génération du rapport fiscal avec report direct des cases pour la déclaration d'impôts.
-- [ ] **Régime LMNP Réel (Formulaires 2031 / 2033)** : Calcul et ventilation automatisés de la dotation aux amortissements (composants bâti, toiture, électricité, mobilier) avec calcul du résultat fiscal et du déficit reportable.
-- [ ] **Module Régularisation Annuelle des Charges** : Tableau de bord comparant les provisions perçues et les dépenses réelles récupérables selon le Décret n° 87-713.
+### 🟡 3. Comptes, permissions & modes de stockage (Architecture future)
+
+> **Principe directeur** : Tout est optionnel, le mode local reste le défaut gratuit.
+
+- **Comptes & permissions gérés en local** : Système d'utilisateurs et de rôles stocké directement dans la base SQLite, fonctionnel même hors-ligne — très utile par exemple si la clé USB est prêtée à un tiers avec des droits restreints (*accès à un seul bien, lecture seule, etc.*).
+- **Quatre modes de stockage / synchronisation au choix** :
+  1. **Local (par défaut, gratuit)** : Comportement actuel 100% hors-ligne inchangé.
+  2. **Clé USB / NAS partagé chiffré** : Chiffrement fort (AES-256) avec gestion des comptes/permissions embarquée.
+  3. **Cloud payant hébergé par KeyFolio** : Formule optionnelle avec synchronisation multi-appareils et sauvegarde automatique dans le cloud.
+  4. **Auto-hébergement Docker (gratuit)** : L'utilisateur déploie lui-même le backend sur son propre serveur, NAS personnel ou VPS.
+- **Site web et logiciel totalement liés** : Même compte, même backend/API unifié, accès aux mêmes données selon le mode choisi et possibilité d'export depuis le web.
+- **Export libre en tout temps** : PDF, Excel, ZIP chiffré... quel que soit le mode utilisé, **aucune rétention de données** et aucune dépendance forcée à un abonnement.
+- **Journal d'activité / Audit log** : Suivi des modifications dès que plusieurs utilisateurs interviennent sur les mêmes dossiers.
+
+> [!TIP]
+> **Remarque technique d'architecture** : Pour éviter de maintenir deux systèmes séparés, le mode *Cloud KeyFolio* et le mode *Docker auto-hébergé* reposent sur la même base backend unifiée — simplement hébergée différemment.
 
 ---
 
-### 🛡️ 3. Gestion des Sinistres & Assurances
-- [ ] **Suivi des sinistres et litiges** : Dégâts des eaux, incendie, bris de glace, vétusté.
-- [ ] Centralisation des dates de déclaration, photos horodatées, échanges avec la compagnie d'assurance/expert et suivi du statut d'indemnisation.
-- [ ] Archivage automatique des correspondances et devis dans `06_ENERGIE_CONTRATS/Assurance PNO` ou `05_TRAVAUX`.
+### 🟢 4. Accessibilité & simplicité pour tous (Axe transversal)
+
+> **Constat de départ** : Beaucoup de propriétaires-bailleurs sont des personnes âgées ou des particuliers peu à l'aise avec la complexité informatique.
+
+- **Mode guidé / assisté dans l'app** : Questions posées une par une en langage naturel fluide plutôt qu'un formulaire dense.
+- **IA comme intermédiaire simple** : Possibilité de décrire une action en langage naturel (*"Marie a payé son loyer d'août"*), ou de photographier un document papier pour classement et saisie automatiques.
+- **Mode "Gérer pour un proche"** : Un aidant (*enfant, petit-enfant, tiers de confiance*) peut piloter la gestion via l'application pendant que le proche continue de conserver ses documents physiques traditionnels — s'appuie naturellement sur la gestion des droits et comptes.
+- **Kit papier KeyFolio (Cohérence physique ↔ numérique)** :
+  - Classeur / livret avec pages explicatives et formulaires détachables à remplir à la main, structurés selon les **mêmes 9 catégories** que l'arborescence numérique.
+  - *Version PDF téléchargeable et imprimable gratuitement.*
+  - *Version imprimée / reliée physique proposée à la demande* (impression à la demande sans stock), sous forme d'achat unique sans abonnement.
+- **IA conversationnelle d'assistance (plus lointain)** : Relais d'assistance quand l'aidant n'est pas disponible pour expliciter un document ou comprendre une échéance.
 
 ---
 
-### 📊 4. Comparateur de Rentabilité Multi-Biens
-- [ ] **Tableau comparatif dynamique** de tous les logements du portefeuille :
-  - Rendement brut (%) vs Rendement net (%).
-  - Cash-flow mensuel net d'emprunt et charges.
-  - Taux d'effort fiscal et projection de plus-value latente.
-- [ ] Filtres de tri et exports graphiques immédiats basés sur les données existantes.
+### 🔵 5. Pistes plus lointaines (Non prioritaires)
+- **Portage mobile (Tauri 2 mobile)** : Chantier envisagé après consolidation et stabilisation complète de la version desktop.
+- **Élargissement vers le professionnel / institutionnel** : Copropriété / syndic, baux commerciaux, foncières multi-actifs — changement d'échelle à envisager uniquement une fois le cœur de cible des bailleurs particuliers parfaitement établi.
 
 ---
 
-### 🗂️ 5. Historique & Versioning des Documents
-- [ ] Conservation de l'historique complet des versions lors de la signature d'un avenant au bail, d'une révision de loyer ou d'un renouvellement de diagnostic, sans écrasement destructif.
-- [ ] Horodatage et traçabilité intégrale garantissant la protection juridique en cas de litige locatif.
+### ⚠️ Fil conducteur immuable
 
----
-
-### 🏖️ 6. Location Courte Durée & Saisonnière (Airbnb / Booking / Abritel)
-**Principe** : Possibilité d'activer le mode *"Location Saisonnière / Courte Durée"* uniquement sur les biens concernés, afin de conserver une interface épurée pour la location longue durée.
-
-- [ ] **Synchronisation Calendrier iCal** : Import des flux iCal d'Airbnb, Booking.com et Abritel pour centraliser les réservations, afficher un code couleur par plateforme et éliminer tout risque de double-booking.
-- [ ] **Suivi Financier Adapté** : Gestion des revenus multiples par séjour (prix par nuit, frais de ménage, commission plateforme) plutôt qu'un loyer mensuel unique.
-- [ ] **Fiscalité & Taxe de Séjour** : Suivi de la taxe de séjour collectée selon les barèmes communaux et régime fiscal meublé de tourisme (micro-BIC avec abattement 50%/71% ou réel).
-- [ ] **Gestion du Ménage & Rotation** : Checklists d'entretien entre deux voyageurs, gestion des prestataires et statut *"Prêt à louer"*.
-
----
-
-### 🏛️ 7. Mode "Succession, Transmission & Notaire"
-- [ ] **Pack Transmission 1-Clic** : Génération d'un dossier d'archive autonome et structuré pour un héritier, un notaire, un expert-comptable ou un repreneur.
-- [ ] Mise en valeur de l'atout central de KeyFolio : **Votre patrimoine documentaire reste 100% lisible et pérenne même sans le logiciel**, grâce à l'arborescence standardisée sur votre disque.
-
----
-
-### 📱 8. Compagnon Mobile & Synchronisation Sécurisée
-- [ ] **Compagnon EDL Tablette / Smartphone (Réseau Local / P2P)** : Réalisez vos états des lieux directement sur le terrain avec prise de photos horodatées et signature tactile, avec synchronisation directe en Wi-Fi local sans cloud tiers.
-- [ ] **Sauvegarde Chiffrée en 1 Clic (AES-256)** : Export de sécurité compressé et chiffré de l'ensemble de votre base et de vos fichiers vers clé USB, disque dur externe ou NAS (`\\Nas\personal_folder`).
-
----
-
-### 🏢 9. Multi-Propriétaires & Gestion des Sociétés (SCI / SARL)
-- [ ] **Gestion Multi-Structures** : Gestion distincte entre nom propre, SCI à l'IR, SCI à l'IS, SARL de famille et indivision.
-- [ ] **Répartition des Parts Associés** : Calcul automatique des quotes-parts de résultat et des comptes courants d'associés (CCA).
-
----
-
-## ⚠️ Points de Vigilance & Principes Directeurs
-
-| Sujet | Enjeu Technique | Solution & Approche Retenue |
-| :--- | :--- | :--- |
-| **🧠 Moteur OCR Local** | Les modèles lourds (ex: PaddleOCR) peuvent alourdir le binaire et consommer >300 Mo de RAM, compromettant la promesse de légèreté (<50 Mo de RAM). | **Approche modulaire / Sidecar léger** : Privilégier une intégration légère (Tesseract C++/Rust ou binaire optionnel activable à la demande) sans alourdir le cœur de KeyFolio. |
-| **🌐 API INSEE (Indice IRL)** | L'appel à l'API publique INSEE nécessite une connexion internet, dérogeant au principe 100% hors-ligne. | **Fallback Hors-Ligne Systématique** : L'appel API est une commodité optionnelle en 1 clic, avec table de secours locale embarquée et saisie manuelle libre si aucune connexion n'est détectée. |
-| **🔒 Étanchéité des Données** | Garantie qu'aucun fichier ne sorte du dossier du bien. | **Contrôle strict des chemins** avec `canonicalize()` et confinement sous `base_dir`. |
+> [!IMPORTANT]
+> **Chaque nouvelle brique (cloud, comptes, IA, professionnel...) doit rester une option ajoutée, jamais une condition.**
+> La promesse de départ — **gratuit, local, portable, sans dépendance** — restera toujours garantie pour l'utilisateur qui n'active aucune option avancée.
 
 ---
 
