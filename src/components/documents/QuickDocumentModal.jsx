@@ -72,7 +72,7 @@ export default function QuickDocumentModal({ initialBienId = null, onClose, onSu
       <div className="modal-card" style={{ maxWidth: 540 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
-            📎 Associer un document au bien
+             Associer un document au bien
           </h3>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><Icon name="x" size={18} /></button>
         </div>

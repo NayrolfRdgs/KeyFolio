@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React, { useState, useEffect } from 'react'
 import { applyTheme } from '../../lib/theme'
 import { openExternalUrl } from '../../lib/db'
@@ -41,7 +42,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
       localStorage.setItem('enable_update_notifs', String(enableUpdateNotifs))
       localStorage.setItem('accent_color', accentColor)
 
-      setMsg('✅ Options enregistrées avec succès !')
+      setMsg('Options enregistrées avec succès !')
       setTimeout(() => {
         setMsg(null)
         onClose()
@@ -63,7 +64,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
         {/* Header */}
         <div style={{ padding: '18px 24px', background: 'var(--color-surface-2)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>⚙️</span>
+            <Icon name="settings" size={22} color="var(--color-accent)" />
             <div>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Options Générales & Réglages</h3>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>Thème, identifiants Google Client ID et préférences de l'application</p>
@@ -79,21 +80,21 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
             style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'general' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('general')}
           >
-            ⚙️ Général & Devise
+            Général & Devise
           </button>
           <button
             className={`btn ${activeTab === 'theme' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'theme' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('theme')}
           >
-            🎨 Thème & Apparence
+            Thème & Apparence
           </button>
           <button
             className={`btn ${activeTab === 'google' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'google' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('google')}
           >
-            🔑 Identifiants Google & API
+            Identifiants Google & API
           </button>
         </div>
 
@@ -178,7 +179,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: 24, marginBottom: 4 }}>🖥️</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><Icon name="settings" size={24} /></div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>Système</div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Automatique (OS)</div>
                   </div>
@@ -195,7 +196,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: 24, marginBottom: 4 }}>🌙</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><Icon name="lock" size={24} /></div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>Mode Sombre</div>
                     <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>Thème sombre</div>
                   </div>
@@ -212,7 +213,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: 24, marginBottom: 4 }}>☀️</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><Icon name="zap" size={24} /></div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>Mode Clair</div>
                     <div style={{ fontSize: 10, color: '#64748B', marginTop: 2 }}>Thème clair</div>
                   </div>
@@ -253,14 +254,14 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
           {activeTab === 'google' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ padding: 12, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12, color: '#1E40AF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>🔑 Renseignez vos identifiants Google Cloud Console pour la connexion Gmail et Google Maps.</span>
+                <span>Renseignez vos identifiants Google Cloud Console pour la connexion Gmail et Google Maps.</span>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
                   style={{ fontSize: 11, padding: '4px 10px' }}
                   onClick={() => openExternalUrl('https://console.cloud.google.com/apis/credentials')}
                 >
-                  🌐 Ouvrir Google Cloud Console
+                  Ouvrir Google Cloud Console
                 </button>
               </div>
 
@@ -301,9 +302,9 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
               </div>
 
               <div style={{ padding: 12, background: 'var(--color-surface-2)', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: 11, lineHeight: 1.6 }}>
-                <strong>💡 Comment créer son Client ID Google gratuit en 1 minute :</strong>
+                <strong>Comment créer son Client ID Google gratuit en 1 minute :</strong>
                 <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                  <li>Cliquez sur le bouton <strong>"🌐 Ouvrir Google Cloud Console"</strong> ci-dessus.</li>
+                  <li>Cliquez sur le bouton <strong>"Ouvrir Google Cloud Console"</strong> ci-dessus.</li>
                   <li>Cliquez sur <strong>Créer des identifiants</strong> → <strong>ID client OAuth</strong>.</li>
                   <li>Choisissez le type d'application : <strong>Application de bureau</strong> (Desktop App).</li>
                   <li>Nommez-la <em>"KeyFolio"</em> et cliquez sur <strong>Créer</strong>.</li>
@@ -318,7 +319,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
         <div style={{ padding: '16px 24px', background: 'var(--color-surface-2)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button className="btn btn-secondary" onClick={onClose}>Annuler</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Enregistrement...' : '💾 Enregistrer les options'}
+            {saving ? 'Enregistrement...' : 'Enregistrer les options'}
           </button>
         </div>
       </div>

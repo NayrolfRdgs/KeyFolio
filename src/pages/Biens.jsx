@@ -1,186 +1,353 @@
-import React, { useEffect, useState } from 'react'
-import { getBiens, deleteBien } from '../lib/db'
-import { labelTypeBien } from '../lib/utils'
+import React, { useEffect, useState, useMemo } from 'react'
+import { getBiens, getProjets, getBaux, deleteBien, deleteProjet, updateBien } from '../lib/db'
+import { geocodeAddress } from '../lib/geocoding'
 import Icon from '../components/common/Icon'
 import WizardCreateBien from '../components/biens/WizardCreateBien'
 import FicheBienDetailModal from '../components/biens/FicheBienDetailModal'
 import FolderImportModal from '../components/biens/FolderImportModal'
-import QuickDocumentModal from '../components/documents/QuickDocumentModal'
-import ExcelGeneratorModal from '../components/documents/ExcelGeneratorModal'
+import BiensMapView from '../components/biens/BiensMapView'
+import BienDetailDrawer from '../components/biens/BienDetailDrawer'
+import BienCardGrid from '../components/biens/BienCardGrid'
+import BiensTableView from '../components/biens/BiensTableView'
+import NewProjetModal from '../components/projets/NewProjetModal'
+import LoanSimulatorModal from '../components/prets/LoanSimulatorModal'
+import BiensToolbar from '../components/biens/BiensToolbar'
+import BiensSidebarList from '../components/biens/BiensSidebarList'
 
-export default function Biens({ onNavigate }) {
+export default function Biens({ onNavigate, initialFilter = 'all' }) {
   const [biens, setBiens] = useState([])
+  const [projets, setProjets] = useState([])
+  const [baux, setBaux] = useState([])
   const [error, setError] = useState(null)
+  const [selectedBien, setSelectedBien] = useState(null)
+  const [isDrawerCollapsed, setIsDrawerCollapsed] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statutFilter, setStatutFilter] = useState(initialFilter || 'all')
+  const [currentView, setCurrentView] = useState('carte')
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
-  // Modales Phase 4
+  // Modales
   const [wizardModal, setWizardModal] = useState(false)
+  const [projetModal, setProjetModal] = useState(false)
+  const [simuModal, setSimuModal] = useState(false)
   const [importModal, setImportModal] = useState(false)
   const [detailBien, setDetailBien] = useState(null)
-  const [quickDocBienId, setQuickDocBienId] = useState(null)
-  const [excelGenBienId, setExcelGenBienId] = useState(null)
 
-  const load = () => getBiens().then(setBiens).catch(e => setError(e?.toString()))
-  useEffect(() => { load() }, [])
-
-  const handleDelete = async (e, id) => {
-    e.stopPropagation()
-    if (!confirm('Supprimer ce bien ? Toutes les données liées seront effacées.')) return
+  const load = async () => {
     try {
-      await deleteBien(id)
+      const [biensData, projetsData, bauxData] = await Promise.all([
+        getBiens().catch(() => []),
+        getProjets().catch(() => []),
+        getBaux().catch(() => [])
+      ])
+      setBiens(biensData || [])
+      setProjets(projetsData || [])
+      setBaux(bauxData || [])
+
+      if (selectedBien) {
+        const allItems = [...(biensData || []), ...(projetsData || []).map(p => ({
+          ...p,
+          id: `p-${p.id}`,
+          projet_id: p.id,
+          type_bien: p.type || 'Projet',
+          statut: 'projet',
+          valeur_estimee: p.budget_prevision || 0,
+          is_projet_entity: true
+        }))]
+        const refreshed = allItems.find(b => b.id === selectedBien.id || b.projet_id === selectedBien.projet_id)
+        if (refreshed) setSelectedBien(refreshed)
+      } else if (biensData && biensData.length > 0) {
+        setSelectedBien(biensData[0])
+      }
+
+      // Géocodage des adresses sans coordonnées
+      (biensData || []).forEach(async (b) => {
+        if ((!b.latitude || !b.longitude) && b.adresse && b.adresse.trim()) {
+          const coords = await geocodeAddress(b.adresse)
+          if (coords) {
+            await updateBien({
+              ...b,
+              latitude: coords.lat,
+              longitude: coords.lon
+            })
+          }
+        }
+      })
+    } catch (e) {
+      setError(e?.toString())
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const handleSelectBien = (b) => {
+    setSelectedBien(b)
+    setIsDrawerCollapsed(false)
+  }
+
+  const handleDelete = async (id, isProjet = false, realProjetId = null) => {
+    if (!confirm('Supprimer définitivement cet élément ?')) return
+    try {
+      if (isProjet && realProjetId) {
+        await deleteProjet(realProjetId)
+      } else {
+        await deleteBien(id)
+      }
+      setSelectedBien(null)
       load()
-    } catch(err) {
+    } catch (err) {
       setError(err?.toString())
     }
   }
 
-  const statutLabel = (s) => {
-    if (!s) return '—'
-    const lower = String(s).toLowerCase()
-    if (lower.includes('principale')) return 'Résidence principale'
-    if (lower.includes('secondaire')) return 'Résidence secondaire'
-    if (lower === 'en_cours' || lower === 'loue') return 'Loué'
-    if (lower === 'en_vente') return 'En vente'
-    if (lower === 'vendu') return 'Vendu'
-    if (lower === 'vacant') return 'Vacant'
-    return s
-  }
+  // Calcul combiné des actifs et projets
+  const combinedItems = useMemo(() => {
+    const listBiens = (biens || []).map(b => ({
+      ...b,
+      is_projet_entity: false
+    }))
 
-  const statutBadge = (s) => {
-    if (!s) return 'badge-muted'
-    const lower = String(s).toLowerCase()
-    if (lower.includes('principale')) return 'badge-info'
-    if (lower.includes('secondaire')) return 'badge-purple'
-    if (lower === 'en_cours' || lower === 'loue') return 'badge-success'
-    if (lower === 'en_vente') return 'badge-warning'
-    if (lower === 'vacant') return 'badge-danger'
-    return 'badge-muted'
-  }
+    const listProjets = (projets || []).map(p => ({
+      ...p,
+      id: `p-${p.id}`,
+      projet_id: p.id,
+      type_bien: p.type || 'Projet',
+      statut: 'projet',
+      surface_m2: p.surface_m2 || null,
+      valeur_estimee: p.budget_prevu || p.budget_prevision || 0,
+      is_projet_entity: true
+    }))
+
+    return [...listBiens, ...listProjets]
+  }, [biens, projets])
+
+  // KPIs
+  const kpis = useMemo(() => {
+    const total = combinedItems.length
+    const actifs = biens.filter(b => String(b.statut).toLowerCase() !== 'inactif' && String(b.statut).toLowerCase() !== 'projet').length
+    const projCount = projets.length + biens.filter(b => String(b.statut).toLowerCase() === 'projet').length
+    const valeurTotale = biens.reduce((acc, b) => acc + (b.valeur_estimee || b.prix_achat || 0), 0) +
+      projets.reduce((acc, p) => acc + (p.budget_prevu || p.budget_prevision || 0), 0)
+
+    return { total, actifs, projets: projCount, valeurTotale }
+  }, [combinedItems, biens, projets])
+
+  // Filtrage
+  const filteredBiens = useMemo(() => {
+    return combinedItems.filter(b => {
+      const q = searchQuery.toLowerCase().trim()
+      const matchQuery = !q ||
+        (b.nom && b.nom.toLowerCase().includes(q)) ||
+        (b.adresse && b.adresse.toLowerCase().includes(q)) ||
+        (b.type_bien && b.type_bien.toLowerCase().includes(q))
+
+      if (!matchQuery) return false
+
+      if (statutFilter === 'all') return true
+      if (statutFilter === 'projet') return String(b.statut).toLowerCase() === 'projet' || b.is_projet_entity
+      if (statutFilter === 'actif') return String(b.statut).toLowerCase() !== 'projet' && String(b.statut).toLowerCase() !== 'inactif' && !b.is_projet_entity
+      if (statutFilter === 'vacant') return String(b.statut).toLowerCase() === 'vacant'
+      if (statutFilter === 'inactif') return String(b.statut).toLowerCase() === 'inactif'
+
+      return true
+    })
+  }, [combinedItems, searchQuery, statutFilter])
 
   return (
-    <div className="page-content">
-      <div className="page-header">
-        <div>
-          <h2>Biens immobiliers</h2>
-          <p>{biens.length} bien{biens.length !== 1 ? 's' : ''} dans le patrimoine — Source de vérité : dossiers physiques & Excel</p>
+    <div className="page-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Barre d'outils, commutateurs et KPIs */}
+      <BiensToolbar
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        onOpenSimu={() => setSimuModal(true)}
+        onOpenProjet={() => setProjetModal(true)}
+        onOpenWizard={() => setWizardModal(true)}
+        kpis={kpis}
+      />
+
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: 14 }}>
+          {error}
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={() => setImportModal(true)}>
-            📂 Importer un dossier bien
-          </button>
-          <button id="btn-add-bien" className="btn btn-primary" onClick={() => setWizardModal(true)}>
-            <Icon name="plus" size={14} /> + Ajouter un bien (Assistant)
-          </button>
+      )}
+
+      {/* Espace de travail principal */}
+      <div style={{ display: 'flex', flex: 1, gap: 16, overflow: 'hidden', position: 'relative', minHeight: 0 }}>
+        {/* Liste latérale */}
+        <BiensSidebarList
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          statutFilter={statutFilter}
+          setStatutFilter={setStatutFilter}
+          filteredBiens={filteredBiens}
+          selectedBien={selectedBien}
+          onSelectBien={handleSelectBien}
+          onNavigate={onNavigate}
+        />
+
+        {/* Espace central */}
+        <div
+          className="card"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            minWidth: 0,
+            position: 'relative',
+            padding: 0,
+            height: '100%'
+          }}
+        >
+          {/* Vue 1 : Carte */}
+          {currentView === 'carte' && (
+            <div style={{ flex: 1, width: '100%', height: '100%', position: 'relative' }}>
+              <BiensMapView
+                biens={filteredBiens}
+                selectedBienId={selectedBien?.id}
+                onSelectBien={handleSelectBien}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+                onMapInteract={() => setIsDrawerCollapsed(true)}
+              />
+            </div>
+          )}
+
+          {/* Vue 2 : Grille de cartes */}
+          {currentView === 'cartes' && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+              <BienCardGrid
+                biens={filteredBiens}
+                baux={baux}
+                onSelectBien={handleSelectBien}
+                onNavigate={onNavigate}
+              />
+            </div>
+          )}
+
+          {/* Vue 3 : Tableau liste */}
+          {currentView === 'liste' && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+              <BiensTableView
+                biens={filteredBiens}
+                onSelectBien={handleSelectBien}
+                onNavigate={onNavigate}
+                onDeleteBien={(id) => handleDelete(id, selectedBien?.is_projet_entity, selectedBien?.projet_id)}
+              />
+            </div>
+          )}
+
+          {/* Volet flottant rétractable */}
+          {selectedBien && !isFullscreen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                bottom: 14,
+                width: 440,
+                maxWidth: 'calc(100% - 28px)',
+                zIndex: 500,
+                background: '#ffffff',
+                borderRadius: 14,
+                border: '1px solid #cbd5e1',
+                boxShadow: isDrawerCollapsed ? 'none' : '0 20px 45px rgba(15, 23, 42, 0.22)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                transform: isDrawerCollapsed ? 'translateX(calc(100% + 30px))' : 'translateX(0)',
+                opacity: isDrawerCollapsed ? 0 : 1,
+                pointerEvents: isDrawerCollapsed ? 'none' : 'auto',
+                transition: 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease, box-shadow 0.45s ease'
+              }}
+            >
+              <BienDetailDrawer
+                bien={selectedBien}
+                onClose={() => setIsDrawerCollapsed(true)}
+                onNavigate={onNavigate}
+                onFocusMap={() => {}}
+                onEditBien={(b) => setDetailBien(b)}
+              />
+            </div>
+          )}
+
+          {/* Bouton de réouverture du volet */}
+          {selectedBien && !isFullscreen && (
+            <button
+              onClick={() => setIsDrawerCollapsed(false)}
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                zIndex: 500,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: 24,
+                padding: '8px 16px',
+                boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: 12.5,
+                color: '#0f172a',
+                transform: isDrawerCollapsed ? 'translateX(0) scale(1)' : 'translateX(40px) scale(0.9)',
+                opacity: isDrawerCollapsed ? 1 : 0,
+                pointerEvents: isDrawerCollapsed ? 'auto' : 'none',
+                transition: 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease'
+              }}
+              title="Afficher la fiche du bien sélectionné"
+            >
+              <Icon name="chevronLeft" size={16} color="#4f46e5" />
+              <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedBien.nom}
+              </span>
+              <span style={{ fontSize: 10, background: '#e0e7ff', color: '#4f46e5', padding: '2px 7px', borderRadius: 12, fontWeight: 800 }}>
+                Aperçu
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      {biens.length === 0 ? (
-        <div className="table-wrapper">
-          <div className="empty-state">
-            <div className="empty-state-icon">🏠</div>
-            <h3>Aucun bien enregistré</h3>
-            <p>Cliquez sur "+ Ajouter un bien" pour démarrer l'assistant ou "Importer un dossier bien"</p>
-          </div>
-        </div>
-      ) : (
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Nom du bien</th><th>Adresse</th><th>Type</th><th>Statut</th>
-                <th>Surface</th><th>Fichiers & Dossier</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {biens.map(b => (
-                <tr key={b.id} onClick={() => onNavigate ? onNavigate('bien', b.id) : setDetailBien(b)} style={{ cursor: 'pointer' }}>
-                  <td className="fw-600">
-                    <span style={{ color: 'var(--color-accent)' }}>🏠 {b.nom}</span>
-                  </td>
-                  <td className="text-muted">{b.adresse || '—'}</td>
-                  <td>{labelTypeBien(b.type_bien)}</td>
-                  <td><span className={`badge ${statutBadge(b.statut)}`}>{statutLabel(b.statut)}</span></td>
-                  <td>{b.surface_m2 ? `${b.surface_m2} m²` : '—'}</td>
-                  <td>
-                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-accent)' }}>
-                      📁 {b.chemin_dossier || 'Automatique'}
-                    </span>
-                  </td>
-                  <td onClick={e => e.stopPropagation()}>
-                    <div className="actions-cell">
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setDetailBien(b)}
-                        title="Ouvrir la fiche complète par onglets"
-                      >
-                        👁️ Consulter
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setQuickDocBienId(b.id)}
-                        title="Associer un document PDF"
-                      >
-                        📎 PDF
-                      </button>
-                      <button
-                        className="btn btn-danger btn-icon btn-sm"
-                        onClick={(e) => handleDelete(e, b.id)}
-                        title="Supprimer"
-                      >
-                        <Icon name="trash" size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Assistant de Création Wizard */}
+      {/* Modales */}
       {wizardModal && (
         <WizardCreateBien
           onClose={() => setWizardModal(false)}
-          onSuccess={load}
+          onSuccess={() => { setWizardModal(false); load() }}
         />
       )}
 
-      {/* Fiche Bien Réorganisée par Onglets */}
+      {projetModal && (
+        <NewProjetModal
+          onClose={() => setProjetModal(false)}
+          onSuccess={() => { setProjetModal(false); load() }}
+        />
+      )}
+
+      {simuModal && (
+        <LoanSimulatorModal
+          targetBienId={selectedBien?.id}
+          onClose={() => setSimuModal(false)}
+          onSuccess={() => { setSimuModal(false); load() }}
+        />
+      )}
+
+      {importModal && (
+        <FolderImportModal
+          onClose={() => setImportModal(false)}
+          onSuccess={() => { setImportModal(false); load() }}
+        />
+      )}
+
       {detailBien && (
         <FicheBienDetailModal
           bien={detailBien}
           onClose={() => setDetailBien(null)}
-          onRefresh={load}
-          onOpenQuickDoc={(bid) => setQuickDocBienId(bid)}
-          onOpenExcelGenerator={(bid) => setExcelGenBienId(bid)}
-        />
-      )}
-
-      {/* Importation / Adoption de Dossier Bien */}
-      {importModal && (
-        <FolderImportModal
-          onClose={() => setImportModal(false)}
-          onSuccess={load}
-        />
-      )}
-
-      {/* Quick Document Modal */}
-      {quickDocBienId && (
-        <QuickDocumentModal
-          initialBienId={quickDocBienId}
-          onClose={() => setQuickDocBienId(null)}
-          onSuccess={load}
-        />
-      )}
-
-      {/* Excel Generator Modal */}
-      {excelGenBienId && (
-        <ExcelGeneratorModal
-          initialBienId={excelGenBienId}
-          onClose={() => setExcelGenBienId(null)}
-          onSuccess={load}
+          onSave={() => { setDetailBien(null); load() }}
         />
       )}
     </div>

@@ -3,14 +3,18 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import { createBienWizard } from '../../lib/db'
 import { SUBFOLDERS } from '../../lib/utils'
 import Icon from '../common/Icon'
-import { ALL_FIELDS } from './BienOverviewTab'
+import { geocodeAddress } from '../../lib/geocoding'
+import Step1BienInfo from './wizard/Step1BienInfo'
+import Step2ModeOccupation from './wizard/Step2ModeOccupation'
+import Step3LocataireBail from './wizard/Step3LocataireBail'
+import Step4Documents from './wizard/Step4Documents'
+import Step5Recapitulatif from './wizard/Step5Recapitulatif'
 
-// Étapes dynamiques selon le type d'occupation
 function getSteps(occupation) {
   if (occupation === 'location') {
     return [
       { num: 1, label: '1. Informations' },
-      { num: 2, label: '2. Occupation' },
+      { num: 2, label: '2. Exploitation' },
       { num: 3, label: '3. Locataire & Bail' },
       { num: 4, label: '4. Documents' },
       { num: 5, label: '5. Récapitulatif' },
@@ -18,7 +22,7 @@ function getSteps(occupation) {
   }
   return [
     { num: 1, label: '1. Informations' },
-    { num: 2, label: '2. Occupation' },
+    { num: 2, label: '2. Statut & Projet' },
     { num: 3, label: '3. Documents' },
     { num: 4, label: '4. Récapitulatif' },
   ]
@@ -28,30 +32,60 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [showExtraDetails, setShowExtraDetails] = useState(false)
 
-  // Étape 1 : Infos bien & champs complémentaires
+  // Étape 1 : Infos bien & caractéristiques
   const [bien, setBien] = useState({
-    nom: '', adresse: '', type_bien: 'Appartement', statut: 'en_cours',
-    chemin_dossier: '', email_dedie: '', date_acquisition: '', surface_m2: '', notes: ''
+    nom: '',
+    adresse: '',
+    type_bien: 'Appartement',
+    statut: 'en_cours',
+    chemin_dossier: '',
+    email_dedie: '',
+    date_acquisition: '',
+    surface_m2: '',
+    valeur_estimee: '',
+    nb_pieces: '',
+    nb_chambres: '',
+    nb_salles_bain: '',
+    surface_terrain: '',
+    annee_construction: '',
+    classe_energetique: 'D',
+    notes: '',
+    phase_actuelle: 'Étude / Conception',
+    pourcentage_avancement: 0,
+    date_livraison_prevue: '',
+    budget_prevision: ''
   })
-  const [champsLibresValues, setChampsLibresValues] = useState({})
 
-  const handleExtraFieldChange = (key, val) => {
-    setChampsLibresValues(prev => ({ ...prev, [key]: val }))
-  }
-
-  // Étape 2 : Occupation
+  // Étape 2 : Mode d'exploitation
   const [occupation, setOccupation] = useState('location')
 
-  // Étape 3 : Locataire & Bail (seulement si location)
+  // Étape 3 : Locataire & Bail
   const [locataire, setLocataire] = useState({
-    nom: '', prenom: '', telephone: '', email: '', revenus_mensuels: '', profession: '', garant_nom: '', garant_contact: '', notes: '', fichier_dossier: ''
+    nom: '',
+    prenom: '',
+    telephone: '',
+    email: '',
+    revenus_mensuels: '',
+    profession: '',
+    garant_nom: '',
+    garant_contact: '',
+    notes: '',
+    fichier_dossier: ''
   })
+
   const [bail, setBail] = useState({
     date_debut: new Date().toISOString().split('T')[0],
-    date_fin: '', loyer_mensuel: '650', charges_mensuelles: '50',
-    depot_garantie: '650', jour_paiement: 5, statut: 'actif', fichier_bail: ''
+    date_fin: '',
+    type_bail: 'meuble',
+    loyer_mensuel: '650',
+    charges_mensuelles: '50',
+    depot_garantie: '650',
+    statut_garantie: 'encaissee',
+    jour_paiement: 5,
+    statut: 'actif',
+    clause_irl: true,
+    fichier_bail: ''
   })
 
   // Documents initiaux
@@ -60,10 +94,9 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
   const [docType, setDocType] = useState('diagnostic')
 
   const isLocation = occupation === 'location'
+  const isProjet = occupation === 'projet'
   const steps = getSteps(occupation)
   const maxStep = steps.length
-
-  // Calcul de l'étape logique réelle (1-indexée dans les étapes affichées)
   const displayStep = steps.findIndex((s) => s.num === step) + 1
 
   const handlePickInitialDoc = async () => {
@@ -96,13 +129,10 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
     setError(null)
 
     if (isLocation) {
-      // Étapes : 1 → 2 → 3 → 4 → 5
       setStep(s => s + 1)
     } else {
-      // Pas d'étape 3 (locataire/bail) pour résidence principale ou vacant
-      // Étapes affichées : 1 → 2 → (saute 3) → 4 → 5
       if (step === 2) {
-        setStep(4) // Sauter l'étape 3
+        setStep(4) // Sauter l'étape locataire
       } else {
         setStep(s => s + 1)
       }
@@ -112,52 +142,51 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
   const handleBack = () => {
     setError(null)
     if (!isLocation && step === 4) {
-      setStep(2) // Sauter l'étape 3 en arrière aussi
+      setStep(2)
     } else {
       setStep(s => s - 1)
     }
   }
 
-  // Étape finale = étape 5 si location, étape 5 aussi (mais step=4 affiché comme récap)
-  const isFinalStep = isLocation ? step === 5 : step === 5
+  const isFinalStep = isLocation ? step === 5 : step === 4
 
   const handleSubmit = async () => {
     setLoading(true)
     setError(null)
     try {
-      const initialStatut = occupation === 'residence_principale'
+      const initialStatut = occupation === 'projet'
+        ? 'projet'
+        : occupation === 'residence_principale'
         ? 'residence_principale'
         : occupation === 'residence_secondaire'
         ? 'residence_secondaire'
         : (isLocation && locataire.nom.trim() ? 'en_cours' : 'vacant')
 
-      // Serialiser tous les champs complémentaires saisis dans l'assistant
-      const champsLibresList = Object.entries(champsLibresValues)
-        .filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== '')
-        .map(([k, v]) => ({ cle: k, valeur: String(v) }))
-
-      const modeOccVal = occupation === 'residence_principale'
-        ? 'Résidence principale (Propriétaire)'
-        : occupation === 'residence_secondaire'
-        ? 'Résidence secondaire'
-        : 'Location longue durée (Nue)'
-
-      if (!champsLibresList.some(c => c.cle === 'mode_occupation')) {
-        champsLibresList.push({ cle: 'mode_occupation', valeur: modeOccVal })
+      let coords = null
+      if (bien.adresse && bien.adresse.trim()) {
+        coords = await geocodeAddress(bien.adresse)
       }
 
       const payload = {
         bien: {
           ...bien,
           surface_m2: bien.surface_m2 !== '' ? parseFloat(bien.surface_m2) : null,
+          valeur_estimee: bien.valeur_estimee !== '' ? parseFloat(bien.valeur_estimee) : null,
+          budget_prevision: bien.budget_prevision !== '' ? parseFloat(bien.budget_prevision) : null,
+          pourcentage_avancement: bien.pourcentage_avancement !== '' ? parseInt(bien.pourcentage_avancement, 10) : 0,
+          nb_pieces: bien.nb_pieces !== '' ? parseInt(bien.nb_pieces, 10) : null,
+          nb_chambres: bien.nb_chambres !== '' ? parseInt(bien.nb_chambres, 10) : null,
+          nb_salles_bain: bien.nb_salles_bain !== '' ? parseInt(bien.nb_salles_bain, 10) : null,
+          surface_terrain: bien.surface_terrain !== '' ? parseFloat(bien.surface_terrain) : null,
+          annee_construction: bien.annee_construction !== '' ? parseInt(bien.annee_construction, 10) : null,
+          latitude: coords?.lat || (bien.latitude ? parseFloat(bien.latitude) : null),
+          longitude: coords?.lon || (bien.longitude ? parseFloat(bien.longitude) : null),
           type_bien: bien.type_bien || 'Appartement',
           statut: initialStatut
         },
         locataire: isLocation && locataire.nom.trim() ? {
           ...locataire,
-          revenus_mensuels: locataire.revenus_mensuels !== '' && locataire.revenus_mensuels !== null && locataire.revenus_mensuels !== undefined
-            ? parseFloat(locataire.revenus_mensuels)
-            : null
+          revenus_mensuels: locataire.revenus_mensuels ? parseFloat(locataire.revenus_mensuels) : null
         } : null,
         bail: isLocation && locataire.nom.trim() ? {
           ...bail,
@@ -169,11 +198,13 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
           jour_paiement: parseInt(bail.jour_paiement || 5, 10)
         } : null,
         documents: initialDocs,
-        champs_libres: champsLibresList
+        champs_libres: [
+          { cle: 'mode_occupation', valeur: occupation }
+        ]
       }
 
       await createBienWizard(payload)
-      onSuccess()
+      if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
       setError(err?.toString())
@@ -182,477 +213,180 @@ export default function WizardCreateBien({ onClose, onSuccess }) {
     }
   }
 
-  // Contenu affiché en fonction de l'étape courante
-  const renderStepContent = () => {
-    switch (step) {
-      // ─── ÉTAPE 1 : INFOS GÉNÉRALES ─────────────────────────────
-      case 1:
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label>Nom du bien *</label>
-              <input
-                type="text" className="form-control"
-                placeholder="ex: Appt T3 Centre-Ville, Le Puits..."
-                value={bien.nom}
-                onChange={e => setBien({ ...bien, nom: e.target.value })}
-                autoFocus
-              />
-            </div>
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label>Adresse complète</label>
-              <input
-                type="text" className="form-control"
-                placeholder="ex: 12 Rue de la Paix, 75001 Paris"
-                value={bien.adresse}
-                onChange={e => setBien({ ...bien, adresse: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>Type de bien</label>
-              <select className="form-control" value={bien.type_bien} onChange={e => setBien({ ...bien, type_bien: e.target.value })}>
-                <option value="Maison">Maison</option>
-                <option value="Appartement">Appartement</option>
-                <option value="Studio">Studio</option>
-                <option value="Villa">Villa</option>
-                <option value="Immeuble de rapport">Immeuble de rapport</option>
-                <option value="Garage / Parking">Garage / Parking</option>
-                <option value="Local commercial">Local commercial</option>
-                <option value="Bureau">Bureau</option>
-                <option value="Terrain">Terrain</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Surface (m²)</label>
-              <input
-                type="number" step="0.1" className="form-control"
-                placeholder="ex: 64.5"
-                value={bien.surface_m2}
-                onChange={e => setBien({ ...bien, surface_m2: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>Date d'acquisition</label>
-              <input
-                type="date" className="form-control"
-                value={bien.date_acquisition}
-                onChange={e => setBien({ ...bien, date_acquisition: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>Email dédié (optionnel)</label>
-              <input
-                type="email" className="form-control"
-                placeholder="bien-12paix@domaine.com"
-                value={bien.email_dedie}
-                onChange={e => setBien({ ...bien, email_dedie: e.target.value })}
-              />
-            </div>
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label>Notes & observations</label>
-              <textarea
-                className="form-control" rows={2}
-                placeholder="Remarques particulières..."
-                value={bien.notes}
-                onChange={e => setBien({ ...bien, notes: e.target.value })}
-              />
-            </div>
-
-            {/* Accordéon dépliable pour tous les champs détaillés du logement */}
-            <div style={{ gridColumn: 'span 2', marginTop: 10, paddingTop: 12, borderTop: '1px dashed var(--border-color)' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}
-                onClick={() => setShowExtraDetails(!showExtraDetails)}
-              >
-                <span>📋 Renseigner les caractéristiques complètes (Pièces, Finances, Clés, Copro...)</span>
-                <span>{showExtraDetails ? '▲ Masquer' : '▼ Déplier et compléter'}</span>
-              </button>
-
-              {showExtraDetails && (
-                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 16, background: 'var(--color-surface-2)', padding: 14, borderRadius: 10, border: '1px solid var(--border-color)' }}>
-                  {Object.entries(
-                    ALL_FIELDS.filter(f => !['type_bien', 'mode_occupation', 'surface_m2'].includes(f.key)).reduce((acc, f) => {
-                      if (!acc[f.cat]) acc[f.cat] = []
-                      acc[f.cat].push(f)
-                      return acc
-                    }, {})
-                  ).map(([cat, fields]) => (
-                    <div key={cat} style={{ background: 'var(--color-surface)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                      <h5 style={{ margin: '0 0 10px 0', fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>{cat}</h5>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {fields.map(f => (
-                          <div key={f.key} className="form-group" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11, fontWeight: 600 }}>{f.label}</label>
-                            {f.type === 'select' ? (
-                              <select
-                                className="form-control"
-                                style={{ fontSize: 12, padding: '4px 8px' }}
-                                value={champsLibresValues[f.key] || ''}
-                                onChange={e => handleExtraFieldChange(f.key, e.target.value)}
-                              >
-                                {f.options.map(opt => (
-                                  <option key={opt} value={opt === '—' ? '' : opt}>{opt}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
-                                className="form-control"
-                                style={{ fontSize: 12, padding: '4px 8px' }}
-                                placeholder={f.placeholder || f.hint || ''}
-                                value={champsLibresValues[f.key] || ''}
-                                onChange={e => handleExtraFieldChange(f.key, e.target.value)}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-
-      // ─── ÉTAPE 2 : OCCUPATION ───────────────────────────────────
-      case 2:
-        return (
-          <div>
-            <h4 style={{ marginTop: 0 }}>Régime d'occupation actuel</h4>
-            <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 20 }}>
-              Votre choix détermine les étapes suivantes. Seule la location nécessite la saisie d'un locataire et d'un bail.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-              {[
-                {
-                  id: 'location',
-                  title: 'En location',
-                  desc: 'Bien loué à un locataire — les étapes Locataire & Bail s\'ajoutent.',
-                  icon: '🔑',
-                  next: '→ Étape Locataire & Bail'
-                },
-                {
-                  id: 'residence_principale',
-                  title: 'Résidence principale',
-                  desc: 'Occupé par vous-même — pas de locataire ni de bail.',
-                  icon: '🏡',
-                  next: '→ Directement aux Documents'
-                },
-                {
-                  id: 'vacant',
-                  title: 'Vacant',
-                  desc: 'En attente de location ou en travaux — aucun locataire pour le moment.',
-                  icon: '⏳',
-                  next: '→ Directement aux Documents'
-                },
-              ].map(opt => (
-                <div
-                  key={opt.id}
-                  onClick={() => setOccupation(opt.id)}
-                  style={{
-                    border: occupation === opt.id ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
-                    background: occupation === opt.id ? 'rgba(99, 102, 241, 0.08)' : 'var(--color-bg)',
-                    borderRadius: 10,
-                    padding: 16,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  <div style={{ fontSize: 30, marginBottom: 10 }}>{opt.icon}</div>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{opt.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8 }}>{opt.desc}</div>
-                  <div style={{
-                    fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
-                    color: occupation === opt.id ? 'var(--color-accent)' : 'var(--color-muted)',
-                    borderTop: '1px solid var(--color-border)', paddingTop: 8, marginTop: 4
-                  }}>
-                    {opt.next}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-
-      // ─── ÉTAPE 3 : LOCATAIRE & BAIL (location seulement) ────────
-      case 3:
-        return (
-          <div>
-            <h4 style={{ marginTop: 0 }}>Profil du locataire & Conditions du bail</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 10, padding: '6px 10px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 4 }}>
-                  👤 Locataire principal
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Nom locataire *</label>
-                <input type="text" className="form-control" placeholder="Dupont" value={locataire.nom} onChange={e => setLocataire({ ...locataire, nom: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Prénom locataire *</label>
-                <input type="text" className="form-control" placeholder="Jean" value={locataire.prenom} onChange={e => setLocataire({ ...locataire, prenom: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Téléphone</label>
-                <input type="text" className="form-control" placeholder="06 12 34 56 78" value={locataire.telephone} onChange={e => setLocataire({ ...locataire, telephone: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input type="email" className="form-control" placeholder="jean.dupont@email.com" value={locataire.email} onChange={e => setLocataire({ ...locataire, email: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Revenus mensuels (€) / Salaire</label>
-                <input type="number" step="50" className="form-control" placeholder="Ex: 2400" value={locataire.revenus_mensuels || ''} onChange={e => setLocataire({ ...locataire, revenus_mensuels: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Profession / Situation pro</label>
-                <input type="text" className="form-control" placeholder="Ex: CDI, Fonctionnaire..." value={locataire.profession || ''} onChange={e => setLocataire({ ...locataire, profession: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Nom du garant</label>
-                <input type="text" className="form-control" placeholder="Garant (ex: Dupont Marie)" value={locataire.garant_nom} onChange={e => setLocataire({ ...locataire, garant_nom: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Contact du garant</label>
-                <input type="text" className="form-control" placeholder="Tél / Email du garant" value={locataire.garant_contact} onChange={e => setLocataire({ ...locataire, garant_contact: e.target.value })} />
-              </div>
-
-              <div style={{ gridColumn: 'span 2', marginTop: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 10, padding: '6px 10px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 4 }}>
-                  📋 Conditions du bail
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Date de début de bail</label>
-                <input type="date" className="form-control" value={bail.date_debut} onChange={e => setBail({ ...bail, date_debut: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Date de fin (optionnel)</label>
-                <input type="date" className="form-control" value={bail.date_fin} onChange={e => setBail({ ...bail, date_fin: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Loyer mensuel hors charges (€)</label>
-                <input type="number" className="form-control" value={bail.loyer_mensuel} onChange={e => setBail({ ...bail, loyer_mensuel: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Charges mensuelles (€)</label>
-                <input type="number" className="form-control" value={bail.charges_mensuelles} onChange={e => setBail({ ...bail, charges_mensuelles: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Dépôt de garantie (€)</label>
-                <input type="number" className="form-control" value={bail.depot_garantie} onChange={e => setBail({ ...bail, depot_garantie: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Jour de paiement du loyer</label>
-                <input type="number" min="1" max="28" className="form-control" value={bail.jour_paiement} onChange={e => setBail({ ...bail, jour_paiement: e.target.value })} />
-              </div>
-            </div>
-          </div>
-        )
-
-      // ─── ÉTAPE 4 : DOCUMENTS & ARBORESCENCE ─────────────────────
-      case 4:
-        return (
-          <div>
-            <h4 style={{ marginTop: 0 }}>Arborescence et documents de départ</h4>
-            <p style={{ color: 'var(--color-muted)', fontSize: 13 }}>
-              L'arborescence physique complète sera créée automatiquement. Vous pouvez déposer des premiers documents maintenant ou plus tard.
-            </p>
-
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', background: 'var(--color-bg-subtle)', padding: 12, borderRadius: 6, marginBottom: 16 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12 }}>Sous-dossier de destination</label>
-                <select
-                  className="form-control"
-                  value={uploadSubfolder}
-                  onChange={e => setUploadSubfolder(e.target.value)}
-                >
-                  {SUBFOLDERS.map(s => (
-                    <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12 }}>Type de document</label>
-                <select className="form-control" value={docType} onChange={e => setDocType(e.target.value)}>
-                  <option value="diagnostic">Diagnostic DDT</option>
-                  <option value="bail">Bail signé</option>
-                  <option value="assurance">Assurance PNO</option>
-                  <option value="facture">Facture / Travaux</option>
-                  <option value="photo">Photo / État des lieux</option>
-                  <option value="autre">Autre document</option>
-                </select>
-              </div>
-              <button type="button" className="btn btn-secondary" onClick={handlePickInitialDoc}>
-                <Icon name="plus" size={14} /> Choisir fichier
-              </button>
-            </div>
-
-            {initialDocs.length > 0 ? (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Fichier</th><th>Destination</th><th>Type</th><th></th></tr>
-                  </thead>
-                  <tbody>
-                    {initialDocs.map((doc, idx) => (
-                      <tr key={idx}>
-                        <td className="fw-600">{doc.source_path.split(/[/\\]/).pop()}</td>
-                        <td className="text-muted" style={{ fontSize: 11 }}>{doc.subfolder}</td>
-                        <td><span className="badge badge-info">{doc.type_doc}</span></td>
-                        <td>
-                          <button type="button" className="btn btn-ghost btn-icon text-danger" onClick={() => removeDoc(idx)}>
-                            <Icon name="trash" size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: 24, border: '1px dashed var(--color-border)', borderRadius: 6, color: 'var(--color-muted)', fontSize: 13 }}>
-                Aucun document ajouté — vous pourrez en déposer à tout moment dans l'explorateur de documents.
-              </div>
-            )}
-          </div>
-        )
-
-      // ─── ÉTAPE 5 : RÉCAPITULATIF ────────────────────────────────
-      case 5:
-        return (
-          <div>
-            <h4 style={{ marginTop: 0 }}>Récapitulatif avant création finale</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-              <div style={{ background: 'var(--color-bg-subtle)', padding: 14, borderRadius: 8, borderLeft: '3px solid var(--color-accent)' }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>🏠 Bien</div>
-                <div><strong>{bien.nom}</strong> {bien.surface_m2 ? `— ${bien.surface_m2} m²` : ''}</div>
-                <div style={{ color: 'var(--color-muted)', fontSize: 12 }}>{bien.adresse || 'Adresse non renseignée'}</div>
-              </div>
-
-              <div style={{ background: 'var(--color-bg-subtle)', padding: 14, borderRadius: 8, borderLeft: '3px solid var(--color-success)' }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  {occupation === 'location' ? '🔑 En location' : occupation === 'residence_principale' ? '🏡 Résidence principale' : '⏳ Vacant'}
-                </div>
-                {isLocation && locataire.nom && (
-                  <div style={{ fontSize: 13 }}>
-                    <strong>Locataire :</strong> {locataire.nom} {locataire.prenom}
-                    {locataire.telephone && <span style={{ color: 'var(--color-muted)' }}> — {locataire.telephone}</span>}
-                    <br />
-                    <strong>Loyer :</strong> {bail.loyer_mensuel} € + {bail.charges_mensuelles} € charges
-                    <span style={{ color: 'var(--color-muted)' }}> — DG: {bail.depot_garantie} €</span>
-                    <br />
-                    <strong>Début du bail :</strong> {bail.date_debut}
-                  </div>
-                )}
-                {isLocation && !locataire.nom && (
-                  <div style={{ color: 'var(--color-muted)', fontSize: 12 }}>Locataire non renseigné — pourra être ajouté plus tard.</div>
-                )}
-              </div>
-
-              <div style={{ background: 'var(--color-bg-subtle)', padding: 14, borderRadius: 8, borderLeft: '3px solid #F59E0B' }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>📁 Fichiers Excel auto-générés</div>
-                <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                  Fiche_Bien.xlsx &nbsp;·&nbsp; Suivi_Loyers.xlsx &nbsp;·&nbsp; Suivi_Depenses.xlsx &nbsp;·&nbsp; Locataires_Baux.xlsx
-                </div>
-              </div>
-
-              {initialDocs.length > 0 && (
-                <div style={{ background: 'var(--color-bg-subtle)', padding: 14, borderRadius: 8, borderLeft: '3px solid #10B981' }}>
-                  <div style={{ fontWeight: 700, marginBottom: 4 }}>📄 {initialDocs.length} document(s) à copier</div>
-                  {initialDocs.map((d, i) => (
-                    <div key={i} style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                      {d.source_path.split(/[/\\]/).pop()} → {d.subfolder}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-
-      default:
-        return null
-    }
-  }
-
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card" style={{ maxWidth: 760, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+      <div
+        className="modal-box"
+        style={{
+          background: '#ffffff',
+          borderRadius: 14,
+          width: '100%',
+          maxWidth: 820,
+          maxHeight: '92vh',
+          boxShadow: '0 24px 50px rgba(15, 23, 42, 0.22)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
         {/* En-tête */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--color-border)', paddingBottom: 12 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 18 }}>Assistant de création de bien</h3>
-            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-              Étape {displayStep} sur {maxStep}
-              {step === 2 && !isLocation && (
-                <span style={{ marginLeft: 8, color: 'var(--color-accent)', fontWeight: 600 }}>
-                  — L'étape Locataire & Bail sera ignorée
-                </span>
-              )}
-            </span>
-          </div>
-          <button className="btn btn-ghost btn-icon" onClick={onClose} type="button"><Icon name="x" size={18} /></button>
-        </div>
-
-        {/* Stepper dynamique */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-          {steps.map((s, i) => (
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: '1px solid #e2e8f0',
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(14, 165, 233, 0.08) 100%)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
-              key={s.num}
               style={{
-                flex: 1,
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 600,
-                textAlign: 'center',
-                background: s.num === step ? 'var(--color-accent)'
-                  : s.num < step ? 'rgba(99, 102, 241, 0.15)'
-                  : 'var(--color-bg-subtle)',
-                color: s.num === step ? '#fff'
-                  : s.num < step ? 'var(--color-accent)'
-                  : 'var(--color-muted)',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: '0 3px 8px rgba(79, 70, 229, 0.3)'
               }}
             >
-              {s.num < step ? '✓ ' : ''}{s.label}
+              <Icon name="house" size={20} />
             </div>
-          ))}
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a' }}>
+                Création de Bien & Projet Immobilier
+              </h3>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                Assistant pas-à-pas • Étape {displayStep} sur {maxStep}
+              </div>
+            </div>
+          </div>
+
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
+            <Icon name="close" size={20} />
+          </button>
         </div>
 
-        {error && <div className="alert alert-danger" style={{ marginBottom: 14 }}>{error}</div>}
-
-        {/* Corps de l'étape — scrollable */}
-        <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-          {renderStepContent()}
+        {/* Stepper */}
+        <div style={{ display: 'flex', gap: 8, padding: '14px 24px 8px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+          {steps.map((s) => {
+            const isActive = s.num === step
+            const isCompleted = s.num < step
+            return (
+              <div
+                key={s.num}
+                style={{
+                  flex: 1,
+                  padding: '7px 10px',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: isActive ? 700 : 600,
+                  textAlign: 'center',
+                  background: isActive ? '#4f46e5' : isCompleted ? 'rgba(79, 70, 229, 0.12)' : '#ffffff',
+                  color: isActive ? '#ffffff' : isCompleted ? '#4f46e5' : '#64748b',
+                  border: isActive ? '1px solid #4f46e5' : isCompleted ? '1px solid rgba(79, 70, 229, 0.2)' : '1px solid #e2e8f0',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5
+                }}
+              >
+                {isCompleted && <span>✓</span>}
+                <span>{s.label}</span>
+              </div>
+            )
+          })}
         </div>
 
-        {/* Boutons navigation */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+        {error && (
+          <div className="alert alert-danger" style={{ margin: '12px 24px 0 24px' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Contenu de l'étape */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          {step === 1 && (
+            <Step1BienInfo bien={bien} setBien={setBien} />
+          )}
+
+          {step === 2 && (
+            <Step2ModeOccupation
+              occupation={occupation}
+              setOccupation={setOccupation}
+              isProjet={isProjet}
+              bien={bien}
+              setBien={setBien}
+            />
+          )}
+
+          {step === 3 && isLocation && (
+            <Step3LocataireBail
+              locataire={locataire}
+              setLocataire={setLocataire}
+              bail={bail}
+              setBail={setBail}
+            />
+          )}
+
+          {step === 4 && (
+            <Step4Documents
+              uploadSubfolder={uploadSubfolder}
+              setUploadSubfolder={setUploadSubfolder}
+              docType={docType}
+              setDocType={setDocType}
+              initialDocs={initialDocs}
+              onPickDoc={handlePickInitialDoc}
+              onRemoveDoc={removeDoc}
+            />
+          )}
+
+          {isFinalStep && (
+            <Step5Recapitulatif
+              bien={bien}
+              occupation={occupation}
+              isLocation={isLocation}
+              isProjet={isProjet}
+              locataire={locataire}
+              bail={bail}
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: '14px 24px',
+            borderTop: '1px solid #e2e8f0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: '#f8fafc'
+          }}
+        >
           {step > 1 ? (
             <button type="button" className="btn btn-secondary" onClick={handleBack} disabled={loading}>
               ← Précédent
             </button>
-          ) : <div />}
+          ) : (
+            <div />
+          )}
 
           {!isFinalStep ? (
             <button type="button" className="btn btn-primary" onClick={handleNext}>
               Suivant →
             </button>
           ) : (
-            <button type="button" className="btn btn-success" onClick={handleSubmit} disabled={loading}>
-              {loading ? '⏳ Création & Génération Excel...' : '✅ Créer le bien & Générer les fichiers'}
+            <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
+              {loading ? 'Création & Initialisation...' : '✓ Créer le bien & Initialiser les dossiers'}
             </button>
           )}
         </div>

@@ -122,29 +122,56 @@ pub fn sync_fiche_bien_excel(conn: &Connection, bien_dir: &Path, bien_id: i64, _
     worksheet.write_with_format(2, 0, "Champ", &header_fmt).map_err(|e| e.to_string())?;
     worksheet.write_with_format(2, 1, "Valeur", &header_fmt).map_err(|e| e.to_string())?;
 
-    let (nom, adresse, type_bien, statut, date_acq, surface, notes, email_dedie): (
-        String, Option<String>, Option<String>, Option<String>, Option<String>, Option<f64>, Option<String>, Option<String>
+    let (
+        nom, adresse, type_bien, statut, date_acq, surface, notes, email_dedie,
+        phase_actuelle, avancement, date_livraison, budget_prev, valeur_est,
+        nb_pieces, nb_chambres, nb_sdb, surface_terrain, annee_const, dpe, desc
+    ): (
+        String, Option<String>, Option<String>, Option<String>, Option<String>, Option<f64>, Option<String>, Option<String>,
+        Option<String>, Option<i64>, Option<String>, Option<f64>, Option<f64>,
+        Option<i64>, Option<i64>, Option<i64>, Option<f64>, Option<i64>, Option<String>, Option<String>
     ) = conn.query_row(
-        "SELECT nom, adresse, type_bien, statut, date_acquisition, surface_m2, notes, email_dedie FROM biens WHERE id = ?1",
+        "SELECT nom, adresse, type_bien, statut, date_acquisition, surface_m2, notes, email_dedie,
+                phase_actuelle, pourcentage_avancement, date_livraison_prevue, budget_prevision, valeur_estimee,
+                nb_pieces, nb_chambres, nb_salles_bain, surface_terrain, annee_construction, classe_energetique, description
+         FROM biens WHERE id = ?1",
         params![bien_id],
         |row| Ok((
             row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
-            row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?
+            row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
+            row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?,
+            row.get(13)?, row.get(14)?, row.get(15)?, row.get(16)?, row.get(17)?, row.get(18)?, row.get(19)?
         ))
     ).map_err(|e| e.to_string())?;
 
     let mut row_idx = 3;
-    let fields = vec![
+    let mut fields = vec![
         ("ID Bien", bien_id.to_string()),
         ("Nom du bien", nom),
         ("Adresse complète", adresse.unwrap_or_default()),
         ("Type de bien", type_bien.unwrap_or_default()),
-        ("Statut d'occupation", statut.unwrap_or_default()),
+        ("Statut d'occupation", statut.clone().unwrap_or_default()),
         ("Date d'acquisition", date_acq.unwrap_or_default()),
-        ("Surface (m²)", surface.map(|s| format!("{} m²", s)).unwrap_or_default()),
+        ("Surface habitable (m²)", surface.map(|s| format!("{} m²", s)).unwrap_or_default()),
+        ("Valeur estimée (€)", valeur_est.map(|v| format!("{:.2} €", v)).unwrap_or_default()),
         ("Email dédié", email_dedie.unwrap_or_default()),
+        ("Nombre de pièces", nb_pieces.map(|n| n.to_string()).unwrap_or_default()),
+        ("Nombre de chambres", nb_chambres.map(|n| n.to_string()).unwrap_or_default()),
+        ("Nombre de salles de bain", nb_sdb.map(|n| n.to_string()).unwrap_or_default()),
+        ("Surface terrain (m²)", surface_terrain.map(|s| format!("{} m²", s)).unwrap_or_default()),
+        ("Année de construction", annee_const.map(|a| a.to_string()).unwrap_or_default()),
+        ("Classe énergétique (DPE)", dpe.unwrap_or_default()),
+        ("Description", desc.unwrap_or_default()),
         ("Notes & Remarques", notes.unwrap_or_default()),
     ];
+
+    if statut.as_deref() == Some("projet") {
+        fields.push(("--- SUIVI DE PROJET ---", "----------------".to_string()));
+        fields.push(("Phase actuelle", phase_actuelle.unwrap_or_default()));
+        fields.push(("Avancement (%)", avancement.map(|p| format!("{} %", p)).unwrap_or_default()));
+        fields.push(("Date de livraison prévue", date_livraison.unwrap_or_default()));
+        fields.push(("Budget prévisionnel (€)", budget_prev.map(|b| format!("{:.2} €", b)).unwrap_or_default()));
+    }
 
     for (label, val) in fields {
         worksheet.write(row_idx, 0, label).map_err(|e| e.to_string())?;

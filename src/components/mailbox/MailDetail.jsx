@@ -10,7 +10,7 @@ export default function MailDetail({
   if (!mail) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-        👈 Sélectionnez un e-mail à gauche pour consulter son contenu.
+         Sélectionnez un e-mail à gauche pour consulter son contenu.
       </div>
     )
   }
@@ -51,14 +51,14 @@ export default function MailDetail({
           className="btn btn-secondary btn-sm"
           onClick={() => onCreateTicket(mail)}
         >
-          🔧 Transformer en ticket de maintenance
+           Transformer en ticket de maintenance
         </button>
       </div>
 
       {/* Pièces jointes */}
       {mail.attachments && mail.attachments.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border-color)', pt: 15 }}>
-          <h4 style={{ fontSize: 14, margin: '0 0 10px 0' }}>📎 Pièces jointes ({mail.attachments.length})</h4>
+          <h4 style={{ fontSize: 14, margin: '0 0 10px 0' }}> Pièces jointes ({mail.attachments.length})</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {mail.attachments.map((att, idx) => (
               <div
@@ -74,13 +74,13 @@ export default function MailDetail({
                 }}
               >
                 <div style={{ fontSize: 13 }}>
-                  📄 <strong>{att.filename}</strong> <span className="text-muted">({Math.round(att.size_bytes / 1024)} ko)</span>
+                   <strong>{att.filename}</strong> <span className="text-muted">({Math.round(att.size_bytes / 1024)} ko)</span>
                 </div>
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => onSaveAttachment(att)}
                 >
-                  📥 Classer dans le bien
+                   Classer dans le bien
                 </button>
               </div>
             ))}

@@ -320,5 +320,21 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         PRAGMA foreign_keys=ON;
     ").ok();
 
+    // Migrations Phase 7 (Projet, Caractéristiques, Cartographie)
+    conn.execute("ALTER TABLE biens ADD COLUMN phase_actuelle TEXT", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN pourcentage_avancement INTEGER DEFAULT 0", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN date_livraison_prevue TEXT", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN budget_prevision REAL", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN valeur_estimee REAL", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN latitude REAL", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN longitude REAL", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN nb_pieces INTEGER", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN nb_chambres INTEGER", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN nb_salles_bain INTEGER", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN surface_terrain REAL", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN annee_construction INTEGER", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN classe_energetique TEXT", []).ok();
+    conn.execute("ALTER TABLE biens ADD COLUMN description TEXT", []).ok();
+
     Ok(())
 }

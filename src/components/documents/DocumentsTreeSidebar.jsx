@@ -34,7 +34,7 @@ export default function DocumentsTreeSidebar({
         >
           {biens.map((b) => (
             <option key={b.id} value={b.id}>
-              🏠 {b.nom}
+              {b.nom}
             </option>
           ))}
         </select>
@@ -43,7 +43,7 @@ export default function DocumentsTreeSidebar({
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             className="form-control"
-            placeholder="🔍 Filtrer..."
+            placeholder="Filtrer..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ flex: 1 }}
@@ -55,7 +55,7 @@ export default function DocumentsTreeSidebar({
             title="Tout réduire"
             style={{ whiteSpace: 'nowrap', padding: '5px 8px', fontSize: 11 }}
           >
-            📐 Réduire
+            Réduire
           </button>
           <button
             type="button"
@@ -64,7 +64,7 @@ export default function DocumentsTreeSidebar({
             title="Tout déplier"
             style={{ whiteSpace: 'nowrap', padding: '5px 8px', fontSize: 11 }}
           >
-            📂 Déplier
+            Déplier
           </button>
         </div>
       </div>

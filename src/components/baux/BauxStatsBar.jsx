@@ -1,4 +1,5 @@
 import React from 'react'
+import Icon from '../common/Icon'
 
 export default function BauxStatsBar({
   filterStatut,
@@ -15,15 +16,19 @@ export default function BauxStatsBar({
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           className={`btn btn-sm ${filterStatut === 'actif' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           onClick={() => setFilterStatut('actif')}
         >
-          🟢 Baux en cours ({countActifs})
+          <Icon name="checkCircle" size={12} color={filterStatut === 'actif' ? '#ffffff' : '#16a34a'} />
+          Baux en cours ({countActifs})
         </button>
         <button
           className={`btn btn-sm ${filterStatut === 'termine' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           onClick={() => setFilterStatut('termine')}
         >
-          📁 Baux antérieurs / Archives ({countAnciens})
+          <Icon name="folder" size={12} color={filterStatut === 'termine' ? '#ffffff' : '#64748b'} />
+          Baux antérieurs / Archives ({countAnciens})
         </button>
         <button
           className={`btn btn-sm ${filterStatut === 'all' ? 'btn-primary' : 'btn-secondary'}`}
@@ -41,7 +46,7 @@ export default function BauxStatsBar({
       >
         <option value="">Tous les logements</option>
         {biens.map(b => (
-          <option key={b.id} value={b.id}>🏠 {b.nom}</option>
+          <option key={b.id} value={b.id}>{b.nom}</option>
         ))}
       </select>
     </div>

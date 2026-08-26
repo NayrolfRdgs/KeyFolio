@@ -185,7 +185,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
       if (chosenPath) {
         const pdfBase64 = doc.output('datauristring')
         await saveFileToDisk(chosenPath, pdfBase64)
-        setToastMsg(`✅ PDF enregistré avec succès dans : ${chosenPath}`)
+        setToastMsg(` PDF enregistré avec succès dans : ${chosenPath}`)
         await openFilePath(chosenPath)
       } else if (relPath) {
         // Si l'utilisateur annule le dialogue, on ouvre quand même le PDF du dossier du bien
@@ -222,20 +222,20 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
         {/* Header Modal */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>📋 Édition & Export PDF de l'État des Lieux</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}> Édition & Export PDF de l'État des Lieux</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Édition directe et génération PDF vectoriel officiel (Loi n° 89-462)
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-primary btn-sm" onClick={handleExportPDF} disabled={exporting}>
-              {exporting ? '⏳ Exportation...' : '📥 Exporter le PDF'}
+              {exporting ? ' Exportation...' : ' Exporter le PDF'}
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleOpenPDFDirect}>
-              📄 Ouvrir le PDF
+              Ouvrir le PDF
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleSaveToProperty} disabled={saving}>
-              {saving ? '⏳ Enregistrement...' : '💾 Sauvegarder'}
+              {saving ? ' Enregistrement...' : ' Sauvegarder'}
             </button>
             {onSendMail && (
               <button
@@ -245,7 +245,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
                   initialTemplate: 'fin_bail'
                 })}
               >
-                ✉️ Mail
+                Mail
               </button>
             )}
             <button className="btn btn-ghost btn-icon" onClick={onClose}>
@@ -265,7 +265,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
         {savedPath && (
           <div style={{ marginBottom: 14, padding: '8px 14px', background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>📁</span>
+              <Icon name="folder" size={14} />
               <span><strong>Fichier PDF archivé :</strong> {savedPath}</span>
             </div>
             <button
@@ -341,7 +341,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-                ⚡ RELEVÉ DES COMPTEURS DE SORTIE
+                RELEVÉ DES COMPTEURS DE SORTIE
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -379,7 +379,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
 
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-                🔑 RESTITUTION DES CLÉS
+                RESTITUTION DES CLÉS
               </div>
               <input
                 type="text"
@@ -396,7 +396,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
           {/* Grille des pièces */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-              🏠 ÉTAT DÉTAILLÉ PAR PIÈCE
+              ÉTAT DÉTAILLÉ PAR PIÈCE
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, border: '1px solid #cbd5e1' }}>
               <thead>
@@ -416,10 +416,10 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
                         value={p.etat}
                         onChange={e => handleEtatChange(idx, 'etat', e.target.value)}
                       >
-                        <option value="Très bon état">✨ Très bon état</option>
-                        <option value="Bon état">✅ Bon état</option>
-                        <option value="État d'usage normal">⚠️ État d'usage</option>
-                        <option value="Dégradé / Travaux">❌ Dégradé / Réparations</option>
+                        <option value="Très bon état">Très bon état</option>
+                        <option value="Bon état"> Bon état</option>
+                        <option value="État d'usage normal">État d'usage</option>
+                        <option value="Dégradé / Travaux">Dégradé / Réparations</option>
                       </select>
                     </td>
                     <td style={{ padding: '6px 8px' }}>
@@ -440,7 +440,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 12, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>
-                💶 SYNTHÈSE DU DÉPÔT DE GARANTIE (CAUTION)
+                SYNTHÈSE DU DÉPÔT DE GARANTIE (CAUTION)
               </span>
               <span style={{ fontSize: 12, fontWeight: 800 }}>
                 Initial : {formatEuro(depotGarantieInitial)}
@@ -477,7 +477,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
           {/* Observations générales */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 4 }}>
-              📝 OBSERVATIONS GÉNÉRALES & CLAUSE DE CLÔTURE
+              OBSERVATIONS GÉNÉRALES & CLAUSE DE CLÔTURE
             </div>
             <textarea
               rows={2}
@@ -507,7 +507,7 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
           <button className="btn btn-secondary" onClick={onClose}>Fermer</button>
           <button className="btn btn-primary" onClick={handleExportPDF} disabled={exporting}>
-            {exporting ? '⏳ Exportation...' : '📥 Exporter en PDF direct'}
+            {exporting ? ' Exportation...' : ' Exporter en PDF direct'}
           </button>
         </div>
       </div>

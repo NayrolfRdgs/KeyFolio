@@ -49,7 +49,7 @@ export default function CautionEditModal({ bail, onClose, onSave }) {
       <div className="modal-card" style={{ maxWidth: 520, width: '92%' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>💶 Modifier le Dépôt de Garantie</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}> Modifier le Dépôt de Garantie</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Locataire : <strong>{bail?.locataire_prenom} {bail?.locataire_nom}</strong> — Logement : <strong>{bail?.bien_nom}</strong>
             </span>
@@ -84,10 +84,10 @@ export default function CautionEditModal({ bail, onClose, onSave }) {
               value={statutGarantie}
               onChange={e => setStatutGarantie(e.target.value)}
             >
-              <option value="en_attente">⏳ En attente de versement</option>
-              <option value="recu">✅ Reçu / Encaissé sur compte</option>
+              <option value="en_attente"> En attente de versement</option>
+              <option value="recu"> Reçu / Encaissé sur compte</option>
               <option value="restitue">↩️ Restitué intégralement au locataire</option>
-              <option value="partiel_restitue">⚠️ Retenue partielle / Sinistre</option>
+              <option value="partiel_restitue"> Retenue partielle / Sinistre</option>
             </select>
           </div>
 
@@ -116,7 +116,7 @@ export default function CautionEditModal({ bail, onClose, onSave }) {
                   style={{ fontSize: 11, padding: '2px 6px', color: 'var(--color-primary)' }}
                   onClick={() => openFilePath(fichierCaution)}
                 >
-                  📄 Ouvrir le fichier joint
+                   Ouvrir le fichier joint
                 </button>
                 <button
                   type="button"
@@ -131,7 +131,7 @@ export default function CautionEditModal({ bail, onClose, onSave }) {
           </div>
 
           <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 10, borderRadius: 6, fontSize: 11, color: '#1E40AF', marginBottom: 16 }}>
-            🔄 La modification sera immédiatement enregistrée dans la base et synchronisée dans le fichier Excel <strong>07_LOCATION/Locataires_Baux.xlsx</strong> du bien.
+             La modification sera immédiatement enregistrée dans la base et synchronisée dans le fichier Excel <strong>07_LOCATION/Locataires_Baux.xlsx</strong> du bien.
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -139,7 +139,7 @@ export default function CautionEditModal({ bail, onClose, onSave }) {
               Annuler
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? '⏳ Enregistrement...' : '💾 Enregistrer les modifications'}
+              {saving ? ' Enregistrement...' : ' Enregistrer les modifications'}
             </button>
           </div>
         </form>

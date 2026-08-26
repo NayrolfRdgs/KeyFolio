@@ -1,5 +1,6 @@
 import React from 'react'
 import { formatEuro } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 export default function PaiementKpis({ totalFiltered, totalPaye, countImpayes, totalCautionsRecues = 0, countCautionsEnAttente = 0 }) {
   return (
@@ -35,8 +36,8 @@ export default function PaiementKpis({ totalFiltered, totalPaye, countImpayes, t
           {formatEuro(totalCautionsRecues)}
         </div>
         {countCautionsEnAttente > 0 && (
-          <div style={{ fontSize: 11, color: '#d97706', fontWeight: 600, marginTop: 2 }}>
-            ⚠️ {countCautionsEnAttente} caution{countCautionsEnAttente > 1 ? 's' : ''} en attente
+          <div style={{ fontSize: 11, color: '#d97706', fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Icon name="alert" size={12} color="#d97706" /> {countCautionsEnAttente} caution{countCautionsEnAttente > 1 ? 's' : ''} en attente
           </div>
         )}
       </div>

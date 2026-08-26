@@ -13,6 +13,7 @@ export default function BauxTable({
   baux,
   onNavigate,
   onOpenDoc,
+  onSelectBail,
   onOpenBailGeneratorForRow,
   onOpenTerminateModal,
   onOpenEdlModal,
@@ -23,28 +24,30 @@ export default function BauxTable({
   if (baux.length === 0) {
     return (
       <div className="table-wrapper">
-        <div className="empty-state">
-          <div className="empty-state-icon">📄</div>
-          <h3>Aucun bail correspondant</h3>
-          <p>Créez un bail pour lier un locataire à un logement</p>
+        <div className="empty-state" style={{ padding: 48, textAlign: 'center' }}>
+          <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <Icon name="fileText" size={40} color="#cbd5e1" />
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Aucun bail correspondant</h3>
+          <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Créez un bail pour lier un locataire à un logement et suivre les encaissements.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="table-wrapper">
+    <div className="table-wrapper" style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#ffffff', overflow: 'hidden' }}>
       <table className="data-table">
         <thead>
           <tr>
-            <th>Bien</th>
+            <th>Logement / Bien</th>
             <th>Locataire</th>
-            <th>Début</th>
-            <th>Fin</th>
-            <th>Loyer net</th>
-            <th>Charges</th>
-            <th>Dépôt garantie</th>
-            <th>Contrat de bail</th>
+            <th>Période du bail</th>
+            <th style={{ textAlign: 'right' }}>Loyer CC Total</th>
+            <th style={{ textAlign: 'right' }}>Loyer Net (HC)</th>
+            <th style={{ textAlign: 'right' }}>Charges</th>
+            <th style={{ textAlign: 'center' }}>Dépôt Garantie</th>
+            <th>Contrat</th>
             <th>Statut</th>
             <th style={{ textAlign: 'right' }}>Actions</th>
           </tr>
@@ -52,109 +55,160 @@ export default function BauxTable({
         <tbody>
           {baux.map(b => {
             const isActif = b.statut === 'actif'
+            const loyerNu = Number(b.loyer_mensuel) || 0
+            const charges = Number(b.charges_mensuelles) || 0
+            const loyerCC = loyerNu + charges
+            const depotGarantie = Number(b.depot_garantie) || 0
+            const isDepotDepose = b.statut_garantie === 'encaissee' || b.statut_garantie === 'depose' || depotGarantie > 0
+
             return (
-              <tr key={b.id} style={{ background: !isActif ? 'var(--color-surface-2)' : undefined }}>
+              <tr
+                key={b.id}
+                onClick={() => onSelectBail && onSelectBail(b)}
+                title="Cliquer pour afficher l'historique financier et le détail complet"
+                style={{
+                  cursor: 'pointer',
+                  background: !isActif ? '#f8fafc' : undefined,
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                {/* 1. Logement */}
                 <td className="fw-600">
                   <button
                     className="btn btn-ghost btn-sm"
-                    style={{ padding: '2px 6px', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}
-                    onClick={() => onNavigate && onNavigate('bien', b.bien_id)}
-                    title="Accéder directement à la fiche du bien"
+                    style={{ padding: '2px 6px', fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onNavigate && onNavigate('bien', b.bien_id)
+                    }}
+                    title="Ouvrir la fiche du bien"
                   >
-                    🏠 {b.bien_nom || '—'}
+                    <Icon name="house" size={14} color="#4f46e5" />
+                    {b.bien_nom || 'Logement'}
                   </button>
                 </td>
+
+                {/* 2. Locataire */}
                 <td>
                   <button
                     className="btn btn-ghost btn-sm"
-                    style={{ padding: '2px 6px', fontSize: 13, fontWeight: 500 }}
-                    onClick={() => onNavigate && onNavigate('locataires')}
-                    title="Accéder à la section locataires"
+                    style={{ padding: '2px 6px', fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onNavigate && onNavigate('locataires')
+                    }}
                   >
-                    👤 {b.locataire_prenom} {b.locataire_nom}
+                    <Icon name="user" size={13} color="#64748b" />
+                    {b.locataire_prenom} {b.locataire_nom}
                   </button>
                 </td>
-                <td className="text-muted">{formatDate(b.date_debut)}</td>
-                <td className="text-muted">
-                  {b.date_fin ? formatDate(b.date_fin) : '—'}
-                  {b.motif_fin && (
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{b.motif_fin}</div>
+
+                {/* 3. Début / Fin */}
+                <td className="text-muted" style={{ fontSize: 12 }}>
+                  <div>{formatDate(b.date_debut)}</div>
+                  {b.date_fin && (
+                    <div style={{ fontSize: 10, color: '#94a3b8' }}>Fin : {formatDate(b.date_fin)}</div>
                   )}
                 </td>
-                <td className="fw-600">{formatEuro(b.loyer_mensuel)}</td>
-                <td>{formatEuro(b.charges_mensuelles)}</td>
-                <td>{b.depot_garantie ? formatEuro(b.depot_garantie) : '—'}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    {b.fichier_bail ? (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '2px 8px', fontSize: 11 }}
-                        onClick={() => onOpenDoc(b.fichier_bail)}
-                        title="Ouvrir le contrat de bail PDF"
-                      >
-                        📄 Bail PDF
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ padding: '2px 6px', fontSize: 11, border: '1px dashed #cbd5e1' }}
-                        onClick={() => onOpenBailGeneratorForRow(b)}
-                        title="Générer le contrat de bail officiel en PDF"
-                      >
-                        ✨ Générer bail
-                      </button>
-                    )}
-                  </div>
+
+                {/* 4. Loyer Total CC (Couleur Indigo bien visible) */}
+                <td style={{ textAlign: 'right', fontWeight: 800, color: '#4f46e5', fontSize: 14 }}>
+                  {formatEuro(loyerCC)}
+                  <span style={{ fontSize: 10, fontWeight: 500, color: '#64748b' }}>/m</span>
                 </td>
+
+                {/* 5. Loyer Net (HC) (Couleur Bleu) */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', fontSize: 13 }}>
+                  {formatEuro(loyerNu)}
+                </td>
+
+                {/* 6. Charges */}
+                <td style={{ textAlign: 'right', color: '#64748b', fontSize: 12 }}>
+                  {formatEuro(charges)}
+                </td>
+
+                {/* 7. Dépôt de garantie (VERT si déposé) */}
+                <td style={{ textAlign: 'center' }}>
+                  {depotGarantie > 0 ? (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 99,
+                        background: isDepotDepose ? 'rgba(22, 163, 74, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        color: isDepotDepose ? '#16a34a' : '#d97706',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      title={isDepotDepose ? 'Dépôt de garantie encaissé et séquestré' : 'Dépôt de garantie en attente'}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: isDepotDepose ? '#16a34a' : '#d97706' }} />
+                      {formatEuro(depotGarantie)}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#cbd5e1', fontSize: 11 }}>—</span>
+                  )}
+                </td>
+
+                {/* 8. Contrat PDF */}
                 <td>
-                  <span className={`badge ${statutBadge(b.statut)}`}>
+                  {b.fichier_bail ? (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '2px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onOpenDoc(b.fichier_bail)
+                      }}
+                      title="Ouvrir le contrat de bail PDF"
+                    >
+                      <Icon name="fileText" size={12} color="#4f46e5" /> PDF
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>Non joint</span>
+                  )}
+                </td>
+
+                {/* 9. Statut */}
+                <td>
+                  <span className={`badge ${statutBadge(b.statut)}`} style={{ fontSize: 10 }}>
                     {labelStatutBail(b.statut)}
                   </span>
                 </td>
+
+                {/* 10. Actions */}
                 <td style={{ textAlign: 'right' }}>
-                  <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
+                  <div className="actions-cell" style={{ justifyContent: 'flex-end', gap: 4 }} onClick={e => e.stopPropagation()}>
                     <button
                       className="btn btn-secondary btn-sm"
-                      style={{ padding: '3px 8px', fontSize: 11, background: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE' }}
-                      onClick={() => onOpenBailGeneratorForRow(b)}
-                      title="Générer / Imprimer le contrat de bail type Loi ALUR"
+                      style={{ padding: '3px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                      onClick={() => onSelectBail && onSelectBail(b)}
+                      title="Voir le détail et l'historique financier complet"
                     >
-                      ✨ Contrat
+                      <Icon name="eye" size={12} /> Détail
                     </button>
-                    {isActif ? (
+
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '3px 6px' }}
+                      onClick={() => onEdit && onEdit(b)}
+                      title="Modifier les conditions du bail"
+                    >
+                      <Icon name="edit" size={13} />
+                    </button>
+
+                    {isActif && onOpenTerminateModal && (
                       <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '3px 8px', fontSize: 11, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '3px 6px', color: '#ea580c' }}
                         onClick={() => onOpenTerminateModal(b)}
-                        title="Mettre fin au bail, faire l'état des lieux et archiver le contrat"
+                        title="Fin de bail / État des lieux de sortie"
                       >
-                        🚪 Fin de bail
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '3px 8px', fontSize: 11 }}
-                        onClick={() => onOpenEdlModal(b)}
-                        title="Générer ou réimprimer l'état des lieux de sortie"
-                      >
-                        📋 État des lieux
+                        <Icon name="doorClosed" size={13} />
                       </button>
                     )}
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '3px 8px', fontSize: 11 }}
-                      onClick={() => onOpenMail(b)}
-                      title="Ouvrir la boîte mail pour ce logement"
-                    >
-                      ✉️ Mail
-                    </button>
-                    <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(b)} title="Modifier">
-                      <Icon name="edit" size={14} />
-                    </button>
-                    <button className="btn btn-danger btn-icon btn-sm" onClick={() => onDelete(b.id)} title="Supprimer">
-                      <Icon name="trash" size={14} />
-                    </button>
                   </div>
                 </td>
               </tr>

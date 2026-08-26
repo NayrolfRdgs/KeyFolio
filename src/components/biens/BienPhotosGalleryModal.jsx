@@ -19,7 +19,7 @@ export default function BienPhotosGalleryModal({
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>📷 Galerie photos ({photoPaths.length})</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}> Galerie photos ({photoPaths.length})</h3>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 

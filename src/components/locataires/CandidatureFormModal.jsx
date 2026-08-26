@@ -135,15 +135,15 @@ export default function CandidatureFormModal({
               value={form.statut || 'nouveau'}
               onChange={e => setForm({ ...form, statut: e.target.value })}
             >
-              <option value="nouveau">🟡 Nouveau</option>
-              <option value="retenu">🟢 Retenu</option>
-              <option value="refuse">🔴 Refusé</option>
-              <option value="converti">🔑 Converti en Bail</option>
+              <option value="nouveau">Nouveau</option>
+              <option value="retenu">Retenu</option>
+              <option value="refuse">Refusé</option>
+              <option value="converti">Converti en Bail</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label className="form-label">📎 Pièces du dossier (PDF / Zip / Scan)</label>
+            <label className="form-label">Pièces du dossier (PDF / Zip / Scan)</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 className="form-control"
@@ -156,7 +156,7 @@ export default function CandidatureFormModal({
               </button>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              📁 Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
+              Le fichier sera automatiquement enregistré dans <em>07_LOCATION/Locataires/Dossier candidature</em> du bien.
             </p>
           </div>
 

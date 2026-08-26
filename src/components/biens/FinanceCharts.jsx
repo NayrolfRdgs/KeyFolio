@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React, { useState } from 'react'
 import { formatEuro } from '../../lib/utils'
 
@@ -33,7 +34,7 @@ export function OverviewFinanceChart({ bien, champsMap = {}, paiements = [], dep
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-          📊 Aperçu Patrimonial & Flux
+          Aperçu Patrimonial & Flux
         </span>
         {hoveredIdx !== null && (
           <span style={{ fontSize: 11, fontWeight: 700, color: bars[hoveredIdx].color }}>
@@ -155,7 +156,7 @@ export function DetailedFinanceDashboard({ bien, champsMap = {}, paiements = [],
       {/* Selector Menu Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 20 }}>📈</span>
+          <Icon name="chart" size={20} color="var(--color-primary)" />
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Analytique & Graphiques Financiers</h3>
         </div>
 
@@ -165,21 +166,21 @@ export function DetailedFinanceDashboard({ bien, champsMap = {}, paiements = [],
             style={{ fontSize: 11, padding: '4px 10px' }}
             onClick={() => setActiveChartTab('cashflow')}
           >
-            📊 Flux & Cashflow 12 Mois
+            Flux & Cashflow 12 Mois
           </button>
           <button
             className={`btn btn-sm ${activeChartTab === 'categories' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ fontSize: 11, padding: '4px 10px' }}
             onClick={() => setActiveChartTab('categories')}
           >
-            🍩 Répartition Charges
+            Répartition Charges
           </button>
           <button
             className={`btn btn-sm ${activeChartTab === 'projection' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ fontSize: 11, padding: '4px 10px' }}
             onClick={() => setActiveChartTab('projection')}
           >
-            🚀 Projection 15 Ans
+            Projection 15 Ans
           </button>
         </div>
       </div>

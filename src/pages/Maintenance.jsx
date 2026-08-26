@@ -89,10 +89,10 @@ export default function Maintenance() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)}>
-            📎 Associer un devis / facture PDF
+          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="paperclip" size={14} /> Associer un devis / facture PDF
           </button>
-          <button id="btn-add-maintenance" className="btn btn-primary" onClick={openCreate}>
+          <button id="btn-add-maintenance" className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon name="plus" size={14} /> Nouveau ticket
           </button>
         </div>
@@ -116,7 +116,9 @@ export default function Maintenance() {
       {filtered.length === 0 ? (
         <div className="table-wrapper">
           <div className="empty-state">
-            <div className="empty-state-icon">🔧</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <Icon name="wrench" size={40} color="#94a3b8" />
+            </div>
             <h3>Aucun ticket</h3>
             <p>Signalez des travaux ou problèmes liés à vos biens</p>
           </div>
@@ -147,7 +149,7 @@ export default function Maintenance() {
                   <td>
                     <div className="actions-cell">
                       {m.statut !== 'resolu' && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => markResolu(m)} title="Marquer résolu">
+                        <button className="btn btn-ghost btn-sm" onClick={() => markResolu(m)} title="Marquer résolu" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Icon name="check" size={13} /> Résolu
                         </button>
                       )}
@@ -219,22 +221,23 @@ export default function Maintenance() {
                     value={form.cout} onChange={f('cout')} placeholder="Coût éventuel" />
                 </div>
               </div>
-              <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Prestataire / Artisan</label>
+                <input className="form-control"
+                  value={form.prestataire} onChange={f('prestataire')}
+                  placeholder="Nom de l'artisan ou entreprise" />
+              </div>
+              {editing && (
                 <div className="form-group">
-                  <label className="form-label">Prestataire</label>
-                  <input className="form-control"
-                    value={form.prestataire} onChange={f('prestataire')} placeholder="Nom de l'artisan" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Date résolution</label>
+                  <label className="form-label">Date de résolution</label>
                   <input type="date" className="form-control"
                     value={form.date_resolution} onChange={f('date_resolution')} />
                 </div>
-              </div>
+              )}
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Annuler</button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Enregistrement...' : editing ? 'Mettre à jour' : 'Créer le ticket'}
+                  {loading ? 'Enregistrement...' : editing ? 'Mettre à jour' : 'Créer'}
                 </button>
               </div>
             </form>

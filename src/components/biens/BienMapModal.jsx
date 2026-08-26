@@ -17,12 +17,12 @@ export default function BienMapModal({
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🗺️ Carte & Localisation : {bienNom}</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}> Carte & Localisation : {bienNom}</h3>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
 
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-          📍 <strong>Adresse :</strong> {propertyAddress || 'Adresse non renseignée'}
+           <strong>Adresse :</strong> {propertyAddress || 'Adresse non renseignée'}
         </p>
 
         {propertyAddress ? (
@@ -40,7 +40,7 @@ export default function BienMapModal({
           </div>
         ) : (
           <div style={{ padding: 40, textAlign: 'center', background: 'var(--color-surface-2)', borderRadius: 8 }}>
-            📍 Renseignez l'adresse complète du logement pour afficher la carte interactive.
+             Renseignez l'adresse complète du logement pour afficher la carte interactive.
           </div>
         )}
 
@@ -50,7 +50,7 @@ export default function BienMapModal({
               className="btn btn-secondary btn-sm"
               onClick={() => onOpenBrowser(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyAddress)}`)}
             >
-              📍 Ouvrir dans Google Maps (Navigateur)
+               Ouvrir dans Google Maps (Navigateur)
             </button>
           )}
           <button className="btn btn-ghost btn-sm" onClick={onClose}>

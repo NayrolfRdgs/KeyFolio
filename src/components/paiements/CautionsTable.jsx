@@ -31,8 +31,9 @@ export default function CautionsTable({
     <div style={{ marginBottom: isAllTab ? 24 : 0 }}>
       {isAllTab && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-            💶 Dépôts de garantie & Cautions ({bauxWithDeposit.length})
+          <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="euro" size={16} color="var(--color-accent)" />
+            Dépôts de garantie & Cautions ({bauxWithDeposit.length})
           </h3>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Montant total garanti : {formatEuro(totalCautionsRecues)}
@@ -67,30 +68,33 @@ export default function CautionsTable({
                     <td className="fw-600">
                       <button
                         className="btn btn-ghost btn-sm"
-                        style={{ padding: '2px 6px', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}
+                        style={{ padding: '2px 6px', fontSize: 13, fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6 }}
                         onClick={() => onNavigate && onNavigate('bien', b.bien_id)}
                       >
-                        🏠 {b.bien_nom || '—'}
+                        <Icon name="house" size={13} color="#64748b" />
+                        {b.bien_nom || '—'}
                       </button>
                     </td>
                     <td>
                       <button
                         className="btn btn-ghost btn-sm"
-                        style={{ padding: '2px 6px', fontSize: 13, fontWeight: 500 }}
+                        style={{ padding: '2px 6px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
                         onClick={() => onNavigate && onNavigate('locataires')}
                       >
-                        👤 {b.locataire_prenom} {b.locataire_nom}
+                        <Icon name="user" size={13} color="#64748b" />
+                        {b.locataire_prenom} {b.locataire_nom}
                       </button>
                     </td>
                     <td className="text-muted">{formatDate(b.date_debut)}</td>
                     <td className="fw-600" style={{ fontSize: 14 }}>
                       <button
                         className="btn btn-ghost btn-sm"
-                        style={{ padding: '2px 6px', fontSize: 14, fontWeight: 700 }}
+                        style={{ padding: '2px 6px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
                         onClick={() => setEditingBail(b)}
                         title="Cliquer pour modifier le montant ou les infos de caution"
                       >
-                        {formatEuro(b.depot_garantie)} ✏️
+                        {formatEuro(b.depot_garantie)}
+                        <Icon name="pencil" size={12} color="#64748b" />
                       </button>
                     </td>
                     <td>
@@ -100,30 +104,30 @@ export default function CautionsTable({
                         value={b.statut_garantie || 'en_attente'}
                         onChange={(e) => onCautionStatusChange(b, e.target.value)}
                       >
-                        <option value="en_attente" style={{ color: '#000' }}>⏳ En attente</option>
-                        <option value="recu" style={{ color: '#000' }}>✅ Reçu / Encaissé</option>
-                        <option value="restitue" style={{ color: '#000' }}>↩️ Restitué</option>
-                        <option value="partiel_restitue" style={{ color: '#000' }}>⚠️ Retenue partielle</option>
+                        <option value="en_attente" style={{ color: '#000' }}>En attente</option>
+                        <option value="recu" style={{ color: '#000' }}>Reçu / Encaissé</option>
+                        <option value="restitue" style={{ color: '#000' }}>Restitué</option>
+                        <option value="partiel_restitue" style={{ color: '#000' }}>Retenue partielle</option>
                       </select>
                     </td>
                     <td>
                       {b.fichier_caution ? (
                         <button
                           className="btn btn-secondary btn-sm"
-                          style={{ padding: '2px 8px', fontSize: 11 }}
+                          style={{ padding: '2px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
                           onClick={() => onOpenDoc(b.fichier_caution)}
                           title="Ouvrir le justificatif de caution"
                         >
-                          📄 Reçu PDF
+                          <Icon name="fileText" size={12} /> Reçu PDF
                         </button>
                       ) : (
                         <button
                           className="btn btn-ghost btn-sm"
-                          style={{ padding: '2px 8px', fontSize: 11, border: '1px dashed var(--border-color)' }}
+                          style={{ padding: '2px 8px', fontSize: 11, border: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', gap: 4 }}
                           onClick={() => onAttachCautionDoc(b)}
                           title="Attacher un justificatif de virement"
                         >
-                          📎 Attacher reçu
+                          <Icon name="paperclip" size={12} /> Attacher reçu
                         </button>
                       )}
                     </td>
@@ -132,11 +136,11 @@ export default function CautionsTable({
                         {isEnAttente && (
                           <button
                             className="btn btn-success btn-sm"
-                            style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
+                            style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
                             onClick={() => onValidateCaution(b)}
                             title="Valider l'encaissement de la caution en 1 clic"
                           >
-                            ✔️ Valider reçue
+                            <Icon name="check" size={12} /> Valider reçue
                           </button>
                         )}
                         <button
@@ -148,11 +152,11 @@ export default function CautionsTable({
                         </button>
                         <button
                           className="btn btn-secondary btn-sm"
-                          style={{ padding: '3px 8px', fontSize: 11 }}
+                          style={{ padding: '3px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
                           onClick={() => onOpenMail(b)}
                           title="Contacter le locataire"
                         >
-                          ✉️ Mail
+                          <Icon name="mail" size={12} /> Mail
                         </button>
                       </div>
                     </td>

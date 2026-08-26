@@ -17,7 +17,7 @@ export default function CandidaturesTable({
     return (
       <div className="table-wrapper">
         <div className="empty-state">
-          <div className="empty-state-icon">📂</div>
+          <div className="empty-state-icon"></div>
           <h3>Aucune candidature enregistrée</h3>
           <p>Ajoutez les dossiers des candidats pour les classer et lancer le processus de création de bail.</p>
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={onOpenCreate}>
@@ -48,14 +48,14 @@ export default function CandidaturesTable({
             const isConverti = c.statut === 'converti'
             return (
               <tr key={c.id}>
-                <td className="fw-600">📂 {c.prenom} {c.nom}</td>
+                <td className="fw-600"> {c.prenom} {c.nom}</td>
                 <td>
                   <button
                     className="btn btn-ghost btn-sm"
                     style={{ padding: '2px 6px', fontSize: 12, fontWeight: 600 }}
                     onClick={() => c.bien_id && onNavigate && onNavigate('bien', c.bien_id)}
                   >
-                    🏠 {c.bien_nom || 'Voir bien'}
+                     {c.bien_nom || 'Voir bien'}
                   </button>
                 </td>
                 <td>
@@ -78,7 +78,7 @@ export default function CandidaturesTable({
                       onClick={() => onOpenDoc(c.fichier_dossier)}
                       title="Ouvrir les pièces du dossier"
                     >
-                      📄 Pièces PDF
+                       Pièces PDF
                     </button>
                   ) : (
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aucun fichier</span>
@@ -92,10 +92,10 @@ export default function CandidaturesTable({
                     onChange={e => onStatutChange(c.id, e.target.value)}
                     disabled={isConverti}
                   >
-                    <option value="nouveau">🟡 Nouveau</option>
-                    <option value="retenu">🟢 Retenu</option>
-                    <option value="refuse">🔴 Refusé</option>
-                    <option value="converti">🔑 Converti en Bail</option>
+                    <option value="nouveau">Nouveau</option>
+                    <option value="retenu">Retenu</option>
+                    <option value="refuse">Refusé</option>
+                    <option value="converti">Converti en Bail</option>
                   </select>
                 </td>
                 <td style={{ textAlign: 'right' }}>
@@ -107,7 +107,7 @@ export default function CandidaturesTable({
                         onClick={() => onConvert(c)}
                         title="Créer automatiquement le bail et le profil locataire"
                       >
-                        ✨ Convertir en Bail
+                         Convertir en Bail
                       </button>
                     )}
                     <button
@@ -116,7 +116,7 @@ export default function CandidaturesTable({
                       onClick={() => onOpenMail(c)}
                       title="Contacter le candidat par email"
                     >
-                      ✉️ Mail
+                       Mail
                     </button>
                     <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(c)} title="Modifier">
                       <Icon name="edit" size={14} />

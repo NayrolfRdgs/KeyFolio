@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React from 'react'
 import SpreadsheetViewer from './SpreadsheetViewer'
 import { formatBytes } from '../../lib/utils'
@@ -21,7 +22,7 @@ export default function DocumentPreviewer({
     return (
       <div className="preview-body">
         <div className="empty-state">
-          <div className="empty-state-icon">🖼️ 🌐 📂</div>
+          <div className="empty-state-icon">  </div>
           <h3>Sélectionnez un dossier, fichier ou lien web</h3>
           <p>Glissez-déposez des images, ajoutez des liens web ou naviguez dans les dossiers.</p>
         </div>
@@ -56,7 +57,7 @@ export default function DocumentPreviewer({
             boxShadow: 'var(--shadow)'
           }}
         >
-          <div style={{ fontSize: 56, marginBottom: 12 }}>🌐</div>
+          <div style={{ fontSize: 56, marginBottom: 12 }}></div>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: 'var(--text-primary)' }}>
             {selectedFile.name.replace(/\.url$/i, '')}
           </h3>
@@ -80,7 +81,7 @@ export default function DocumentPreviewer({
                   textAlign: 'left'
                 }}
               >
-                🔗 {urlFound}
+                {urlFound}
               </div>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
                 <button
@@ -88,7 +89,7 @@ export default function DocumentPreviewer({
                   onClick={() => onOpenExternalUrl(urlFound)}
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                 >
-                  🌐 Ouvrir dans le navigateur
+                   Ouvrir dans le navigateur
                 </button>
                 <button
                   className="btn btn-secondary"
@@ -98,13 +99,13 @@ export default function DocumentPreviewer({
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                 >
-                  📋 Copier l'URL
+                  Copier l'URL
                 </button>
               </div>
             </>
           ) : (
             <button className="btn btn-primary" onClick={() => onOpenFile(selectedFile.relative_path)}>
-              🌐 Ouvrir le lien Web
+               Ouvrir le lien Web
             </button>
           )}
         </div>
@@ -166,10 +167,10 @@ export default function DocumentPreviewer({
           !previewData.mime_type.startsWith('text/') &&
           previewData.mime_type !== 'application/pdf' && (
             <div className="empty-state">
-              <div className="empty-state-icon">📄</div>
+              <div className="empty-state-icon"></div>
               <h3>Aperçu non disponible pour ce type</h3>
               <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => onOpenFile(selectedFile.relative_path)}>
-                ↗️ Ouvrir avec le programme par défaut
+                 Ouvrir avec le programme par défaut
               </button>
             </div>
           )}
@@ -194,7 +195,7 @@ export default function DocumentPreviewer({
   return (
     <div className="preview-body">
       <div className="empty-state">
-        <div className="empty-state-icon">⚠️</div>
+        <div className="empty-state-icon"><Icon name="alert" size={40} color="#f59e0b" /></div>
         <h3>Impossible de charger l'aperçu</h3>
         <button className="btn btn-secondary" onClick={() => onOpenFile(selectedFile.relative_path)}>
           Ouvrir avec le système

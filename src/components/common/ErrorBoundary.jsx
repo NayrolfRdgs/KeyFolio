@@ -43,7 +43,7 @@ export default class ErrorBoundary extends React.Component {
             border: '1px solid #334155'
           }}>
             <h2 style={{ color: '#EF4444', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-              ⚠️ Une erreur est survenue dans l'affichage
+               Une erreur est survenue dans l'affichage
             </h2>
             <p style={{ color: '#94A3B8', fontSize: 14 }}>
               L'application a rencontré une interruption inattendue. Vous pouvez recharger ou tenter de réinitialiser la vue.
@@ -74,7 +74,7 @@ export default class ErrorBoundary extends React.Component {
                   cursor: 'pointer'
                 }}
               >
-                🔄 Recharger l'application
+                Recharger l'application
               </button>
             </div>
           </div>

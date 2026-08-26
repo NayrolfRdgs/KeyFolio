@@ -20,7 +20,7 @@ export default function QuickMailModal({
     switch (type) {
       case 'revision':
         return {
-          label: '📈 Révision de Loyer',
+          label: ' Révision de Loyer',
           subject: `Révision de loyer — ${bienNom || 'Votre logement'}`,
           body: `Madame, Monsieur ${recipientName},
 
@@ -33,7 +33,7 @@ Le Propriétaire`
         }
       case 'quittance':
         return {
-          label: '📄 Quittance de Loyer',
+          label: ' Quittance de Loyer',
           subject: `Quittance de loyer ${curMonth} ${curYear} — ${bienNom || 'Logement'}`,
           body: `Madame, Monsieur ${recipientName},
 
@@ -46,7 +46,7 @@ Le Propriétaire`
         }
       case 'relance':
         return {
-          label: '⚠️ Relance Impayé',
+          label: ' Relance Impayé',
           subject: `Rappel — Loyer de ${curMonth} ${curYear} en attente`,
           body: `Madame, Monsieur ${recipientName},
 
@@ -59,7 +59,7 @@ Le Propriétaire`
         }
       case 'bienvenue':
         return {
-          label: '👋 Bienvenue & Remise des Clés',
+          label: ' Bienvenue & Remise des Clés',
           subject: `Bienvenue dans votre logement ${bienNom || ''}`,
           body: `Bonjour ${recipientName},
 
@@ -72,7 +72,7 @@ Le Propriétaire`
         }
       case 'maintenance':
         return {
-          label: '🔧 Avis d\'Intervention Maintenance',
+          label: ' Avis d\'Intervention Maintenance',
           subject: `Intervention technique — ${bienNom || 'Votre logement'}`,
           body: `Bonjour ${recipientName},
 
@@ -85,7 +85,7 @@ Le Propriétaire`
         }
       default:
         return {
-          label: '✉️ Message au locataire',
+          label: ' Message au locataire',
           subject: `Information concernant votre logement ${bienNom || ''}`,
           body: `Bonjour ${recipientName},
 
@@ -106,8 +106,8 @@ Le Propriétaire`
 
   const handleSend = async (e) => {
     e.preventDefault()
-    if (!to.trim()) { setStatusMsg('❌ Veuillez préciser un e-mail destinataire.'); return }
-    if (!bienId) { setStatusMsg('❌ Aucun bien sélectionné.'); return }
+    if (!to.trim()) { setStatusMsg(' Veuillez préciser un e-mail destinataire.'); return }
+    if (!bienId) { setStatusMsg(' Aucun bien sélectionné.'); return }
 
     setSending(true)
     setStatusMsg('')
@@ -119,11 +119,11 @@ Le Propriétaire`
         body: body,
         attachments: null
       })
-      setStatusMsg('✅ E-mail rapide envoyé avec succès !')
+      setStatusMsg(' E-mail rapide envoyé avec succès !')
       setTimeout(() => { onClose() }, 1400)
     } catch (err) {
       console.error(err)
-      setStatusMsg(`❌ Erreur d'envoi : ${err?.message || err?.toString() || err}`)
+      setStatusMsg(` Erreur d'envoi : ${err?.message || err?.toString() || err}`)
     } finally {
       setSending(false)
     }
@@ -133,7 +133,7 @@ Le Propriétaire`
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>✉️ Mail Rapide — {preset.label}</h3>
+          <h3> Mail Rapide — {preset.label}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -173,7 +173,7 @@ Le Propriétaire`
           </div>
 
           {statusMsg && (
-            <div className={`alert ${statusMsg.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 12 }}>
+            <div className={`alert ${statusMsg.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 12 }}>
               {statusMsg}
             </div>
           )}
@@ -185,14 +185,14 @@ Le Propriétaire`
                 className="btn btn-secondary btn-sm"
                 onClick={() => { onClose(); onOpenFullMailbox(bienId); }}
               >
-                📬 Ouvrir dans la Boîte Mail complète
+                 Ouvrir dans la Boîte Mail complète
               </button>
             ) : <div />}
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
               <button type="submit" className="btn btn-primary" disabled={sending}>
-                {sending ? '📤 Envoi...' : '📤 Envoyer'}
+                {sending ? ' Envoi...' : ' Envoyer'}
               </button>
             </div>
           </div>

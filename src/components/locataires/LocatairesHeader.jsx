@@ -24,11 +24,11 @@ export default function LocatairesHeader({
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {activeTab === 'locataires' ? (
-            <button id="btn-add-locataire" className="btn btn-primary" onClick={onOpenCreateLoc}>
+            <button id="btn-add-locataire" className="btn btn-primary" onClick={onOpenCreateLoc} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="plus" size={14} /> Nouveau locataire
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={onOpenCreateCand}>
+            <button className="btn btn-primary" onClick={onOpenCreateCand} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="plus" size={14} /> Nouvelle candidature
             </button>
           )}
@@ -40,14 +40,16 @@ export default function LocatairesHeader({
         <button
           className={`btn ${activeTab === 'locataires' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('locataires')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          👤 Locataires enregistrés ({locatairesCount})
+          <Icon name="user" size={14} /> Locataires enregistrés ({locatairesCount})
         </button>
         <button
           className={`btn ${activeTab === 'candidatures' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('candidatures')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          📂 Candidatures & Dossiers ({candidaturesCount})
+          <Icon name="folderOpen" size={14} /> Candidatures & Dossiers ({candidaturesCount})
         </button>
       </div>
 
@@ -65,17 +67,19 @@ export default function LocatairesHeader({
         <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--color-surface-2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)', width: 'fit-content' }}>
           <button
             className={`btn btn-sm ${locSubFilter === 'actuels' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ fontSize: 11, padding: '4px 10px' }}
+            style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => setLocSubFilter('actuels')}
           >
-            🟢 Locataires actuels ({countActuels})
+            <Icon name="checkCircle" size={12} color={locSubFilter === 'actuels' ? '#ffffff' : '#16a34a'} />
+            Locataires actuels ({countActuels})
           </button>
           <button
             className={`btn btn-sm ${locSubFilter === 'anciens' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ fontSize: 11, padding: '4px 10px' }}
+            style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => setLocSubFilter('anciens')}
           >
-            📜 Anciens locataires ({countAnciens})
+            <Icon name="fileText" size={12} color={locSubFilter === 'anciens' ? '#ffffff' : '#64748b'} />
+            Anciens locataires ({countAnciens})
           </button>
           <button
             className={`btn btn-sm ${locSubFilter === 'all' ? 'btn-primary' : 'btn-ghost'}`}

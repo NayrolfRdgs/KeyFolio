@@ -11,7 +11,10 @@ pub fn get_biens(state: State<AppState>) -> Result<Vec<Bien>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db.prepare(
         "SELECT id, nom, adresse, type_bien, statut, chemin_dossier, email_dedie,
-                date_acquisition, surface_m2, notes, created_at
+                date_acquisition, surface_m2, notes, created_at,
+                phase_actuelle, pourcentage_avancement, date_livraison_prevue, budget_prevision,
+                valeur_estimee, latitude, longitude, nb_pieces, nb_chambres, nb_salles_bain,
+                surface_terrain, annee_construction, classe_energetique, description
          FROM biens ORDER BY nom"
     ).map_err(|e| e.to_string())?;
 
@@ -28,6 +31,20 @@ pub fn get_biens(state: State<AppState>) -> Result<Vec<Bien>, String> {
             surface_m2: row.get(8)?,
             notes: row.get(9)?,
             created_at: row.get(10)?,
+            phase_actuelle: row.get(11)?,
+            pourcentage_avancement: row.get(12)?,
+            date_livraison_prevue: row.get(13)?,
+            budget_prevision: row.get(14)?,
+            valeur_estimee: row.get(15)?,
+            latitude: row.get(16)?,
+            longitude: row.get(17)?,
+            nb_pieces: row.get(18)?,
+            nb_chambres: row.get(19)?,
+            nb_salles_bain: row.get(20)?,
+            surface_terrain: row.get(21)?,
+            annee_construction: row.get(22)?,
+            classe_energetique: row.get(23)?,
+            description: row.get(24)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
@@ -56,13 +73,20 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
-        "INSERT INTO biens (nom, adresse, type_bien, statut, chemin_dossier, email_dedie,
-                            date_acquisition, surface_m2, notes)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO biens (
+            nom, adresse, type_bien, statut, chemin_dossier, email_dedie,
+            date_acquisition, surface_m2, notes,
+            phase_actuelle, pourcentage_avancement, date_livraison_prevue, budget_prevision,
+            valeur_estimee, latitude, longitude, nb_pieces, nb_chambres, nb_salles_bain,
+            surface_terrain, annee_construction, classe_energetique, description
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
         params![
             bien.nom, bien.adresse, safe_type_bien, safe_statut,
             bien.chemin_dossier, bien.email_dedie, bien.date_acquisition,
-            bien.surface_m2, bien.notes
+            bien.surface_m2, bien.notes,
+            bien.phase_actuelle, bien.pourcentage_avancement.unwrap_or(0), bien.date_livraison_prevue, bien.budget_prevision,
+            bien.valeur_estimee, bien.latitude, bien.longitude, bien.nb_pieces, bien.nb_chambres, bien.nb_salles_bain,
+            bien.surface_terrain, bien.annee_construction, bien.classe_energetique, bien.description
         ],
     ).map_err(|e| e.to_string())?;
 
@@ -78,22 +102,36 @@ pub fn create_bien(app: tauri::AppHandle, state: State<AppState>, mut bien: Bien
 }
 
 #[tauri::command]
-pub fn update_bien(state: State<AppState>, bien: Bien) -> Result<(), String> {
+pub fn update_bien(app: tauri::AppHandle, state: State<AppState>, bien: Bien) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let safe_type_bien = bien.type_bien.as_deref().unwrap_or("Appartement");
     let safe_statut = bien.statut.as_deref().unwrap_or("vacant");
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
-        "UPDATE biens SET nom=?1, adresse=?2, type_bien=?3, statut=?4,
-                          chemin_dossier=?5, email_dedie=?6, date_acquisition=?7,
-                          surface_m2=?8, notes=?9
-         WHERE id=?10",
+        "UPDATE biens SET
+            nom=?1, adresse=?2, type_bien=?3, statut=?4,
+            chemin_dossier=?5, email_dedie=?6, date_acquisition=?7,
+            surface_m2=?8, notes=?9,
+            phase_actuelle=?10, pourcentage_avancement=?11, date_livraison_prevue=?12, budget_prevision=?13,
+            valeur_estimee=?14, latitude=?15, longitude=?16, nb_pieces=?17, nb_chambres=?18, nb_salles_bain=?19,
+            surface_terrain=?20, annee_construction=?21, classe_energetique=?22, description=?23
+         WHERE id=?24",
         params![
             bien.nom, bien.adresse, safe_type_bien, safe_statut,
             bien.chemin_dossier, bien.email_dedie, bien.date_acquisition,
-            bien.surface_m2, bien.notes, bien.id
+            bien.surface_m2, bien.notes,
+            bien.phase_actuelle, bien.pourcentage_avancement, bien.date_livraison_prevue, bien.budget_prevision,
+            bien.valeur_estimee, bien.latitude, bien.longitude, bien.nb_pieces, bien.nb_chambres, bien.nb_salles_bain,
+            bien.surface_terrain, bien.annee_construction, bien.classe_energetique, bien.description,
+            bien.id
         ],
     ).map_err(|e| e.to_string())?;
+
+    if let Some(bid) = bien.id {
+        crate::excel::sync_all_property_excels(&db, &base_dir, bid).ok();
+    }
+
     Ok(())
 }
 
@@ -215,6 +253,39 @@ pub fn open_file_path(app: tauri::AppHandle, path: String) -> Result<(), String>
             .arg(target_str.as_ref())
             .spawn()
             .map_err(|e| format!("Erreur d'ouverture: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_bien_folder(app: tauri::AppHandle, state: State<AppState>, bien_id: i64) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let chemin_dossier: String = db.query_row(
+        "SELECT chemin_dossier FROM biens WHERE id = ?1",
+        params![bien_id],
+        |r| r.get(0),
+    ).map_err(|e| format!("Bien non trouvé: {}", e))?;
+
+    let abs_dir = base_dir.join(&chemin_dossier);
+    if !abs_dir.exists() {
+        std::fs::create_dir_all(&abs_dir).ok();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(abs_dir.to_str().unwrap_or_default())
+            .spawn()
+            .map_err(|e| format!("Erreur d'ouverture du dossier: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("open")
+            .arg(abs_dir.to_str().unwrap_or_default())
+            .spawn()
+            .map_err(|e| format!("Erreur d'ouverture du dossier: {}", e))?;
     }
 
     Ok(())
@@ -1035,6 +1106,7 @@ pub fn create_bien_wizard(app: tauri::AppHandle, state: State<AppState>, payload
     };
 
     let safe_statut = match bien.statut.as_deref() {
+        Some("projet") => "projet",
         Some(s) if s.contains("principale") => "residence_principale",
         Some(s) if s.contains("secondaire") => "residence_secondaire",
         Some(s) if s.contains("vente") => "en_vente",
@@ -1046,9 +1118,18 @@ pub fn create_bien_wizard(app: tauri::AppHandle, state: State<AppState>, payload
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
-        "INSERT INTO biens (nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![bien.nom, bien.adresse, safe_type_bien, safe_statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes],
+        "INSERT INTO biens (
+            nom, adresse, type_bien, statut, chemin_dossier, email_dedie, date_acquisition, surface_m2, notes,
+            phase_actuelle, pourcentage_avancement, date_livraison_prevue, budget_prevision,
+            valeur_estimee, latitude, longitude, nb_pieces, nb_chambres, nb_salles_bain,
+            surface_terrain, annee_construction, classe_energetique, description
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+        params![
+            bien.nom, bien.adresse, safe_type_bien, safe_statut, bien.chemin_dossier, bien.email_dedie, bien.date_acquisition, bien.surface_m2, bien.notes,
+            bien.phase_actuelle, bien.pourcentage_avancement.unwrap_or(0), bien.date_livraison_prevue, bien.budget_prevision,
+            bien.valeur_estimee, bien.latitude, bien.longitude, bien.nb_pieces, bien.nb_chambres, bien.nb_salles_bain,
+            bien.surface_terrain, bien.annee_construction, bien.classe_energetique, bien.description
+        ],
     ).map_err(|e| format!("Erreur insertion bien: {}", e))?;
 
     let bien_id = db.last_insert_rowid();

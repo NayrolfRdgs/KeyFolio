@@ -36,8 +36,8 @@ Le Propriétaire`
 
   const handleSend = async (e) => {
     e.preventDefault()
-    if (!to.trim()) { setStatusMsg('❌ Veuillez saisir une adresse email valide.'); return }
-    if (!bienId) { setStatusMsg('❌ Aucun bien associé au bail.'); return }
+    if (!to.trim()) { setStatusMsg('Veuillez saisir une adresse email valide.'); return }
+    if (!bienId) { setStatusMsg('Aucun bien associé au bail.'); return }
 
     setSending(true)
     setStatusMsg('')
@@ -49,14 +49,14 @@ Le Propriétaire`
         body: currentBody,
         attachments: null
       })
-      setStatusMsg('✅ E-mail de révision de loyer envoyé avec succès !')
+      setStatusMsg(' E-mail de révision de loyer envoyé avec succès !')
       setTimeout(() => {
         if (onSent) onSent()
         onClose()
       }, 1500)
     } catch (err) {
       console.error(err)
-      setStatusMsg(`❌ Erreur d'envoi : ${err?.message || err?.toString() || err}`)
+      setStatusMsg(`Erreur d'envoi : ${err?.message || err?.toString() || err}`)
     } finally {
       setSending(false)
     }
@@ -66,13 +66,13 @@ Le Propriétaire`
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>📈 Mail de Révision de Loyer</h3>
+          <h3> Mail de Révision de Loyer</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <form onSubmit={handleSend}>
           <div className="alert alert-info" style={{ fontSize: 12, marginBottom: 14 }}>
-            💡 Ce raccourci génère et envoie l'e-mail officiel de révision de loyer au locataire <strong>{locataireName}</strong> pour le logement <strong>{bienNom}</strong>.
+            Ce raccourci génère et envoie l'e-mail officiel de révision de loyer au locataire <strong>{locataireName}</strong> pour le logement <strong>{bienNom}</strong>.
           </div>
 
           <div className="form-row">
@@ -144,7 +144,7 @@ Le Propriétaire`
           </div>
 
           {statusMsg && (
-            <div className={`alert ${statusMsg.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 12 }}>
+            <div className={`alert ${statusMsg.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 12 }}>
               {statusMsg}
             </div>
           )}
@@ -152,7 +152,7 @@ Le Propriétaire`
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
             <button type="submit" className="btn btn-primary" disabled={sending}>
-              {sending ? '📤 Envoi en cours...' : '📤 Envoyer le mail au locataire'}
+              {sending ? 'Envoi en cours...' : 'Envoyer le mail au locataire'}
             </button>
           </div>
         </form>

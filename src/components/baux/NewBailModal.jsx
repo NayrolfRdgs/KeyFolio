@@ -182,7 +182,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>🏡 Créer un nouveau bail — {bien.nom}</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Créer un nouveau bail — {bien.nom}</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Enregistrement d'un bail actif et rattachement automatique aux dossiers du bien
             </span>
@@ -197,7 +197,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
         {/* ALERTE FIN DE BAIL ACTIF */}
         {activeBail && (
           <div className="alert alert-warning" style={{ marginBottom: 16, padding: 12, borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 20 }}>⚠️</span>
+            <Icon name="alert" size={20} color="#f59e0b" />
             <div>
               <strong style={{ fontSize: 13 }}>Un bail est actuellement actif sur ce bien</strong>
               <div style={{ fontSize: 12, marginTop: 2 }}>
@@ -218,7 +218,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
             style={{ flex: 1, fontSize: 12 }}
             onClick={() => { setMode('manual'); setSelectedCandId(''); setSelectedLocId('') }}
           >
-            ✏️ Saisie manuelle locataire
+            Saisie manuelle locataire
           </button>
           <button
             type="button"
@@ -226,7 +226,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
             style={{ flex: 1, fontSize: 12 }}
             onClick={() => { setMode('candidature'); setSelectedLocId('') }}
           >
-            📂 Preremplir via Candidature ({candidatures.length})
+            Preremplir via Candidature ({candidatures.length})
           </button>
           <button
             type="button"
@@ -234,7 +234,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
             style={{ flex: 1, fontSize: 12 }}
             onClick={() => { setMode('existing_locataire'); setSelectedCandId('') }}
           >
-            👤 Locataire existant
+             Locataire existant
           </button>
         </div>
 
@@ -257,7 +257,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
                   <option value="">-- Choisir un candidat --</option>
                   {candidatures.map(c => (
                     <option key={c.id} value={c.id}>
-                      👤 {c.nom} {c.prenom} {c.revenus_mensuels ? `(${formatEuro(c.revenus_mensuels)}/mois)` : ''} — {c.profession || 'Sans info'}
+                       {c.nom} {c.prenom} {c.revenus_mensuels ? `(${formatEuro(c.revenus_mensuels)}/mois)` : ''} — {c.profession || 'Sans info'}
                     </option>
                   ))}
                 </select>
@@ -277,7 +277,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
                 <option value="">-- Sélectionner dans l'annuaire locataires --</option>
                 {locatairesList.map(l => (
                   <option key={l.id} value={l.id}>
-                    👤 {l.nom} {l.prenom} {l.email ? `(${l.email})` : ''}
+                     {l.nom} {l.prenom} {l.email ? `(${l.email})` : ''}
                   </option>
                 ))}
               </select>
@@ -286,7 +286,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
 
           {/* BLOC INFORMATIONS LOCATAIRE */}
           <div className="card" style={{ padding: 14, marginBottom: 16, background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--border-color)' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 800 }}>👤 Informations du Locataire</h4>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 800 }}> Informations du Locataire</h4>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
@@ -369,7 +369,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
 
           {/* BLOC INFORMATIONS DU BAIL */}
           <div className="card" style={{ padding: 14, marginBottom: 16, background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--border-color)' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 800 }}>📄 Conditions du Bail</h4>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 800 }}> Conditions du Bail</h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
@@ -428,7 +428,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
 
             {/* JOINDRE LE FICHIER PDF BAIL */}
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed var(--border-color)' }}>
-              <label style={{ fontSize: 12, fontWeight: 700 }}>📄 Fichier contrat du bail (PDF / Word) :</label>
+              <label style={{ fontSize: 12, fontWeight: 700 }}> Fichier contrat du bail (PDF / Word) :</label>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 4 }}>
                 <input
                   type="text" className="form-control" readOnly
@@ -437,7 +437,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
                   style={{ fontSize: 12 }}
                 />
                 <button type="button" className="btn btn-secondary btn-sm" onClick={handleBrowsePdf}>
-                  📎 Parcourir...
+                  Parcourir...
                 </button>
               </div>
             </div>
@@ -449,7 +449,7 @@ export default function NewBailModal({ bien, activeBail, champsMap = {}, onClose
               Annuler
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? '⏳ Enregistrement...' : '✅ Enregistrer le nouveau bail'}
+              {loading ? 'Enregistrement...' : 'Enregistrer le nouveau bail'}
             </button>
           </div>
 

@@ -205,7 +205,7 @@ export default function BailGenerateurModal({
       )
       setSavedPath(relPath)
       if (onGenerated) onGenerated(relPath)
-      setToastMsg('💾 Contrat enregistré & Logement synchronisé !')
+      setToastMsg('Contrat enregistré & Logement synchronisé !')
       return relPath
     } catch (err) {
       console.warn('Erreur sauvegarde contrat bail PDF :', err)
@@ -234,7 +234,7 @@ export default function BailGenerateurModal({
       if (chosenPath) {
         const pdfBase64 = doc.output('datauristring')
         await saveFileToDisk(chosenPath, pdfBase64)
-        setToastMsg(`✅ Contrat de bail exporté et logement synchronisé : ${chosenPath}`)
+        setToastMsg(` Contrat de bail exporté et logement synchronisé : ${chosenPath}`)
         await openFilePath(chosenPath)
       } else if (relPath) {
         await openFilePath(relPath)
@@ -266,20 +266,20 @@ export default function BailGenerateurModal({
         {/* Header Modal */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>✨ Générateur de Contrat de Bail Type — Loi ALUR</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}> Générateur de Contrat de Bail Type — Loi ALUR</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Les modifications saisies ici sont <strong>automatiquement synchronisées</strong> dans la fiche du logement et du locataire.
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-primary btn-sm" onClick={handleExportPDF} disabled={exporting}>
-              {exporting ? '⏳ Exportation...' : '📥 Exporter le Bail en PDF'}
+              {exporting ? ' Exportation...' : ' Exporter le Bail en PDF'}
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleOpenPDF}>
-              📄 Ouvrir le PDF
+               Ouvrir le PDF
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleSaveToProperty} disabled={saving}>
-              {saving ? '⏳ Enregistrement...' : '💾 Sauvegarder & Synchroniser'}
+              {saving ? ' Enregistrement...' : 'Sauvegarder & Synchroniser'}
             </button>
             {onSendMail && (
               <button
@@ -289,7 +289,7 @@ export default function BailGenerateurModal({
                   initialTemplate: 'nouveau_bail'
                 })}
               >
-                ✉️ Mail
+                 Mail
               </button>
             )}
             <button className="btn btn-ghost btn-icon" onClick={onClose}>
@@ -311,25 +311,25 @@ export default function BailGenerateurModal({
             className={`btn btn-sm ${activeTab === 'logement' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('logement')}
           >
-            🏠 Logement & Finances
+            Logement & Finances
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'locataire' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('locataire')}
           >
-            👤 Locataire
+            Locataire
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'bailleur' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('bailleur')}
           >
-            🏢 Bailleur
+            Bailleur
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'contrat' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('contrat')}
           >
-            ⚡ Compteurs & Conditions
+            Compteurs & Conditions
           </button>
         </div>
 
@@ -337,7 +337,7 @@ export default function BailGenerateurModal({
         {activeTab === 'logement' && (
           <div style={{ background: 'var(--color-surface-2)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>
-              🏠 Informations du Logement (synchronisées avec le bien)
+              Informations du Logement (synchronisées avec le bien)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
@@ -381,7 +381,7 @@ export default function BailGenerateurModal({
         {activeTab === 'locataire' && (
           <div style={{ background: 'var(--color-surface-2)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>
-              👤 Informations du Locataire (synchronisées avec la fiche locataire)
+              Informations du Locataire (synchronisées avec la fiche locataire)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
@@ -414,7 +414,7 @@ export default function BailGenerateurModal({
         {activeTab === 'bailleur' && (
           <div style={{ background: 'var(--color-surface-2)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>
-              🏢 Coordonnées du Bailleur / Propriétaire (sauvegardées pour les prochains baux)
+              Coordonnées du Bailleur / Propriétaire (sauvegardées pour les prochains baux)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
@@ -443,7 +443,7 @@ export default function BailGenerateurModal({
         {activeTab === 'contrat' && (
           <div style={{ background: 'var(--color-surface-2)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>
-              ⚡ Compteurs à l'Entrée & Paramètres du Contrat
+              Compteurs à l'Entrée & Paramètres du Contrat
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
               <div>
@@ -624,7 +624,7 @@ export default function BailGenerateurModal({
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
           <button className="btn btn-secondary" onClick={onClose}>Fermer</button>
           <button className="btn btn-primary" onClick={handleExportPDF} disabled={exporting}>
-            {exporting ? '⏳ Génération du PDF...' : '📥 Exporter le Contrat en PDF direct'}
+            {exporting ? ' Génération du PDF...' : ' Exporter le Contrat en PDF direct'}
           </button>
         </div>
       </div>

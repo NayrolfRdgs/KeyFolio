@@ -12,7 +12,7 @@ export default function BienOccupationTab({
   if (isOwnerOccupied) {
     return (
       <div className="card" style={{ padding: 32, textAlign: 'center', background: 'var(--color-surface)', borderRadius: 14 }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>🏠</div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Icon name="house" size={44} color="#94a3b8" /></div>
         <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
           Logement en Occupation Personnelle
         </h3>
@@ -21,7 +21,7 @@ export default function BienOccupationTab({
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <button className="btn btn-primary btn-sm" onClick={onNavigateToEdit}>
-            ✏️ Modifier les caractéristiques / Mode d'occupation
+            Modifier les caractéristiques / Mode d'occupation
           </button>
         </div>
       </div>
@@ -39,7 +39,7 @@ export default function BienOccupationTab({
 
       {baux.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🏠</div>
+          <div className="empty-state-icon"><Icon name="house" size={40} color="#94a3b8" /></div>
           <h3>Aucun bail pour ce logement</h3>
           <button className="btn btn-primary btn-sm" onClick={onOpenNewBail}>+ Nouveau bail</button>
         </div>
@@ -54,7 +54,7 @@ export default function BienOccupationTab({
                       {b.statut === 'actif' ? 'Actif' : 'Terminé'}
                     </span>
                     <strong style={{ fontSize: 16 }}>
-                      👤 {b.locataire_prenom} {b.locataire_nom}
+                      {b.locataire_prenom} {b.locataire_nom}
                     </strong>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>

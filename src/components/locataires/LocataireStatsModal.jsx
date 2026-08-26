@@ -15,7 +15,7 @@ export default function LocataireStatsModal({
       <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 850 }}>
         <div className="modal-header">
           <div>
-            <h3 style={{ margin: 0 }}>📊 Bilan Financier & Historique — {locataire.prenom} {locataire.nom}</h3>
+            <h3 style={{ margin: 0 }}> Bilan Financier & Historique — {locataire.prenom} {locataire.nom}</h3>
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
               Synthèse complète des encaissements, ponctualité et état des cautionnements
             </p>
@@ -89,7 +89,7 @@ export default function LocataireStatsModal({
           {/* Tableau de l'historique des paiements */}
           <div>
             <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 700 }}>
-              📋 Historique des Loyers & Règlements ({paiements.length})
+              Historique des Loyers & Règlements ({paiements.length})
             </h4>
             {paiements.length === 0 ? (
               <div className="alert alert-info" style={{ fontSize: 12 }}>
@@ -125,7 +125,7 @@ export default function LocataireStatsModal({
                               style={{ padding: '2px 8px', fontSize: 11 }}
                               onClick={() => onOpenFile(p.fichier_quittance)}
                             >
-                              📄 Ouvrir justificatif
+                              Ouvrir justificatif
                             </button>
                           ) : (
                             <span className="text-muted" style={{ fontSize: 11 }}>—</span>

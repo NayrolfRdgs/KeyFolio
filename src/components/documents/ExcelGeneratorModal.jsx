@@ -115,7 +115,7 @@ export default function ExcelGeneratorModal({ initialBienId = null, targetSubfol
       <div className="modal-card" style={{ maxWidth: 640 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
-            📊 Générateur de tableau Excel (Modèles Comptables)
+             Générateur de tableau Excel (Modèles Comptables)
           </h3>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><Icon name="x" size={18} /></button>
         </div>

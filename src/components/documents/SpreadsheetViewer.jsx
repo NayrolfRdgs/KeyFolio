@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { readExcelSheet, saveExcelFile, openFilePath } from '../../lib/db'
 
@@ -262,9 +263,9 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
       const result = await readExcelSheet(filePath, activeSheet)
       setSheetsData(prev => ({ ...prev, [result.sheet_name]: result.rows }))
 
-      if (onToast) onToast(`✅ ${modCount} modification(s) sauvegardée(s)`, 'success')
+      if (onToast) onToast(`${modCount} modification(s) sauvegardée(s)`, 'success')
     } catch (err) {
-      if (onToast) onToast(`❌ Erreur sauvegarde: ${err}`, 'error')
+      if (onToast) onToast(`Erreur sauvegarde: ${err}`, 'error')
     } finally {
       setSaving(false)
     }
@@ -281,7 +282,7 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
     return (
       <div className="spreadsheet-container">
         <div className="spreadsheet-loading">
-          <div style={{ fontSize: 36 }}>📊</div>
+          <div style={{ fontSize: 36 }}></div>
           <div>Chargement du tableur...</div>
         </div>
       </div>
@@ -292,7 +293,7 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
     return (
       <div className="spreadsheet-container">
         <div className="spreadsheet-error">
-          <div style={{ fontSize: 36 }}>⚠️</div>
+          <div style={{ display: "flex", justifyContent: "center" }}><Icon name="alert" size={36} color="#f59e0b" /></div>
           <div>Erreur: {error}</div>
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => onOpenExternal?.()}>
             ↗️ Ouvrir avec le programme par défaut
@@ -311,7 +312,7 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
       {/* ── Toolbar ── */}
       <div className="spreadsheet-toolbar">
         <div className="spreadsheet-toolbar-left">
-          <span className="spreadsheet-file-icon">📊</span>
+          <span className="spreadsheet-file-icon"></span>
           <span className="spreadsheet-file-name">{fileName}</span>
           {modCount > 0 && (
             <span className="spreadsheet-mod-badge">
@@ -325,9 +326,9 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
               className="btn btn-primary btn-sm"
               onClick={handleSave}
               disabled={saving}
-              title="Sauvegarder les modifications (⚠️ les formules et mise en forme avancée seront perdues)"
+              title="Sauvegarder les modifications (les formules et mise en forme avancée seront perdues)"
             >
-              {saving ? '⏳ Sauvegarde...' : '💾 Sauvegarder'}
+              {saving ? 'Sauvegarde...' : ' Sauvegarder'}
             </button>
           )}
           <button
@@ -343,7 +344,7 @@ export default function SpreadsheetViewer({ filePath, fileName, onOpenExternal, 
       {/* ── Save Warning ── */}
       {modCount > 0 && (
         <div className="spreadsheet-save-warning">
-          ⚠️ La sauvegarde réécrira le fichier. Les formules, graphiques et mise en forme avancée seront perdus.
+          Attention : La sauvegarde réécrira le fichier. Les formules, graphiques et mise en forme avancée seront perdus.
           Pour conserver le formatage, utilisez « Ouvrir externe ».
         </div>
       )}

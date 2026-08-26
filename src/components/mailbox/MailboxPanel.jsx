@@ -17,7 +17,7 @@ const DEFAULT_CONFIG = {
 const EMAIL_TEMPLATES = [
   {
     id: 'quittance',
-    label: '📄 Quittance de loyer',
+    label: 'Quittance de loyer',
     subject: 'Quittance de loyer — [MOIS]',
     body: `Madame, Monsieur,
 
@@ -34,7 +34,7 @@ Cordialement,
   },
   {
     id: 'relance',
-    label: '⚠️ Relance impayé',
+    label: '️ Relance impayé',
     subject: 'Rappel — Loyer du [MOIS] non reçu',
     body: `Madame, Monsieur,
 
@@ -49,7 +49,7 @@ Cordialement,
   },
   {
     id: 'visite',
-    label: '🔧 Avis de passage',
+    label: 'Avis de passage',
     subject: 'Avis de passage — [DATE]',
     body: `Madame, Monsieur,
 
@@ -62,7 +62,7 @@ Cordialement,
   },
   {
     id: 'augmentation',
-    label: '📈 Révision de loyer',
+    label: 'Révision de loyer',
     subject: 'Révision annuelle de votre loyer',
     body: `Madame, Monsieur,
 
@@ -77,7 +77,7 @@ Cordialement,
   },
   {
     id: 'fin_bail',
-    label: '🚪 Clôture de bail & Solde de tout compte',
+    label: 'Clôture de bail & Solde de tout compte',
     subject: 'Clôture de votre bail et solde de tout compte — [LOGEMENT]',
     body: `Madame, Monsieur,
 
@@ -288,13 +288,13 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         smtp_port: Number(config.smtp_port),
         use_ssl: config.use_ssl,
       })
-      setStatus('✅ Configuration sauvegardée pour ce logement.')
+      setStatus(' Configuration sauvegardée pour ce logement.')
       setConfig(prev => ({ ...prev, password: '' }))
       setConfigSaved(true)
       setView('inbox')
       fetchInbox(bienId)
     } catch (err) {
-      setStatus(`❌ Erreur: ${err}`)
+      setStatus(`Erreur: ${err}`)
     } finally {
       setSaving(false)
     }
@@ -320,15 +320,15 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       if (onOpenSettings) {
         onOpenSettings('google')
       } else {
-        alert("🔑 Renseignez d'abord votre Client ID Google dans les Options (⚙️ Réglages).")
+        alert("Renseignez d'abord votre Client ID Google dans les Options ( Réglages).")
       }
       return
     }
 
-    setStatus('🔑 Lancement de la connexion Google... Votre navigateur Web s\'ouvre pour autoriser l\'accès.')
+    setStatus('Lancement de la connexion Google... Votre navigateur Web s\'ouvre pour autoriser l\'accès.')
     try {
       const userEmail = await startGoogleOauth(bienId, savedClientId, savedClientSecret || null)
-      setStatus(`✅ Compte Gmail (${userEmail}) connecté avec succès !`)
+      setStatus(` Compte Gmail (${userEmail}) connecté avec succès !`)
       setConfig(prev => ({
         ...prev,
         email_adresse: userEmail,
@@ -344,7 +344,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       fetchInbox(bienId)
     } catch (err) {
       console.error('Erreur Google OAuth:', err)
-      setStatus(`❌ Erreur connexion Google : ${err?.message || err?.toString() || err}`)
+      setStatus(`Erreur connexion Google : ${err?.message || err?.toString() || err}`)
     }
   }
 
@@ -424,7 +424,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         body: composeBody,
         attachments: composeAttachments.length > 0 ? composeAttachments : null,
       })
-      setSendStatus('✅ Email envoyé avec succès !')
+      setSendStatus(' Email envoyé avec succès !')
       setComposeTo('')
       setComposeSubject('')
       setComposeBody('')
@@ -432,7 +432,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       setSelectedTemplate('')
       setSelectedBailId('')
     } catch (err) {
-      setSendStatus(`❌ Erreur d'envoi : ${err}`)
+      setSendStatus(`Erreur d'envoi : ${err}`)
     } finally {
       setSending(false)
     }
@@ -450,11 +450,11 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         prestataire: '',
         cout: null
       })
-      setDispatchMsg('✅ Ticket maintenance créé avec succès à partir de cet e-mail !')
+      setDispatchMsg(' Ticket maintenance créé avec succès à partir de cet e-mail !')
       setTimeout(() => setDispatchMsg(''), 4000)
     } catch (e) {
       console.error(e)
-      setDispatchMsg(`❌ Erreur ticket: ${e}`)
+      setDispatchMsg(`Erreur ticket: ${e}`)
     }
   }
 
@@ -467,11 +467,11 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         filename: att.filename,
         base64Data: att.base64_data,
       })
-      setSavingAttachmentMsg(`✅ Fichier "${att.filename}" enregistré dans le dossier ${selectedSubfolder} !`)
+      setSavingAttachmentMsg(` Fichier "${att.filename}" enregistré dans le dossier ${selectedSubfolder} !`)
       setTimeout(() => setSavingAttachmentMsg(''), 4000)
     } catch (err) {
       console.error(err)
-      setSavingAttachmentMsg(`❌ Erreur d'enregistrement : ${err?.message || err?.toString() || err}`)
+      setSavingAttachmentMsg(`Erreur d'enregistrement : ${err?.message || err?.toString() || err}`)
     }
   }
 
@@ -520,7 +520,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
       {/* Header */}
       <div className="mailbox-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 24 }}>✉️</span>
+          <span style={{ fontSize: 24 }}></span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Boîte mail — {bienNom}</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -530,13 +530,13 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={`btn btn-sm ${view === 'inbox' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setView('inbox'); fetchInbox(bienId, false); }}>
-            📥 Boîte de réception
+             Boîte de réception
           </button>
           <button className={`btn btn-sm ${view === 'compose' ? 'btn-primary' : 'btn-secondary'}`} onClick={handleSwitchToCompose}>
-            ✏️ Rédiger un email
+            Rédiger un email
           </button>
           <button className={`btn btn-sm ${view === 'config' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('config')}>
-            ⚙️ Configuration Email
+             Configuration Email
           </button>
         </div>
       </div>
@@ -560,7 +560,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
               <div style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }}>
                 <strong style={{ fontSize: 13 }}>Messages ({filteredEmails.length})</strong>
                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInbox(bienId, true)} disabled={loadingEmails} style={{ padding: '3px 8px', fontSize: 11 }}>
-                  {loadingEmails ? '🔄 Sync...' : '🔄 Synchroniser'}
+                  {loadingEmails ? ' Sync...' : ' Synchroniser'}
                 </button>
               </div>
 
@@ -569,7 +569,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="🔍 Rechercher (nom, sujet, contenu...)"
+                  placeholder="Rechercher (nom, sujet, contenu...)"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ fontSize: 11, padding: '4px 8px' }}
@@ -584,7 +584,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
 
               {loadingEmails && emails.length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <span>⏳ Récupération des e-mails depuis le serveur...</span>
+                  <span> Récupération des e-mails depuis le serveur...</span>
                 </div>
               ) : filteredEmails.length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12 }}>
@@ -605,7 +605,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <strong style={{ fontSize: 12, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
-                        👤 {mail.from}
+                         {mail.from}
                       </strong>
                       <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                         {mail.date ? mail.date.split(' ').slice(0, 4).join(' ') : '—'}
@@ -651,7 +651,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                 {selectedMail.attachments && selectedMail.attachments.length > 0 && (
                   <div style={{ background: 'var(--color-surface)', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)', marginBottom: 12 }}>
                     <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>📎 Pièces jointes ({selectedMail.attachments.length})</span>
+                      <span> Pièces jointes ({selectedMail.attachments.length})</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dossier cible :</span>
                         <select
@@ -673,7 +673,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                       {selectedMail.attachments.map((att, idx) => (
                         <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--color-surface-2)', borderRadius: 6, fontSize: 12 }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
-                            {att.mime_type.startsWith('image/') ? '🖼️' : '📄'} <strong>{att.filename}</strong> <small style={{ color: 'var(--text-muted)' }}>({Math.round(att.size_bytes / 1024)} KB)</small>
+                            <Icon name="file" size={13} /> <strong>{att.filename}</strong> <small style={{ color: 'var(--text-muted)' }}>({Math.round(att.size_bytes / 1024)} KB)</small>
                           </span>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
@@ -682,7 +682,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                               style={{ padding: '2px 8px', fontSize: 11 }}
                               onClick={() => handleSaveAttachment(att)}
                             >
-                              💾 Enregistrer dans le bien
+                               Enregistrer dans le bien
                             </button>
                             <a
                               href={`data:${att.mime_type};base64,${att.base64_data}`}
@@ -697,7 +697,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                       ))}
                     </div>
                     {savingAttachmentMsg && (
-                      <div className={`alert ${savingAttachmentMsg.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 8, padding: 6, fontSize: 11 }}>
+                      <div className={`alert ${savingAttachmentMsg.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 8, padding: 6, fontSize: 11 }}>
                         {savingAttachmentMsg}
                       </div>
                     )}
@@ -706,7 +706,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
 
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 'auto' }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => dispatchToMaintenance(selectedMail)}>
-                    🔧 Envoyer en Ticket Maintenance
+                    Envoyer en Ticket Maintenance
                   </button>
                   <button 
                     className="btn btn-primary btn-sm" 
@@ -716,11 +716,11 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                       setView('compose');
                     }}
                   >
-                    ✏️ Répondre
+                    Répondre
                   </button>
                 </div>
                 {dispatchMsg && (
-                  <div className={`alert ${dispatchMsg.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 10, padding: 8, fontSize: 12 }}>
+                  <div className={`alert ${dispatchMsg.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 10, padding: 8, fontSize: 12 }}>
                     {dispatchMsg}
                   </div>
                 )}
@@ -755,18 +755,18 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                 onClick={handleGoogleOAuth}
                 style={{ background: 'linear-gradient(135deg, #4285f4, #34a853)', border: 'none', fontWeight: 600, padding: '10px 20px', fontSize: 14 }}
               >
-                🔑 Se connecter avec Google (Autoriser)
+                Se connecter avec Google (Autoriser)
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => onOpenSettings && onOpenSettings('google')}
               >
-                ⚙️ Configurer mon Client ID Google
+                 Configurer mon Client ID Google
               </button>
               {configSaved && config.imap_host === 'imap.gmail.com' && (
                 <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: 12 }}>
-                  ✓ Gmail connecté ({config.email_adresse})
+                  Gmail connecté ({config.email_adresse})
                 </span>
               )}
             </div>
@@ -837,7 +837,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Enregistrement...' : '💾 Enregistrer la configuration'}
+                {saving ? 'Enregistrement...' : ' Enregistrer la configuration'}
               </button>
               {configSaved && (
                 <button type="button" className="btn btn-secondary" onClick={handleClearConfig}>
@@ -847,7 +847,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
             </div>
 
             {status && (
-              <div className={`alert ${status.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ margin: 0 }}>
+              <div className={`alert ${status.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ margin: 0 }}>
                 {status}
               </div>
             )}
@@ -860,7 +860,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
         <div className="mailbox-body">
           {loadingCompose ? (
             <div className="empty-state" style={{ padding: 40 }}>
-              <div className="empty-state-icon">⏳</div>
+              <div className="empty-state-icon"></div>
               <h3>Préparation de l'éditeur...</h3>
               <p>Chargement des locataires et modèles de mails</p>
             </div>
@@ -881,7 +881,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                   <option value="">Sélectionner un locataire</option>
                   {bauxList.map(b => (
                     <option key={b.id} value={b.id}>
-                      👤 {b.locataire_prenom} {b.locataire_nom} ({b.statut})
+                       {b.locataire_prenom} {b.locataire_nom} ({b.statut})
                     </option>
                   ))}
                 </select>
@@ -934,7 +934,7 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
                 <div style={{ marginTop: 10, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0, padding: '4px 10px', fontSize: 12 }}>
-                      {attachingFiles ? '🔄 Traitement du fichier...' : '📎 Joindre des fichiers (Images, PDF, Documents...)'}
+                      {attachingFiles ? ' Traitement du fichier...' : ' Joindre des fichiers (Images, PDF, Documents...)'}
                       <input type="file" multiple disabled={attachingFiles} onChange={handleFileAttach} style={{ display: 'none' }} />
                     </label>
                     {composeAttachments.length > 0 && (
@@ -960,17 +960,17 @@ export default function MailboxPanel({ bienId, bienNom, initialView = null, init
 
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12 }}>
                 <button type="submit" className="btn btn-primary" disabled={sending || !config.email_adresse}>
-                  {sending ? '📤 Envoi...' : '📤 Envoyer'}
+                  {sending ? ' Envoi...' : ' Envoyer'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => { setComposeTo(''); setComposeSubject(''); setComposeBody(''); setSelectedTemplate('') }}>
                   Effacer
                 </button>
                 {!config.email_adresse && (
-                  <span style={{ fontSize: 12, color: 'var(--color-danger)' }}>⚠ Email non configuré</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-danger)' }}> Email non configuré</span>
                 )}
               </div>
               {sendStatus && (
-                <div className={`alert ${sendStatus.startsWith('✅') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 10 }}>
+                <div className={`alert ${sendStatus.startsWith('') ? 'alert-success' : 'alert-danger'}`} style={{ marginTop: 10 }}>
                   {sendStatus}
                 </div>
               )}

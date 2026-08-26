@@ -84,10 +84,10 @@ export default function Depenses() {
           <p>Total affiché : <strong>{formatEuro(totalFiltered)}</strong></p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)}>
-            📎 Associer une facture PDF
+          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="paperclip" size={14} /> Associer une facture PDF
           </button>
-          <button id="btn-add-depense" className="btn btn-primary" onClick={openCreate}>
+          <button id="btn-add-depense" className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon name="plus" size={14} /> Nouvelle dépense
           </button>
         </div>
@@ -109,7 +109,9 @@ export default function Depenses() {
       {filtered.length === 0 ? (
         <div className="table-wrapper">
           <div className="empty-state">
-            <div className="empty-state-icon">💸</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <Icon name="receipt" size={40} color="#94a3b8" />
+            </div>
             <h3>Aucune dépense</h3>
             <p>Enregistrez vos charges et frais liés à vos biens</p>
           </div>

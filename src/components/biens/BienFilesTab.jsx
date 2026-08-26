@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React from 'react'
 import { formatDate } from '../../lib/utils'
 
@@ -11,7 +12,7 @@ export default function BienFilesTab({
   if (loadingFiles) {
     return (
       <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-        ⏳ Chargement des documents du bien...
+        Chargement des documents du bien...
       </div>
     )
   }
@@ -19,15 +20,15 @@ export default function BienFilesTab({
   return (
     <div className="bien-files-tab">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>📁 Documents et Fichiers</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Documents et Fichiers</h3>
         <button className="btn btn-primary btn-sm" onClick={onUploadFile}>
-          ➕ Ajouter un document
+          + Ajouter un document
         </button>
       </div>
 
       {(!files || files.length === 0) ? (
         <div className="empty-state" style={{ padding: 40, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>📄</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}><Icon name="folderOpen" size={36} color="#94a3b8" /></div>
           <h4>Aucun document dans le dossier de ce bien</h4>
           <p className="text-muted" style={{ fontSize: 13 }}>
             Ajoutez vos diagnostics, actes de propriété ou factures de travaux.
@@ -55,7 +56,7 @@ export default function BienFilesTab({
                       onClick={() => onOpenFile(file.relative_path || file.absolute_path)}
                       style={{ textDecoration: 'none', textAlign: 'left' }}
                     >
-                      📄 {file.filename}
+                      {file.filename}
                     </button>
                   </td>
                   <td><span className="badge badge-secondary">{file.subfolder}</span></td>
@@ -68,7 +69,7 @@ export default function BienFilesTab({
                       onClick={() => onOpenFile(file.relative_path || file.absolute_path)}
                       title="Ouvrir le fichier"
                     >
-                      👁️ Ouvrir
+                      Ouvrir
                     </button>
                     <button
                       className="btn btn-danger btn-icon btn-sm"
@@ -76,7 +77,7 @@ export default function BienFilesTab({
                       title="Supprimer"
                       style={{ marginLeft: 6 }}
                     >
-                      🗑️
+                      Supprimer
                     </button>
                   </td>
                 </tr>

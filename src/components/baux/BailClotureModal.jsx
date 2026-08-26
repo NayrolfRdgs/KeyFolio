@@ -14,7 +14,7 @@ export default function BailClotureModal({
       <div className="modal-card" style={{ maxWidth: 620, width: '92%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid var(--border-color)', paddingBottom: 10 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🚪 Clôturer le bail — {modalData.locataireNom}</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}> Clôturer le bail — {modalData.locataireNom}</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Logement : {modalData.bienNom}</span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
@@ -54,7 +54,7 @@ export default function BailClotureModal({
           {/* Dépôt de garantie / Caution */}
           <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              💶 Restitution du dépôt de garantie (Caution initiale : {formatEuro(modalData.bail?.depot_garantie || 0)})
+               Restitution du dépôt de garantie (Caution initiale : {formatEuro(modalData.bail?.depot_garantie || 0)})
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -64,9 +64,9 @@ export default function BailClotureModal({
                   value={modalData.restitutionCaution}
                   onChange={e => setModalData({ ...modalData, restitutionCaution: e.target.value })}
                 >
-                  <option value="restitue">✅ Restitution intégrale</option>
-                  <option value="partiel_restitue">⚠️ Retenue partielle (Réparations/Charges)</option>
-                  <option value="en_attente">⏳ En attente de régularisation</option>
+                  <option value="restitue"> Restitution intégrale</option>
+                  <option value="partiel_restitue">Retenue partielle (Réparations/Charges)</option>
+                  <option value="en_attente"> En attente de régularisation</option>
                 </select>
               </div>
               {modalData.restitutionCaution === 'partiel_restitue' && (
@@ -101,7 +101,7 @@ export default function BailClotureModal({
           {/* Compteurs de sortie & Clés */}
           <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              ⚡ Relevé des compteurs de sortie & Clés
+              Relevé des compteurs de sortie & Clés
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
               <div>
@@ -172,7 +172,7 @@ export default function BailClotureModal({
                 style={{ width: 16, height: 16, cursor: 'pointer' }}
               />
               <label htmlFor="generate-edl-check" style={{ fontSize: 13, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
-                📋 Ouvrir et générer l'État des Lieux de Sortie officiel (PDF / Impression)
+                 Ouvrir et générer l'État des Lieux de Sortie officiel (PDF / Impression)
               </label>
             </div>
 
@@ -185,7 +185,7 @@ export default function BailClotureModal({
                 style={{ width: 16, height: 16, cursor: 'pointer' }}
               />
               <label htmlFor="send-mail-check" style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF', cursor: 'pointer' }}>
-                ✉️ Étape suivante : Rédiger et envoyer un email de solde de tout compte au locataire
+                Étape suivante : Rédiger et envoyer un email de solde de tout compte au locataire
               </label>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function BailClotureModal({
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
             <button type="submit" className="btn btn-danger" style={{ fontWeight: 700 }}>
-              🔒 Clôturer définitivement le bail
+              Clôturer définitivement le bail
             </button>
           </div>
         </form>

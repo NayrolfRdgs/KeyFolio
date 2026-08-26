@@ -49,7 +49,7 @@ export default function QuittanceModal({ paiement, bien, locataire, bail, onClos
       if (chosenPath) {
         const pdfBase64 = doc.output('datauristring')
         await saveFileToDisk(chosenPath, pdfBase64)
-        setToastMsg(`✅ Quittance PDF enregistrée : ${chosenPath}`)
+        setToastMsg(` Quittance PDF enregistrée : ${chosenPath}`)
         await openFilePath(chosenPath)
       }
     } catch (e) {
@@ -66,18 +66,18 @@ export default function QuittanceModal({ paiement, bien, locataire, bail, onClos
         {/* Header Modal */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>📄 Quittance de Loyer — Édition & Export PDF</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}> Quittance de Loyer — Édition & Export PDF</h3>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Quittance certifiée pour le mois de {moisNom}
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-primary btn-sm" onClick={handleExportPDF} disabled={exporting}>
-              {exporting ? '⏳ Exportation...' : '📥 Exporter le PDF'}
+              {exporting ? ' Exportation...' : ' Exporter le PDF'}
             </button>
             {onSendMail && (
               <button className="btn btn-secondary btn-sm" onClick={() => onSendMail(bien?.id, { recipientEmail: locataire?.email || '', initialTemplate: 'quittance' })}>
-                ✉️ Envoyer par Mail
+                 Envoyer par Mail
               </button>
             )}
             <button className="btn btn-ghost btn-icon" onClick={onClose}>
@@ -186,7 +186,7 @@ export default function QuittanceModal({ paiement, bien, locataire, bail, onClos
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
           <button className="btn btn-secondary" onClick={onClose}>Fermer</button>
           <button className="btn btn-primary" onClick={handleExportPDF} disabled={exporting}>
-            {exporting ? '⏳ Exportation...' : '📥 Exporter en PDF direct'}
+            {exporting ? ' Exportation...' : ' Exporter en PDF direct'}
           </button>
         </div>
       </div>

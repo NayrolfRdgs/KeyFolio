@@ -76,7 +76,7 @@ export default function BienFinanceTab({
 
         {paiements.length === 0 ? (
           <div className="empty-state" style={{ padding: '30px 0' }}>
-            <div className="empty-state-icon">💳</div>
+            <div className="empty-state-icon"><Icon name="creditCard" size={40} color="#94a3b8" /></div>
             <p>Aucun paiement enregistré pour ce logement</p>
           </div>
         ) : (

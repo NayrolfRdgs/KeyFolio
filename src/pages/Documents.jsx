@@ -140,14 +140,31 @@ export default function Documents({ selectedBienId, initialFilePath }) {
     localStorage.setItem(`expandedPaths_${currentBienId}`, JSON.stringify([...newSet]))
   }, [currentBienId])
 
-  // Déplier / Replier un dossier
+  // Helper pour extraire les ancêtres d'un chemin
+  const getAncestors = (path) => {
+    if (!path) return []
+    const parts = path.split('/')
+    const ancestors = []
+    let curr = ''
+    for (const p of parts) {
+      curr = curr ? `${curr}/${p}` : p
+      ancestors.push(curr)
+    }
+    return ancestors
+  }
+
+  // Déplier / Replier un dossier avec fermeture automatique des autres branches (mode accordéon)
   const toggleExpand = useCallback((relPath) => {
     setExpandedPaths((prev) => {
-      const next = new Set(prev)
-      if (next.has(relPath)) {
-        next.delete(relPath)
+      const next = new Set()
+      const ancestors = getAncestors(relPath)
+
+      if (prev.has(relPath)) {
+        // Replie ce dossier tout en conservant ses parents
+        ancestors.slice(0, -1).forEach((a) => next.add(a))
       } else {
-        next.add(relPath)
+        // Déplie ce dossier et ses parents, ferme les autres dossiers non reliés
+        ancestors.forEach((a) => next.add(a))
       }
       saveExpandedPaths(next)
       return next
@@ -568,7 +585,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
             title="Re-scanner le dossier sur le disque dur"
             disabled={loading || !currentBienId}
           >
-            🔄 Actualiser
+            Actualiser
           </button>
           <button
             className="btn btn-primary"
@@ -625,7 +642,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
         >
           {isDraggingOverPanel && (
             <div className="drag-drop-overlay">
-              <div style={{ fontSize: 44 }}>🖼️ 📥</div>
+              <div style={{ display: "flex", justifyContent: "center" }}><Icon name="upload" size={44} color="#94a3b8" /></div>
               <div style={{ fontSize: 16 }}>Déposez vos images ou documents ici</div>
               <div style={{ fontSize: 12, opacity: 0.85 }}>
                 Ils seront automatiquement enregistrés dans {selectedFile?.is_dir ? `"${selectedFile.name}"` : 'ce bien'}
@@ -675,7 +692,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                       onClick={() => handleOpenFile(selectedFile.relative_path)}
                       title={selectedFile.name.toLowerCase().endsWith('.url') ? "Ouvrir le lien web" : "Ouvrir dans l'application externe"}
                     >
-                      {selectedFile.name.toLowerCase().endsWith('.url') ? '🌐 Ouvrir le lien' : '↗️ Ouvrir'}
+                      {selectedFile.name.toLowerCase().endsWith('.url') ? 'Ouvrir le lien' : 'Ouvrir'}
                     </button>
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
@@ -715,21 +732,21 @@ export default function Documents({ selectedBienId, initialFilePath }) {
       {ctxMenu && (
         <div className="context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={e => e.stopPropagation()}>
           <button className="context-menu-item" onClick={() => { handleOpenFile(ctxMenu.file.relative_path); setCtxMenu(null) }}>
-            {ctxMenu.file.name.toLowerCase().endsWith('.url') ? '🌐 Ouvrir le lien web' : '↗️ Ouvrir avec le système'}
+            {ctxMenu.file.name.toLowerCase().endsWith('.url') ? 'Ouvrir le lien web' : 'Ouvrir avec le système'}
           </button>
           <button className="context-menu-item" onClick={() => handleOpenRename(ctxMenu.file)}>
-            ✏️ Renommer
+            Renommer
           </button>
           <button className="context-menu-item" onClick={() => {
             setMoveFile(ctxMenu.file)
             setMoveTarget(availableFolders[0]?.value || '')
             setCtxMenu(null)
           }}>
-            📂 Déplacer vers…
+            Déplacer vers…
           </button>
           <div className="context-menu-divider" />
           <button className="context-menu-item danger" onClick={() => { setConfirmDeleteFile(ctxMenu.file); setCtxMenu(null) }}>
-            🗑️ Supprimer
+            Supprimer
           </button>
         </div>
       )}
@@ -794,8 +811,8 @@ export default function Documents({ selectedBienId, initialFilePath }) {
         <div className="toast-container">
           {toasts.map(t => (
             <div key={t.id} className={`toast toast-${t.type}`}>
-              {t.type === 'success' && '✅'}
-              {t.type === 'error' && '❌'}
+              {t.type === 'success' && ''}
+              {t.type === 'error' && ''}
               {t.type === 'info' && 'ℹ️'}
               {t.message}
             </div>

@@ -1,4 +1,5 @@
 import React from 'react'
+import Icon from '../common/Icon'
 
 export default function PaiementsFilterBar({
   activeTab,
@@ -20,7 +21,7 @@ export default function PaiementsFilterBar({
         <div className="card" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', padding: '14px 18px', borderRadius: 10, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 24 }}>⏳</span>
+              <Icon name="clock" size={24} color="#d97706" />
               <div>
                 <strong style={{ color: '#92400E', fontSize: 14 }}>
                   {cautionsEnAttenteCount} dépôt{cautionsEnAttenteCount > 1 ? 's' : ''} de garantie en attente de versement !
@@ -46,29 +47,37 @@ export default function PaiementsFilterBar({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button
             className={`btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => setActiveTab('all')}
           >
-            📋 Tous les flux
+            <Icon name="fileText" size={13} /> Tous les flux
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'loyers' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => setActiveTab('loyers')}
           >
-            🏠 Loyers ({paiementsCount})
+            <Icon name="house" size={13} /> Loyers ({paiementsCount})
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'cautions' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => setActiveTab('cautions')}
           >
-            💶 Dépôts de garantie ({bauxWithDepositCount})
-            {cautionsEnAttenteCount > 0 && ` ⚠️ ${cautionsEnAttenteCount}`}
+            <Icon name="euro" size={13} /> Dépôts de garantie ({bauxWithDepositCount})
+            {cautionsEnAttenteCount > 0 && ` (${cautionsEnAttenteCount} en attente)`}
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'impayes' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('impayes')}
-            style={countImpayes > 0 ? { background: '#FEF2F2', color: '#DC2626', borderColor: '#FECACA' } : {}}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              ...(countImpayes > 0 ? { background: '#FEF2F2', color: '#DC2626', borderColor: '#FECACA' } : {})
+            }}
           >
-            🔴 Impayés & En retard ({countImpayes})
+            <Icon name="alert" size={13} color={countImpayes > 0 ? '#DC2626' : 'currentColor'} /> Impayés & En retard ({countImpayes})
           </button>
         </div>
 
@@ -86,7 +95,7 @@ export default function PaiementsFilterBar({
           <select className="form-control" style={{ maxWidth: 180 }} value={filterBien} onChange={e => setFilterBien(e.target.value)}>
             <option value="">Tous les logements</option>
             {biens.map(b => (
-              <option key={b.id} value={b.id}>🏠 {b.nom}</option>
+              <option key={b.id} value={b.id}>{b.nom}</option>
             ))}
           </select>
         </div>

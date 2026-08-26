@@ -115,7 +115,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
   const handleValidateCaution = async (bail) => {
     try {
       await updateBail({ ...bail, statut_garantie: 'recu' })
-      addToast(`✅ Dépôt de garantie (${bail.locataire_prenom} ${bail.locataire_nom}) validé comme REÇU !`)
+      addToast(` Dépôt de garantie (${bail.locataire_prenom} ${bail.locataire_nom}) validé comme REÇU !`)
       loadAll()
     } catch(err) {
       addToast(`Erreur: ${err}`, 'error')
@@ -142,7 +142,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
   const handleUpdateCaution = async (updatedBail) => {
     try {
       await updateBail(updatedBail)
-      addToast(`✅ Dépôt de garantie mis à jour et synchronisé dans l'Excel !`)
+      addToast(` Dépôt de garantie mis à jour et synchronisé dans l'Excel !`)
       loadAll()
     } catch(err) {
       addToast(`Erreur mise à jour caution: ${err}`, 'error')
@@ -256,7 +256,7 @@ export default function Paiements({ onNavigate, onOpenMail }) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} title="Déposer un justificatif PDF">
-            📎 Déposer un reçu
+             Déposer un reçu
           </button>
           <button className="btn btn-primary" onClick={openCreate}>
             + Encaisser un loyer
@@ -373,8 +373,8 @@ export default function Paiements({ onNavigate, onOpenMail }) {
         <div className="toast-container">
           {toasts.map(t => (
             <div key={t.id} className={`toast toast-${t.type}`}>
-              {t.type === 'success' && '✅'}
-              {t.type === 'error' && '❌'}
+              {t.type === 'success' && ''}
+              {t.type === 'error' && ''}
               {t.type === 'info' && 'ℹ️'}
               {t.message}
             </div>

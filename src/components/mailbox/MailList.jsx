@@ -4,7 +4,7 @@ export default function MailList({ emails, selectedMail, onSelectMail, loading, 
   if (loading) {
     return (
       <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-        ⏳ Synchronisation des e-mails en cours...
+         Synchronisation des e-mails en cours...
       </div>
     )
   }
@@ -16,7 +16,7 @@ export default function MailList({ emails, selectedMail, onSelectMail, loading, 
           {error}
         </div>
         <button className="btn btn-secondary btn-sm" onClick={onSync}>
-          🔄 Réessayer la synchronisation
+           Réessayer la synchronisation
         </button>
       </div>
     )
@@ -25,7 +25,7 @@ export default function MailList({ emails, selectedMail, onSelectMail, loading, 
   if (!emails || emails.length === 0) {
     return (
       <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
-        📬 Aucun e-mail trouvé.
+         Aucun e-mail trouvé.
       </div>
     )
   }
@@ -63,7 +63,7 @@ export default function MailList({ emails, selectedMail, onSelectMail, loading, 
             </div>
             {mail.attachments?.length > 0 && (
               <div style={{ marginTop: 4, fontSize: 11, color: 'var(--color-primary)' }}>
-                📎 {mail.attachments.length} pièce{mail.attachments.length > 1 ? 's' : ''} jointe{mail.attachments.length > 1 ? 's' : ''}
+                 {mail.attachments.length} pièce{mail.attachments.length > 1 ? 's' : ''} jointe{mail.attachments.length > 1 ? 's' : ''}
               </div>
             )}
           </div>

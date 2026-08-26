@@ -7,6 +7,7 @@ import {
 import { todayISO } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import LocataireFormModal from '../components/locataires/LocataireFormModal'
+import LocataireProfileModal from '../components/locataires/LocataireProfileModal'
 import CandidatureFormModal from '../components/locataires/CandidatureFormModal'
 import ConvertCandidatureModal from '../components/locataires/ConvertCandidatureModal'
 import LocataireStatsModal from '../components/locataires/LocataireStatsModal'
@@ -39,6 +40,9 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const [loading, setLoading]           = useState(false)
   const [toasts, setToasts]             = useState([])
 
+  // Profil Rapide Locataire en 1 clic
+  const [selectedLocProfile, setSelectedLocProfile] = useState(null)
+
   // Modales Locataire
   const [locModal, setLocModal]         = useState(false)
   const [locForm, setLocForm]           = useState(EMPTY_LOC)
@@ -68,7 +72,12 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const loadAll = async () => {
     try {
       const [l, c, bi, ba] = await Promise.all([getLocataires(), getCandidatures(), getBiens(), getBaux()])
-      setLocataires(l); setCandidatures(c); setBiens(bi); setBaux(ba)
+      setLocataires(l || []); setCandidatures(c || []); setBiens(bi || []); setBaux(ba || [])
+      
+      if (selectedLocProfile) {
+        const updatedProfile = (l || []).find(item => item.id === selectedLocProfile.id)
+        if (updatedProfile) setSelectedLocProfile(updatedProfile)
+      }
     } catch (e) { setError(e?.toString()) }
   }
 
@@ -123,10 +132,25 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     finally { setLoading(false) }
   }
 
+  const handleLocQuickSave = async (updatedLoc) => {
+    try {
+      await updateLocataire(updatedLoc)
+      addToast('Profil du locataire mis à jour avec succès !')
+      loadAll()
+    } catch (err) {
+      setError(err?.toString())
+      throw err
+    }
+  }
+
   const handleLocDelete = async (id) => {
     if (!confirm('Supprimer ce locataire ?')) return
-    try { await deleteLocataire(id); addToast('Locataire supprimé', 'info'); loadAll() }
-    catch (err) { setError(err?.toString()) }
+    try {
+      await deleteLocataire(id)
+      addToast('Locataire supprimé', 'info')
+      if (selectedLocProfile?.id === id) setSelectedLocProfile(null)
+      loadAll()
+    } catch (err) { setError(err?.toString()) }
   }
 
   const handleOpenLocStats = async (locataire) => {
@@ -140,8 +164,9 @@ export default function Locataires({ onNavigate, onOpenMail }) {
   const openCreateCand = () => { setCandForm(EMPTY_CAND); setEditingCand(null); setCandModal(true) }
   const openEditCand   = (c) => {
     setCandForm({
-      bien_id: c.bien_id || '', nom: c.nom, prenom: c.prenom, telephone: c.telephone || '',
-      email: c.email || '', profession: c.profession || '', revenus_mensuels: c.revenus_mensuels || '',
+      bien_id: c.bien_id || '', nom: c.nom, prenom: c.prenom,
+      telephone: c.telephone || '', email: c.email || '',
+      profession: c.profession || '', revenus_mensuels: c.revenus_mensuels || '',
       garant_nom: c.garant_nom || '', garant_contact: c.garant_contact || '',
       notes: c.notes || '', fichier_dossier: c.fichier_dossier || ''
     })
@@ -167,17 +192,16 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     try {
       const payload = {
         ...candForm,
-        bien_id: candForm.bien_id ? parseInt(candForm.bien_id) : null,
+        bien_id: parseInt(candForm.bien_id),
         revenus_mensuels: candForm.revenus_mensuels ? parseFloat(candForm.revenus_mensuels) : null,
-        statut: editingCand ? undefined : 'nouveau',
         fichier_dossier: candForm.fichier_dossier || null
       }
       if (editingCand) {
         await updateCandidature({ id: editingCand, ...payload })
-        addToast('Candidature mise à jour avec succès !')
+        addToast('Candidature mise à jour !')
       } else {
         await createCandidature(payload)
-        addToast('Candidature enregistrée avec succès !')
+        addToast('Candidature enregistrée !')
       }
       setCandModal(false)
       loadAll()
@@ -185,10 +209,10 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     finally { setLoading(false) }
   }
 
-  const handleCandStatutChange = async (id, newStatut) => {
+  const handleCandStatutChange = async (id, statut) => {
     try {
-      await updateCandidatureStatut(id, newStatut)
-      addToast(`Statut candidature mis à jour : ${newStatut}`)
+      await updateCandidatureStatut(id, statut)
+      addToast(`Statut mis à jour : ${statut}`)
       loadAll()
     } catch (err) { setError(err?.toString()) }
   }
@@ -199,105 +223,140 @@ export default function Locataires({ onNavigate, onOpenMail }) {
     catch (err) { setError(err?.toString()) }
   }
 
-  // Conversion Candidature -> Bail
+  // ── Conversion Candidature -> Bail ──
   const openConvertModal = (cand) => {
-    setConvertModal(cand)
+    const targetBien = biens.find(b => b.id === cand.bien_id)
     setConvertBailForm({
       date_debut: todayISO(),
       date_fin: '',
-      loyer_mensuel: cand.revenus_mensuels ? (cand.revenus_mensuels * 0.33).toFixed(0) : '750',
-      charges_mensuelles: 50,
-      depot_garantie: cand.revenus_mensuels ? (cand.revenus_mensuels * 0.33).toFixed(0) : '750',
+      loyer_mensuel: targetBien?.loyer_estime || targetBien?.loyer_actuel || '',
+      charges_mensuelles: '0',
+      depot_garantie: targetBien?.loyer_estime || targetBien?.loyer_actuel || '',
       jour_paiement: 5,
       fichier_bail: ''
     })
+    setConvertModal(cand)
   }
 
   const handleConvertSubmit = async (e) => {
     e.preventDefault()
     if (!convertModal) return
     setLoading(true)
+    setError(null)
     try {
-      const locId = await createLocataire({
-        bien_id: convertModal.bien_id ? parseInt(convertModal.bien_id) : null,
+      const newLoc = await createLocataire({
         nom: convertModal.nom,
         prenom: convertModal.prenom,
-        telephone: convertModal.telephone,
-        email: convertModal.email,
-        revenus_mensuels: convertModal.revenus_mensuels ? parseFloat(convertModal.revenus_mensuels) : null,
-        profession: convertModal.profession,
-        garant_nom: convertModal.garant_nom,
-        garant_contact: convertModal.garant_contact,
-        fichier_dossier: convertModal.fichier_dossier,
-        notes: convertModal.notes ? `Issu de candidature. ${convertModal.notes}` : 'Issu de candidature'
+        telephone: convertModal.telephone || null,
+        email: convertModal.email || null,
+        profession: convertModal.profession || null,
+        revenus_mensuels: convertModal.revenus_mensuels || null,
+        garant_nom: convertModal.garant_nom || null,
+        garant_contact: convertModal.garant_contact || null,
+        notes: `Converti depuis candidature le ${todayISO()}. ${convertModal.notes || ''}`,
+        bien_id: convertModal.bien_id,
+        fichier_dossier: convertModal.fichier_dossier || null
       })
 
+      const newLocId = newLoc?.id || newLoc
+
       await createBail({
-        bien_id: parseInt(convertModal.bien_id),
-        locataire_id: locId,
+        bien_id: convertModal.bien_id,
+        locataire_id: newLocId,
         date_debut: convertBailForm.date_debut,
         date_fin: convertBailForm.date_fin || null,
         loyer_mensuel: parseFloat(convertBailForm.loyer_mensuel),
         charges_mensuelles: parseFloat(convertBailForm.charges_mensuelles || 0),
         depot_garantie: convertBailForm.depot_garantie ? parseFloat(convertBailForm.depot_garantie) : null,
         jour_paiement: parseInt(convertBailForm.jour_paiement || 5),
-        statut: 'actif',
-        fichier_bail: convertBailForm.fichier_bail || null
+        fichier_bail: convertBailForm.fichier_bail || null,
+        statut: 'actif'
       })
 
-      await updateCandidatureStatut(convertModal.id, 'converti')
-
+      await updateCandidatureStatut(convertModal.id, 'acceptee')
+      addToast(`Félicitations ! ${convertModal.prenom} ${convertModal.nom} est désormais locataire officiel.`)
       setConvertModal(null)
-      addToast(`🎉 Processus de création de bail finalisé pour ${convertModal.prenom} ${convertModal.nom}`)
       loadAll()
-    } catch (err) { setError(err?.toString()) }
-    finally { setLoading(false) }
+    } catch (err) {
+      setError(err?.toString())
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleOpenDoc = async (relOrAbsPath) => {
-    if (!relOrAbsPath) return
-    try { await openFilePath(relOrAbsPath) }
-    catch (e) { addToast(`Erreur ouverture : ${e}`, 'error') }
+  const handleOpenDoc = async (path) => {
+    try { await openFilePath(path) }
+    catch (e) { addToast(`Erreur ouverture document : ${e}`, 'error') }
   }
 
-  // Locataires avec bail calculé
-  const locatairesWithBail = locataires.map(l => {
-    const activeBail = baux.find(b => b.locataire_id === l.id && b.statut === 'actif')
-    const lastBail = baux.filter(b => b.locataire_id === l.id && b.statut === 'termine').sort((a,b) => (b.date_fin || '').localeCompare(a.date_fin || ''))[0]
+  // ── Filtrage & Jointures ──
+  const locatairesEnriched = locataires.map(l => {
+    const bauxLoc = baux.filter(b => b.locataire_id === l.id)
+    const bailActif = bauxLoc.find(b => b.statut === 'actif')
+    const lastBail = bauxLoc.sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut))[0]
+    const currentBienId = bailActif ? bailActif.bien_id : l.bien_id
+    const currentBien = biens.find(b => b.id === currentBienId)
+    const isActuel = Boolean(bailActif)
+
     return {
       ...l,
-      isActuel: !!activeBail,
-      activeBail,
-      lastBail
+      isActuel,
+      bailActif,
+      lastBail,
+      bien_id: currentBienId,
+      bien_nom: currentBien?.nom || (bailActif?.bien_nom) || (lastBail?.bien_nom) || null,
+      bien_adresse: currentBien?.adresse || null
     }
   })
 
-  const countActuels = locatairesWithBail.filter(l => l.isActuel).length
-  const countAnciens = locatairesWithBail.filter(l => !l.isActuel).length
+  const filteredLocs = locatairesEnriched.filter(l => {
+    const q = search.toLowerCase()
+    const matchSearch = !search ||
+      `${l.prenom} ${l.nom}`.toLowerCase().includes(q) ||
+      (l.email || '').toLowerCase().includes(q) ||
+      (l.telephone || '').includes(q) ||
+      (l.profession || '').toLowerCase().includes(q) ||
+      (l.bien_nom || '').toLowerCase().includes(q)
 
-  const filteredLocs = locatairesWithBail.filter(l => {
-    const matchesSearch = `${l.nom} ${l.prenom} ${l.email || ''} ${l.telephone || ''} ${l.profession || ''}`.toLowerCase().includes(search.toLowerCase())
-    if (!matchesSearch) return false
-    if (locSubFilter === 'actuels') return l.isActuel
-    if (locSubFilter === 'anciens') return !l.isActuel
-    return true
+    const matchSub =
+      locSubFilter === 'all' ? true :
+      locSubFilter === 'actuels' ? l.isActuel :
+      locSubFilter === 'anciens' ? !l.isActuel : true
+
+    return matchSearch && matchSub
   })
 
-  const filteredCands = candidatures.filter(c =>
-    `${c.nom} ${c.prenom} ${c.bien_nom || ''} ${c.email || ''} ${c.profession || ''}`.toLowerCase().includes(search.toLowerCase())
-  )
+  const candidaturesEnriched = candidatures.map(c => {
+    const bien = biens.find(b => b.id === c.bien_id)
+    return { ...c, bien_nom: bien?.nom || '—', bien_adresse: bien?.adresse || '' }
+  })
+
+  const filteredCands = candidaturesEnriched.filter(c => {
+    const q = search.toLowerCase()
+    return !search ||
+      `${c.prenom} ${c.nom}`.toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.telephone || '').includes(q) ||
+      (c.profession || '').toLowerCase().includes(q) ||
+      (c.bien_nom || '').toLowerCase().includes(q)
+  })
 
   const fLoc = key => e => setLocForm({ ...locForm, [key]: e.target.value })
   const fCand = key => e => setCandForm({ ...candForm, [key]: e.target.value })
 
+  const countActuels = locatairesEnriched.filter(l => l.isActuel).length
+  const countAnciens = locatairesEnriched.filter(l => !l.isActuel).length
+  const countCandsEnAttente = candidatures.filter(c => c.statut === 'en_attente').length
+
   return (
     <div className="page-content">
-      {/* En-tête et onglets */}
+      {/* En-tête */}
       <LocatairesHeader
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        locatairesCount={locataires.length}
-        candidaturesCount={candidatures.length}
+        countLocataires={locataires.length}
+        countCandidatures={candidatures.length}
+        countCandsEnAttente={countCandsEnAttente}
         search={search}
         setSearch={setSearch}
         locSubFilter={locSubFilter}
@@ -308,7 +367,12 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         onOpenCreateCand={openCreateCand}
       />
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && (
+        <div className="alert alert-danger" style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0' }}>
+          <span>{error}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setError(null)}>✕</button>
+        </div>
+      )}
 
       {/* Vue Locataires */}
       {activeTab === 'locataires' && (
@@ -317,6 +381,7 @@ export default function Locataires({ onNavigate, onOpenMail }) {
           biens={biens}
           onNavigate={onNavigate}
           onOpenDoc={handleOpenDoc}
+          onSelectLocataire={(l) => setSelectedLocProfile(l)}
           onOpenLocStats={handleOpenLocStats}
           onOpenMail={(targetBienId, opts) => {
             if (onOpenMail) onOpenMail(targetBienId, opts)
@@ -345,12 +410,27 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         />
       )}
 
-      {/* ── Modales ── */}
+      {/* ── Modale Profil Locataire en 1 clic ── */}
+      {selectedLocProfile && (
+        <LocataireProfileModal
+          locataire={selectedLocProfile}
+          bien={biens.find(b => b.id === selectedLocProfile.bien_id)}
+          bail={baux.find(b => b.locataire_id === selectedLocProfile.id && b.statut === 'actif') || selectedLocProfile.lastBail}
+          onClose={() => setSelectedLocProfile(null)}
+          onEdit={openEditLoc}
+          onSaveQuick={handleLocQuickSave}
+          onOpenDoc={handleOpenDoc}
+          onOpenMail={onOpenMail}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* ── Modale Saisie / Édition Complète Locataire ── */}
       <LocataireFormModal
         isOpen={locModal}
         isEditing={editingLoc}
         form={locForm}
-        setField={fLoc}
+        setForm={setLocForm}
         biens={biens}
         onPickFile={handlePickLocFile}
         onSubmit={handleLocSubmit}
@@ -390,9 +470,6 @@ export default function Locataires({ onNavigate, onOpenMail }) {
         <div className="toast-container">
           {toasts.map(t => (
             <div key={t.id} className={`toast toast-${t.type}`}>
-              {t.type === 'success' && '✅'}
-              {t.type === 'error' && '❌'}
-              {t.type === 'info' && 'ℹ️'}
               {t.message}
             </div>
           ))}

@@ -15,7 +15,7 @@ export default function ConvertCandidatureModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>🔑 Processus de Création de Bail pour {candidature.prenom} {candidature.nom}</h3>
+          <h3> Processus de Création de Bail pour {candidature.prenom} {candidature.nom}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -96,7 +96,7 @@ export default function ConvertCandidatureModal({
           </div>
 
           <div className="form-group">
-            <label className="form-label">📎 Contrat de bail (PDF / Scan)</label>
+            <label className="form-label">Contrat de bail (PDF / Scan)</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 className="form-control"
@@ -109,7 +109,7 @@ export default function ConvertCandidatureModal({
               </button>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              📁 Le fichier sera automatiquement copié dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
+              Le fichier sera automatiquement copié dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
             </p>
           </div>
 
@@ -118,7 +118,7 @@ export default function ConvertCandidatureModal({
               Annuler
             </button>
             <button type="submit" className="btn btn-success" disabled={loading}>
-              🔑 Lancer & Valider le Bail Actif
+               Lancer & Valider le Bail Actif
             </button>
           </div>
         </form>

@@ -106,7 +106,7 @@ export default function UpdateBanner() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 18 }}>🚀</span>
+        <span style={{ fontSize: 18 }}></span>
         <div>
           <strong>KeyFolio v{updateInfo.latestVersion} est disponible !</strong>
           <span style={{ opacity: 0.9, marginLeft: 8, fontSize: 12 }}>
@@ -129,7 +129,7 @@ export default function UpdateBanner() {
           }}
           onClick={handleOpenRelease}
         >
-          📥 Télécharger la mise à jour
+          Télécharger la mise à jour
         </button>
 
         <button

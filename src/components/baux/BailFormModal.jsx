@@ -155,17 +155,17 @@ export default function BailFormModal({
                 value={form.statut_garantie || 'en_attente'}
                 onChange={setField('statut_garantie')}
               >
-                <option value="en_attente">⏳ En attente de versement</option>
-                <option value="recu">✅ Reçu / Encaissé</option>
+                <option value="en_attente">En attente de versement</option>
+                <option value="recu">Reçu / Encaissé</option>
                 <option value="restitue">↩️ Restitué au locataire</option>
-                <option value="partiel_restitue">⚠️ Retenu partiel / Sinistre</option>
+                <option value="partiel_restitue">Retenu partiel / Sinistre</option>
               </select>
             </div>
           </div>
 
           <div style={{ background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
-              ⚡ Index des compteurs à l'entrée (Optionnel)
+              Index des compteurs à l'entrée (Optionnel)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               <div>
@@ -221,7 +221,7 @@ export default function BailFormModal({
           <div className="form-group" style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 12, borderRadius: 8, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <label className="form-label" style={{ margin: 0, fontWeight: 700, color: '#1E40AF' }}>
-                📄 Contrat de bail de location (PDF)
+                 Contrat de bail de location (PDF)
               </label>
               <button
                 type="button"
@@ -229,7 +229,7 @@ export default function BailFormModal({
                 style={{ background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700 }}
                 onClick={onOpenBailGenerator}
               >
-                ✨ Générer le Bail officiel (PDF ALUR)
+                Générer le Bail officiel (PDF ALUR)
               </button>
             </div>
             
@@ -245,7 +245,7 @@ export default function BailFormModal({
               </button>
             </div>
             <p style={{ fontSize: 11, color: '#1E40AF', marginTop: 4 }}>
-              📁 Le contrat est automatiquement archivé dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
+              Le contrat est automatiquement archivé dans <em>07_LOCATION/Bail/Bail_en_cours</em>.
             </p>
           </div>
 

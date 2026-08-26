@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { getBaux, createBail, updateBail, deleteBail, terminateBail, getBiens, getLocataires, openFilePath } from '../lib/db'
-import { todayISO } from '../lib/utils'
+import { todayISO, formatEuro } from '../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
+import Icon from '../components/common/Icon'
 import EtatDesLieuxModal from '../components/baux/EtatDesLieuxModal'
 import BailGenerateurModal from '../components/baux/BailGenerateurModal'
 import BailFormModal from '../components/baux/BailFormModal'
 import BailClotureModal from '../components/baux/BailClotureModal'
+import BailDetailModal from '../components/baux/BailDetailModal'
 import BauxStatsBar from '../components/baux/BauxStatsBar'
 import BauxTable from '../components/baux/BauxTable'
 
@@ -33,6 +35,7 @@ export default function Baux({ onNavigate, onOpenMail }) {
   const [toasts, setToasts]         = useState([])
 
   // Modales
+  const [selectedDetailBail, setSelectedDetailBail] = useState(null)
   const [terminateModal, setTerminateModal]         = useState(null)
   const [edlModalData, setEdlModalData]             = useState(null)
   const [bailGenerateurData, setBailGenerateurData] = useState(null)
@@ -46,7 +49,7 @@ export default function Baux({ onNavigate, onOpenMail }) {
   const loadAll = async () => {
     try {
       const [b, bi, lo] = await Promise.all([getBaux(), getBiens(), getLocataires()])
-      setBaux(b); setBiens(bi); setLocataires(lo)
+      setBaux(b || []); setBiens(bi || []); setLocataires(lo || [])
     } catch(e) { setError(e?.toString()) }
   }
 
@@ -263,32 +266,70 @@ export default function Baux({ onNavigate, onOpenMail }) {
     return matchBien && matchStatut
   })
 
-  const f = key => e => setForm({ ...form, [key]: e.target.value })
+  // KPIs Baux
+  const kpis = useMemo(() => {
+    const bauxActifs = baux.filter(b => b.statut === 'actif')
+    const totalLoyersCCMensuel = bauxActifs.reduce((s, b) => s + (Number(b.loyer_mensuel) || 0) + (Number(b.charges_mensuelles) || 0), 0)
+    const totalDepotsGarantie = bauxActifs.reduce((s, b) => s + (Number(b.depot_garantie) || 0), 0)
+    const nbLogements = biens.length
+    const tauxOccupation = nbLogements > 0 ? Math.round((bauxActifs.length / nbLogements) * 100) : 0
+
+    return {
+      totalLoyersCCMensuel,
+      totalDepotsGarantie,
+      nbActifs: bauxActifs.length,
+      tauxOccupation
+    }
+  }, [baux, biens])
+
   const countActifs = baux.filter(b => b.statut === 'actif').length
   const countAnciens = baux.filter(b => b.statut !== 'actif').length
 
   return (
     <div className="page-content">
+      {/* ── EN-TÊTE HARMONISÉ ── */}
       <div className="page-header">
         <div>
-          <h2>Baux & Contrats de Location</h2>
+          <h2>Locations & Contrats de Baux</h2>
           <p className="page-subtitle">
-            Génération de contrats Loi ALUR (PDF), gestion des départs, états des lieux et archivage
+            Suivi des loyers, charges, dépôts de garantie, contrats Loi ALUR et historique des encaissements
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          + Nouveau bail
+
+        <button className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="plus" size={14} /> + Nouveau bail
         </button>
       </div>
 
       {error && (
-        <div className="alert alert-danger" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="alert alert-danger" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <span>{error}</span>
           <button className="btn btn-ghost btn-sm" onClick={() => setError(null)}>✕</button>
         </div>
       )}
 
-      {/* Barre de filtres et stats */}
+      {/* ── BANDEAU KPI DÉTACHÉ ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+        <div className="card" style={{ padding: '16px 18px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Loyers CC Mensuels</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#4f46e5', marginTop: 4 }}>{formatEuro(kpis.totalLoyersCCMensuel)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{kpis.nbActifs} bail(s) actif(s)</div>
+        </div>
+
+        <div className="card" style={{ padding: '16px 18px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Dépôts de Garantie</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{formatEuro(kpis.totalDepotsGarantie)}</div>
+          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>Cautions séquestrées</div>
+        </div>
+
+        <div className="card" style={{ padding: '16px 18px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Taux d'Occupation</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{kpis.tauxOccupation}%</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Sur {biens.length} logement(s)</div>
+        </div>
+      </div>
+
+      {/* Barre de filtres */}
       <BauxStatsBar
         filterStatut={filterStatut}
         setFilterStatut={setFilterStatut}
@@ -300,11 +341,12 @@ export default function Baux({ onNavigate, onOpenMail }) {
         biens={biens}
       />
 
-      {/* Tableau des baux */}
+      {/* Tableau des baux agrandi et coloré */}
       <BauxTable
         baux={filtered}
         onNavigate={onNavigate}
         onOpenDoc={handleOpenDoc}
+        onSelectBail={(b) => setSelectedDetailBail(b)}
         onOpenBailGeneratorForRow={handleOpenBailGeneratorForRow}
         onOpenTerminateModal={openTerminateModal}
         onOpenEdlModal={(b) => {
@@ -334,12 +376,27 @@ export default function Baux({ onNavigate, onOpenMail }) {
         onDelete={handleDelete}
       />
 
+      {/* ── MODALE AGRANDIE DE DÉTAIL COMPLET DU BAIL ── */}
+      {selectedDetailBail && (
+        <BailDetailModal
+          bail={selectedDetailBail}
+          bien={biens.find(bi => bi.id === selectedDetailBail.bien_id)}
+          locataire={locataires.find(l => l.id === selectedDetailBail.locataire_id)}
+          onClose={() => setSelectedDetailBail(null)}
+          onNavigate={onNavigate}
+          onOpenMail={onOpenMail}
+          onOpenDoc={handleOpenDoc}
+          onOpenBailGenerator={handleOpenBailGeneratorForRow}
+          onOpenTerminateModal={openTerminateModal}
+        />
+      )}
+
       {/* ── Modale Saisie / Édition Bail ── */}
       <BailFormModal
         isOpen={modal}
         isEditing={editing}
         form={form}
-        setField={f}
+        setField={key => e => setForm({ ...form, [key]: e.target.value })}
         biens={biens}
         locataires={locataires}
         onPickBailFile={handlePickBailFile}
@@ -379,7 +436,7 @@ export default function Baux({ onNavigate, onOpenMail }) {
           onClose={() => setBailGenerateurData(null)}
           onGenerated={(newPath) => {
             setForm(prev => ({ ...prev, fichier_bail: newPath }))
-            addToast('✅ Contrat de bail PDF généré et lié au formulaire !')
+            addToast('Contrat de bail PDF généré et lié au formulaire !')
           }}
           onSendMail={onOpenMail}
         />
@@ -390,9 +447,6 @@ export default function Baux({ onNavigate, onOpenMail }) {
         <div className="toast-container">
           {toasts.map(t => (
             <div key={t.id} className={`toast toast-${t.type}`}>
-              {t.type === 'success' && '✅'}
-              {t.type === 'error' && '❌'}
-              {t.type === 'info' && 'ℹ️'}
               {t.message}
             </div>
           ))}

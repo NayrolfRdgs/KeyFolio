@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React, { useState, useEffect } from 'react'
 import { formatDate, formatEuro } from '../../lib/utils'
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
@@ -8,102 +9,102 @@ import {
 import { OverviewFinanceChart } from './FinanceCharts'
 
 export const CATEGORY_COLORS = {
-  '🏠 Identification générale': '#6366f1',
-  '💰 Finances': '#10B981',
-  '⚡ Équipements': '#3B82F6',
-  '🔑 Clés & Accès': '#F59E0B',
-  '📍 Localisation': '#06B6D4',
-  '🛠️ État du logement': '#8B5CF6',
-  '🏢 Copropriété': '#0284C7',
-  '📑 Diagnostics': '#64748b',
-  '👤 Propriétaire & Mandat': '#14B8A6',
-  '📊 Amortissement': '#EC4899',
+  'Identification générale': '#6366f1',
+  'Finances': '#10B981',
+  'Équipements': '#3B82F6',
+  'Clés & Accès': '#F59E0B',
+  'Localisation': '#06B6D4',
+  'État du logement': '#8B5CF6',
+  'Copropriété': '#0284C7',
+  'Diagnostics': '#64748b',
+  'Propriétaire & Mandat': '#14B8A6',
+  'Amortissement': '#EC4899',
 }
 
 export const ALL_FIELDS = [
-  // 🏠 Identification générale
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'type_bien', label: "Type de bien", type: 'select', options: ['—', 'Appartement', 'Maison', 'Studio', 'Villa', 'Immeuble de rapport', 'Garage / Parking', 'Local commercial', 'Bureau', 'Terrain', 'Autre'], cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'mode_occupation', label: "Mode d'occupation / Type de location", type: 'select', options: ['—', 'Location longue durée (Nue)', 'Location meublée (LMNP)', 'Résidence principale (Propriétaire)', 'Résidence secondaire', 'Colocation', 'Location courte durée (Airbnb / LCD)', 'Vacant', 'En vente'], cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'surface_m2', label: "Surface (m²)", type: 'number', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'pieces', label: "Nombre de pièces", type: 'number', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'chambres', label: "Nombre de chambres", type: 'number', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'salles_de_bain', label: "Salle de bain", type: 'number', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'surface_habitable', label: "Surface habitable", type: 'number', unit: 'm²', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'etage', label: "Étage", type: 'text', placeholder: 'ex: 2 / 5', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'annee_construction', label: "Année de construction", type: 'number', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'exposition', label: "Exposition", type: 'text', placeholder: 'ex: Sud-Ouest', cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'ascenseur', label: "Ascenseur", type: 'select', options: ['—', 'Oui', 'Non'], cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'cave', label: "Cave", type: 'select', options: ['—', 'Oui', 'Non'], cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'balcon_terrasse', label: "Balcon / Terrasse", type: 'select', options: ['—', 'Oui', 'Non'], cat: '🏠 Identification générale' },
-  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'meuble', label: "Meublé", type: 'select', options: ['—', 'Oui', 'Non'], cat: '🏠 Identification générale' },
+  // Identification générale
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'type_bien', label: "Type de bien", type: 'select', options: ['—', 'Appartement', 'Maison', 'Studio', 'Villa', 'Immeuble de rapport', 'Garage / Parking', 'Local commercial', 'Bureau', 'Terrain', 'Autre'], cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'mode_occupation', label: "Mode d'occupation / Type de location", type: 'select', options: ['—', 'Location longue durée (Nue)', 'Location meublée (LMNP)', 'Résidence principale (Propriétaire)', 'Résidence secondaire', 'Colocation', 'Location courte durée (Airbnb / LCD)', 'Vacant', 'En vente'], cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'surface_m2', label: "Surface (m²)", type: 'number', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'pieces', label: "Nombre de pièces", type: 'number', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'chambres', label: "Nombre de chambres", type: 'number', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'salles_de_bain', label: "Salle de bain", type: 'number', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'surface_habitable', label: "Surface habitable", type: 'number', unit: 'm²', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'etage', label: "Étage", type: 'text', placeholder: 'ex: 2 / 5', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'annee_construction', label: "Année de construction", type: 'number', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'exposition', label: "Exposition", type: 'text', placeholder: 'ex: Sud-Ouest', cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'ascenseur', label: "Ascenseur", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'cave', label: "Cave", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'balcon_terrasse', label: "Balcon / Terrasse", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Identification générale' },
+  { group: 'identification', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'meuble', label: "Meublé", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Identification générale' },
 
-  // 💰 Finances & Acquisition
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'prix_achat', label: "Prix d'achat", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'frais_notaire', label: "Frais de notaire", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'travaux_initiaux', label: "Travaux initiaux", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'prix_revient_total', label: "Prix de revient total", type: 'number', unit: '€', cat: '💰 Finances', hint: 'Auto-calculé si non renseigné' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'valeur_estimee', label: "Valeur actuelle estimée", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'loyer_actuel', label: "Loyer mensuel hors charges", type: 'number', unit: '€', cat: '💰 Finances', hint: 'Auto-extrait du bail si non saisi' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'charges_mensuelles', label: "Charges mensuelles", type: 'number', unit: '€', cat: '💰 Finances', hint: 'Auto-extrait des charges/bail' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'depot_garantie', label: "Dépôt de garantie", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'taxe_fonciere', label: "Taxe foncière annuelle", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'assurance_pno', label: "Assurance PNO", type: 'number', unit: '€', cat: '💰 Finances' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'rendement_brut', label: "Rendement brut", type: 'text', cat: '💰 Finances', hint: 'Auto-calculé (Loyer x 12 / Prix)' },
-  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'rendement_net', label: "Rendement net", type: 'text', cat: '💰 Finances', hint: 'Auto-calculé après charges et taxes' },
+  // Finances & Acquisition
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'prix_achat', label: "Prix d'achat", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'frais_notaire', label: "Frais de notaire", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'travaux_initiaux', label: "Travaux initiaux", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'prix_revient_total', label: "Prix de revient total", type: 'number', unit: '€', cat: 'Finances', hint: 'Auto-calculé si non renseigné' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'valeur_estimee', label: "Valeur actuelle estimée", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'loyer_actuel', label: "Loyer mensuel hors charges", type: 'number', unit: '€', cat: 'Finances', hint: 'Auto-extrait du bail si non saisi' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'charges_mensuelles', label: "Charges mensuelles", type: 'number', unit: '€', cat: 'Finances', hint: 'Auto-extrait des charges/bail' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'depot_garantie', label: "Dépôt de garantie", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'taxe_fonciere', label: "Taxe foncière annuelle", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'assurance_pno', label: "Assurance PNO", type: 'number', unit: '€', cat: 'Finances' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'rendement_brut', label: "Rendement brut", type: 'text', cat: 'Finances', hint: 'Auto-calculé (Loyer x 12 / Prix)' },
+  { group: 'finances', subfolder: '04_FINANCES', typeDoc: 'facture', key: 'rendement_net', label: "Rendement net", type: 'text', cat: 'Finances', hint: 'Auto-calculé après charges et taxes' },
 
-  // ⚡ Compteurs & Équipements
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_chauffage', label: "Chauffage", type: 'select', options: ['—', 'Individuel gaz', 'Individuel Électrique', 'Collectif Gaz', 'Pompe à chaleur', 'Autre'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_eau_chaude', label: "Eau chaude", type: 'select', options: ['—', 'Chaudière gaz', 'Ballon électrique', 'Collectif', 'Autre'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_energie', label: "Énergie principale", type: 'select', options: ['—', 'Électricité', 'Gaz naturel', 'Fioul', 'Bois / Pellets'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_clim', label: "Climatisation", type: 'select', options: ['—', 'Non', 'Oui (Réversible)', 'Oui (Mobile)'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_fibre', label: "Fibre optique", type: 'select', options: ['—', 'Oui (Prise PTO)', 'Éligible (non raccordé)', 'Non'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_vmc', label: "VMC", type: 'select', options: ['—', 'Simple flux', 'Double flux', 'Ventilation naturelle', 'Aucune'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_interphone', label: "Interphone", type: 'select', options: ['—', 'Oui', 'Non'], cat: '⚡ Équipements' },
-  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_daf', label: "Détecteur de fumée", type: 'select', options: ['—', 'Oui', 'Non'], cat: '⚡ Équipements' },
+  // Compteurs & Équipements
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_chauffage', label: "Chauffage", type: 'select', options: ['—', 'Individuel gaz', 'Individuel Électrique', 'Collectif Gaz', 'Pompe à chaleur', 'Autre'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_eau_chaude', label: "Eau chaude", type: 'select', options: ['—', 'Chaudière gaz', 'Ballon électrique', 'Collectif', 'Autre'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_energie', label: "Énergie principale", type: 'select', options: ['—', 'Électricité', 'Gaz naturel', 'Fioul', 'Bois / Pellets'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_clim', label: "Climatisation", type: 'select', options: ['—', 'Non', 'Oui (Réversible)', 'Oui (Mobile)'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_fibre', label: "Fibre optique", type: 'select', options: ['—', 'Oui (Prise PTO)', 'Éligible (non raccordé)', 'Non'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_vmc', label: "VMC", type: 'select', options: ['—', 'Simple flux', 'Double flux', 'Ventilation naturelle', 'Aucune'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_interphone', label: "Interphone", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Équipements' },
+  { group: 'compteurs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'eq_daf', label: "Détecteur de fumée", type: 'select', options: ['—', 'Oui', 'Non'], cat: 'Équipements' },
 
-  // 🔑 Clés & Accès
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_logement', label: "Clés logement", type: 'number', cat: '🔑 Clés & Accès' },
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_bal', label: "Clés boîte aux lettres", type: 'number', cat: '🔑 Clés & Accès' },
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_badge_immeuble', label: "Badge immeuble", type: 'number', cat: '🔑 Clés & Accès' },
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_telecommande_garage', label: "Télécommande garage", type: 'number', cat: '🔑 Clés & Accès' },
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_code_portail', label: "Code portail", type: 'text', cat: '🔑 Clés & Accès' },
-  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_code_interphone', label: "Code interphone", type: 'text', cat: '🔑 Clés & Accès' },
+  // Clés & Accès
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_logement', label: "Clés logement", type: 'number', cat: 'Clés & Accès' },
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_bal', label: "Clés boîte aux lettres", type: 'number', cat: 'Clés & Accès' },
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_badge_immeuble', label: "Badge immeuble", type: 'number', cat: 'Clés & Accès' },
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_telecommande_garage', label: "Télécommande garage", type: 'number', cat: 'Clés & Accès' },
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_code_portail', label: "Code portail", type: 'text', cat: 'Clés & Accès' },
+  { group: 'clefs', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'clefs_code_interphone', label: "Code interphone", type: 'text', cat: 'Clés & Accès' },
 
-  // 📍 Localisation
-  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_adresse', label: "Adresse complète", type: 'text', cat: '📍 Localisation' },
-  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_train', label: "Gare / Train le plus proche", type: 'text', placeholder: 'ex: 5 min (Auto si vide)', cat: '📍 Localisation' },
-  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_commerces', label: "Commerces", type: 'text', placeholder: 'ex: 2 min (Auto si vide)', cat: '📍 Localisation' },
-  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_ecole', label: "École", type: 'text', placeholder: 'ex: 4 min (Auto si vide)', cat: '📍 Localisation' },
-  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_hopital', label: "Hôpital", type: 'text', placeholder: 'ex: 10 min (Auto si vide)', cat: '📍 Localisation' },
+  // Localisation
+  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_adresse', label: "Adresse complète", type: 'text', cat: 'Localisation' },
+  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_train', label: "Gare / Train le plus proche", type: 'text', placeholder: 'ex: 5 min (Auto si vide)', cat: 'Localisation' },
+  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_commerces', label: "Commerces", type: 'text', placeholder: 'ex: 2 min (Auto si vide)', cat: 'Localisation' },
+  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_ecole', label: "École", type: 'text', placeholder: 'ex: 4 min (Auto si vide)', cat: 'Localisation' },
+  { group: 'localisation', subfolder: '01_ADMINISTRATIF', typeDoc: 'autre', key: 'loc_hopital', label: "Hôpital", type: 'text', placeholder: 'ex: 10 min (Auto si vide)', cat: 'Localisation' },
 
-  // 🛠️ État du logement
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_general', label: "État général", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_cuisine', label: "Cuisine", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_salle_de_bain', label: "Salle de bain", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_electricite', label: "Électricité", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_plomberie', label: "Plomberie", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_peintures', label: "Peintures", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'date_renovation', label: "Dernière rénovation", type: 'text', placeholder: 'ex: 2024', cat: '🛠️ État du logement' },
-  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'date_inspection', label: "Dernière inspection", type: 'date', cat: '🛠️ État du logement' },
+  // État du logement
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_general', label: "État général", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_cuisine', label: "Cuisine", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_salle_de_bain', label: "Salle de bain", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_electricite', label: "Électricité", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_plomberie', label: "Plomberie", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'etat_peintures', label: "Peintures", type: 'select', options: ['—', 'Excellent', 'Très bon', 'Bon', 'Moyen', 'À prévoir'], cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'date_renovation', label: "Dernière rénovation", type: 'text', placeholder: 'ex: 2024', cat: 'État du logement' },
+  { group: 'etat', subfolder: '05_TRAVAUX', typeDoc: 'autre', key: 'date_inspection', label: "Dernière inspection", type: 'date', cat: 'État du logement' },
 
-  // 🏢 Copropriété
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'copro_nom', label: "Nom de la copropriété", type: 'text', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'syndic_nom', label: "Syndic", type: 'text', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'charges_trimestrielles', label: "Charges trimestrielles", type: 'number', unit: '€', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'copro_tantiemes', label: "Tantièmes", type: 'text', placeholder: 'ex: 125 / 10 000', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'date_derniere_ag', label: "Dernière AG", type: 'date', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'date_prochaine_ag', label: "Prochaine AG", type: 'date', cat: '🏢 Copropriété' },
-  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'fonds_travaux', label: "Fonds travaux", type: 'number', unit: '€', cat: '🏢 Copropriété' },
+  // Copropriété
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'copro_nom', label: "Nom de la copropriété", type: 'text', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'syndic_nom', label: "Syndic", type: 'text', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'charges_trimestrielles', label: "Charges trimestrielles", type: 'number', unit: '€', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'copro_tantiemes', label: "Tantièmes", type: 'text', placeholder: 'ex: 125 / 10 000', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'date_derniere_ag', label: "Dernière AG", type: 'date', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'date_prochaine_ag', label: "Prochaine AG", type: 'date', cat: 'Copropriété' },
+  { group: 'copropriete', subfolder: '03_COPROPRIETE', typeDoc: 'autre', key: 'fonds_travaux', label: "Fonds travaux", type: 'number', unit: '€', cat: 'Copropriété' },
 ]
 
 export function getFileIcon(filePath) {
-  if (!filePath) return '📎 Fichier'
+  if (!filePath) return 'Fichier'
   const lower = String(filePath).toLowerCase()
-  if (lower.endsWith('.pdf')) return '📄 PDF'
-  if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv')) return '📊 Excel'
-  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) return '🖼️ Image'
-  if (lower.endsWith('.doc') || lower.endsWith('.docx') || lower.endsWith('.txt')) return '📝 Doc'
-  return '📎 Fichier'
+  if (lower.endsWith('.pdf')) return 'PDF'
+  if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv')) return 'Excel'
+  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) return 'Image'
+  if (lower.endsWith('.doc') || lower.endsWith('.docx') || lower.endsWith('.txt')) return 'Doc'
+  return 'Fichier'
 }
 
 export function getFilenameFromPath(path) {
@@ -323,7 +324,7 @@ export default function BienOverviewTab({
         statut: updatedStatut,
       })
 
-      setMsg('✅ Informations et surface du logement enregistrées avec succès !')
+      setMsg(' Informations et surface du logement enregistrées avec succès !')
       setIsEditing(false)
       await loadData()
       if (onEdit) onEdit()
@@ -385,7 +386,7 @@ export default function BienOverviewTab({
           <div className="dash-card card-finances">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#DCFCE7', color: '#16A34A' }}>💲</span>
+                <span className="dash-card-icon" style={{ background: "#DCFCE7", color: "#16A34A" }}><Icon name="wallet" size={18} color="#16A34A" /></span>
                 <h3>FINANCES</h3>
               </div>
               <button className="dash-card-link" onClick={() => onNavigateTab && onNavigateTab('finances')}>
@@ -431,7 +432,7 @@ export default function BienOverviewTab({
           <div className="dash-card">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#EFF6FF', color: '#3B82F6' }}>🚙</span>
+                <span className="dash-card-icon" style={{ background: "#EFF6FF", color: "#3B82F6" }}><Icon name="house" size={18} color="#3B82F6" /></span>
                 <h3>CARACTÉRISTIQUES</h3>
               </div>
             </div>
@@ -457,7 +458,7 @@ export default function BienOverviewTab({
           <div className="dash-card">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#F5F3FF', color: '#8B5CF6' }}>⚡</span>
+                <span className="dash-card-icon" style={{ background: "#F5F3FF", color: "#8B5CF6" }}><Icon name="zap" size={18} color="#8B5CF6" /></span>
                 <h3>ÉQUIPEMENTS</h3>
               </div>
             </div>
@@ -479,7 +480,7 @@ export default function BienOverviewTab({
           <div className="dash-card">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#FEF3C7', color: '#D97706' }}>🔑</span>
+                <span className="dash-card-icon" style={{ background: "#FEF3C7", color: "#D97706" }}><Icon name="key" size={18} color="#D97706" /></span>
                 <h3>CLÉS & ACCÈS</h3>
               </div>
             </div>
@@ -499,7 +500,7 @@ export default function BienOverviewTab({
           <div className="dash-card">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#ECFDF5', color: '#10B981' }}>📍</span>
+                <span className="dash-card-icon" style={{ background: "#ECFDF5", color: "#10B981" }}><Icon name="mapPin" size={18} color="#10B981" /></span>
                 <h3>LOCALISATION</h3>
               </div>
             </div>
@@ -512,7 +513,7 @@ export default function BienOverviewTab({
                     openExternalUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`)
                   }
                 }}
-                title="📍 Cliquer pour ouvrir la carte dans Google Maps"
+                title="Cliquer pour ouvrir la carte dans Google Maps"
               >
                 {getVal('loc_adresse', bien.adresse) !== '—' ? (
                   <>
@@ -533,12 +534,12 @@ export default function BienOverviewTab({
                         display: 'flex', alignItems: 'center', gap: 4, backdropFilter: 'blur(4px)'
                       }}
                     >
-                      📍 Ouvrir dans Google Maps ↗
+                      Ouvrir dans Google Maps ↗
                     </div>
                   </>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#F1F5F9', color: '#94A3B8', fontSize: 13 }}>
-                    📍 Adresse non renseignée
+                    Adresse non renseignée
                   </div>
                 )}
               </div>
@@ -573,48 +574,48 @@ export default function BienOverviewTab({
                       <div
                         className="amenity-item"
                         onClick={() => handleOpenMapRoute('Gare', 'transit')}
-                        title="🧭 Cliquer pour calculer l'itinéraire réel vers la Gare sur Google Maps"
+                        title="Cliquer pour calculer l'itinéraire réel vers la Gare sur Google Maps"
                       >
-                        <span className="amenity-icon">🚆</span>
+                        <span className="amenity-icon"><Icon name="mapPin" size={15} color="#3b82f6" /></span>
                         <span className="amenity-label">Gare / Train</span>
                         <strong>{displayTrain}</strong>
-                        <span className="amenity-route-hint">🧭 Itinéraire ↗</span>
+                        <span className="amenity-route-hint">Itinéraire ↗</span>
                       </div>
                     )}
                     {displayCommerces && (
                       <div
                         className="amenity-item"
                         onClick={() => handleOpenMapRoute('Commerces Supermarche', 'walking')}
-                        title="🧭 Cliquer pour calculer l'itinéraire réel vers les Commerces sur Google Maps"
+                        title="Cliquer pour calculer l'itinéraire réel vers les Commerces sur Google Maps"
                       >
-                        <span className="amenity-icon">🛒</span>
+                        <span className="amenity-icon"><Icon name="house" size={15} color="#10b981" /></span>
                         <span className="amenity-label">Commerces</span>
                         <strong>{displayCommerces}</strong>
-                        <span className="amenity-route-hint">🧭 Itinéraire ↗</span>
+                        <span className="amenity-route-hint">Itinéraire ↗</span>
                       </div>
                     )}
                     {displayEcole && (
                       <div
                         className="amenity-item"
                         onClick={() => handleOpenMapRoute('Ecole', 'walking')}
-                        title="🧭 Cliquer pour calculer l'itinéraire réel vers l'École sur Google Maps"
+                        title="Cliquer pour calculer l'itinéraire réel vers l'École sur Google Maps"
                       >
-                        <span className="amenity-icon">🎓</span>
+                        <span className="amenity-icon"><Icon name="fileText" size={15} color="#6366f1" /></span>
                         <span className="amenity-label">École</span>
                         <strong>{displayEcole}</strong>
-                        <span className="amenity-route-hint">🧭 Itinéraire ↗</span>
+                        <span className="amenity-route-hint">Itinéraire ↗</span>
                       </div>
                     )}
                     {displayHopital && (
                       <div
                         className="amenity-item"
                         onClick={() => handleOpenMapRoute('Hopital', 'driving')}
-                        title="🧭 Cliquer pour calculer l'itinéraire réel vers l'Hôpital sur Google Maps"
+                        title="Cliquer pour calculer l'itinéraire réel vers l'Hôpital sur Google Maps"
                       >
-                        <span className="amenity-icon">🏥</span>
+                        <span className="amenity-icon"><Icon name="shield" size={15} color="#ef4444" /></span>
                         <span className="amenity-label">Hôpital</span>
                         <strong>{displayHopital}</strong>
-                        <span className="amenity-route-hint">🧭 Itinéraire ↗</span>
+                        <span className="amenity-route-hint">Itinéraire ↗</span>
                       </div>
                     )}
                   </div>
@@ -627,7 +628,7 @@ export default function BienOverviewTab({
           <div className="dash-card">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#FEF3C7', color: '#D97706' }}>📄</span>
+                <span className="dash-card-icon" style={{ background: "#FEF3C7", color: "#D97706" }}><Icon name="fileText" size={18} color="#D97706" /></span>
                 <h3>ÉTAT DU LOGEMENT</h3>
               </div>
             </div>
@@ -649,7 +650,7 @@ export default function BienOverviewTab({
           <div className="dash-card card-full-width">
             <div className="dash-card-header">
               <div className="dash-card-title">
-                <span className="dash-card-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>🏢</span>
+                <span className="dash-card-icon" style={{ background: "#EFF6FF", color: "#2563EB" }}><Icon name="building" size={18} color="#2563EB" /></span>
                 <h3>COPROPRIÉTÉ</h3>
               </div>
             </div>
@@ -706,13 +707,13 @@ export default function BienOverviewTab({
         /* ── MODE ÉDITION ORGANISÉ PAR CATÉGORIES (SANS AUCUN CRASH) ── */
         <div className="card" style={{ padding: 24, background: 'var(--color-surface)', borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
-            <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>✏️ Édition complète des informations par catégorie</h4>
+            <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Édition complète des informations par catégorie</h4>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}>
-                ❌ Annuler
+                 Annuler
               </button>
               <button className="btn btn-success btn-sm" disabled={saving} onClick={saveAll}>
-                💾 Enregistrer tout
+                Enregistrer tout
               </button>
             </div>
           </div>
@@ -766,14 +767,14 @@ export default function BienOverviewTab({
                                     if (rel) {
                                       const pathStr = typeof rel === 'string' ? rel : (rel?.relative_path || String(rel))
                                       setDraftValues(prev => ({ ...prev, [`_pdf_${f.key}`]: pathStr }))
-                                      setMsg(`📎 Fichier copié dans ${f.subfolder} pour ${f.label}`)
+                                      setMsg(`Fichier copié dans ${f.subfolder} pour ${f.label}`)
                                     }
                                   }
                                 } catch(e) {}
                               }}
                               title={`Sélectionner un fichier pour ${f.label}`}
                             >
-                              📎 Fichier
+                              Fichier
                             </button>
                           </div>
 
@@ -820,10 +821,10 @@ export default function BienOverviewTab({
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
             <button className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}>
-              ❌ Annuler
+               Annuler
             </button>
             <button className="btn btn-success btn-sm" disabled={saving} onClick={saveAll}>
-              💾 Enregistrer tout
+              Enregistrer tout
             </button>
           </div>
         </div>

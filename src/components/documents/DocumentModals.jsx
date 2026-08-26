@@ -16,7 +16,7 @@ export function RenameModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
         <div className="modal-header">
-          <h3>✏️ Renommer le document</h3>
+          <h3> Renommer le document</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={onSubmit}>
@@ -61,7 +61,7 @@ export function MoveModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
         <div className="modal-header">
-          <h3>📂 Déplacer vers un autre dossier</h3>
+          <h3> Déplacer vers un autre dossier</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={onSubmit}>
@@ -73,7 +73,7 @@ export function MoveModal({
               onChange={(e) => setMoveTarget(e.target.value)}
             >
               {availableFolders.map((f) => (
-                <option key={f.value} value={f.value}>📁 {f.label}</option>
+                <option key={f.value} value={f.value}>{f.label}</option>
               ))}
             </select>
           </div>
@@ -133,7 +133,7 @@ export function DeleteConfirmModal({
             </div>
           </div>
           <p style={{ marginTop: 12, fontSize: 12, color: 'var(--color-danger)', fontWeight: 500 }}>
-            ⚠️ Cette action supprimera physiquement le fichier sur votre ordinateur.
+             Cette action supprimera physiquement le fichier sur votre ordinateur.
           </p>
         </div>
         <div className="modal-footer">
@@ -145,7 +145,7 @@ export function DeleteConfirmModal({
             className="btn btn-danger"
             onClick={() => onConfirm(file)}
           >
-            🗑️ Supprimer définitivement
+             Supprimer définitivement
           </button>
         </div>
       </div>

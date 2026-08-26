@@ -169,24 +169,24 @@ export default function FicheBienDetailModal({ bien, onClose, onRefresh, onOpenQ
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-subtle)' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🏠 {bien.nom}
+               {bien.nom}
               <span className="badge badge-info">{labelTypeBien(bien.type_bien)}</span>
             </h3>
-            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>📁 {bien.chemin_dossier}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>{bien.chemin_dossier}</span>
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setTab('email')} title="Configurer une adresse email dédiée au bien">
-              ✉️ Email
+              Email
             </button>
             <button className="btn btn-secondary btn-sm" onClick={() => onOpenExcelGenerator(bien.id)} title="Générer un tableau sur mesure">
-              📊 Modèle Excel
+              Modèle Excel
             </button>
             <button className="btn btn-secondary btn-sm" onClick={() => onOpenQuickDoc(bien.id)} title="Associer un fichier PDF">
-              📎 Associer un document
+              Associer un document
             </button>
             <button className="btn btn-primary btn-sm" onClick={handleSyncExcel} title="Resynchroniser les fichiers Excel">
-              🔄 Synchro Excel
+              Synchro Excel
             </button>
             <button className="btn btn-ghost btn-icon" onClick={onClose}><Icon name="x" size={18} /></button>
           </div>
@@ -481,7 +481,7 @@ export default function FicheBienDetailModal({ bien, onClose, onRefresh, onOpenQ
                   <tbody>
                     {documents.map(doc => (
                       <tr key={doc.id}>
-                        <td className="fw-600">📄 {doc.chemin_fichier.split(/[\\/]/).pop()}</td>
+                        <td className="fw-600"> {doc.chemin_fichier.split(/[\\/]/).pop()}</td>
                         <td className="text-muted" style={{ fontSize: 11 }}>{doc.sous_categorie || 'Racine'}</td>
                         <td><span className="badge badge-info">{doc.type_doc || 'Autre'}</span></td>
                       </tr>

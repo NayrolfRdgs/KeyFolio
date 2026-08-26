@@ -1,3 +1,4 @@
+import Icon from '../common/Icon'
 import React, { useState, useEffect } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { getFilePreview } from '../../lib/db'
@@ -66,7 +67,7 @@ export default function BienImage({ src, alt, style, className, onClick }) {
         className={className}
         onClick={onClick}
       >
-        <span style={{ fontSize: 24, opacity: 0.6 }}>📸</span>
+        <Icon name="camera" size={24} color="#94a3b8" />
       </div>
     )
   }

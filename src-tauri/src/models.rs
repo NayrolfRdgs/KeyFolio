@@ -43,6 +43,38 @@ where
     }
 }
 
+pub fn deserialize_flexible_opt_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OptI64OrString {
+        I64(i64),
+        F64(f64),
+        String(String),
+        None,
+    }
+
+    match Option::<OptI64OrString>::deserialize(deserializer)? {
+        Some(OptI64OrString::I64(v)) => Ok(Some(v)),
+        Some(OptI64OrString::F64(v)) => Ok(Some(v as i64)),
+        Some(OptI64OrString::String(s)) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else if let Ok(parsed) = trimmed.parse::<i64>() {
+                Ok(Some(parsed))
+            } else if let Ok(parsed_f) = trimmed.parse::<f64>() {
+                Ok(Some(parsed_f as i64))
+            } else {
+                Err(de::Error::custom("invalid integer"))
+            }
+        }
+        Some(OptI64OrString::None) | None => Ok(None),
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Bien {
     pub id: Option<i64>,
@@ -57,6 +89,34 @@ pub struct Bien {
     pub surface_m2: Option<f64>,
     pub notes: Option<String>,
     pub created_at: Option<String>,
+
+    // Champs Projet (Phase 7)
+    pub phase_actuelle: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_i64")]
+    pub pourcentage_avancement: Option<i64>,
+    pub date_livraison_prevue: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub budget_prevision: Option<f64>,
+
+    // Champs Caractéristiques & Valeur (Phase 7)
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub valeur_estimee: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub latitude: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub longitude: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_i64")]
+    pub nb_pieces: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_i64")]
+    pub nb_chambres: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_i64")]
+    pub nb_salles_bain: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_f64")]
+    pub surface_terrain: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_flexible_opt_i64")]
+    pub annee_construction: Option<i64>,
+    pub classe_energetique: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

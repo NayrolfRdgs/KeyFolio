@@ -36,7 +36,7 @@ export default function AddDocumentModal({
               style={{ flex: 1, fontSize: 13, padding: '6px 12px' }}
               onClick={() => setDocType('file')}
             >
-              📄 Fichier local
+              Fichier local
             </button>
             <button
               type="button"
@@ -44,7 +44,7 @@ export default function AddDocumentModal({
               style={{ flex: 1, fontSize: 13, padding: '6px 12px' }}
               onClick={() => setDocType('link')}
             >
-              🌐 Lien Web (URL)
+              Lien Web (URL)
             </button>
           </div>
 
@@ -56,7 +56,7 @@ export default function AddDocumentModal({
               onChange={(e) => setTargetSubfolder(e.target.value)}
             >
               {availableFolders.map((f) => (
-                <option key={f.value} value={f.value}>📁 {f.label}</option>
+                <option key={f.value} value={f.value}>{f.label}</option>
               ))}
             </select>
           </div>

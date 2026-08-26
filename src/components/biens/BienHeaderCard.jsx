@@ -1,6 +1,7 @@
 import React from 'react'
 import BienImage from './BienImage'
 import { formatEuro, formatDate } from '../../lib/utils'
+import Icon from '../common/Icon'
 
 export default function BienHeaderCard({
   bien,
@@ -64,16 +65,16 @@ export default function BienHeaderCard({
                 <BienImage src={allPhotoPaths[0]} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 4, color: 'var(--text-muted)' }}>
-                  <span style={{ fontSize: 32, opacity: 0.5 }}>📸</span>
+                  <Icon name="camera" size={32} color="#94a3b8" />
                   <span style={{ fontSize: 11, fontWeight: 600 }}>Aucune photo</span>
                 </div>
               )}
               <button
                 className="btn btn-secondary btn-sm"
-                style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(15,23,42,0.75)', color: '#FFF', border: 'none', padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 5, cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+                style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(15,23,42,0.75)', color: '#FFF', border: 'none', padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 5, cursor: 'pointer', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: 4 }}
                 onClick={onOpenGallery}
               >
-                📷 Voir photos ({allPhotoPaths.length})
+                <Icon name="camera" size={12} color="#ffffff" /> Voir photos ({allPhotoPaths.length})
               </button>
             </div>
 
@@ -104,14 +105,17 @@ export default function BienHeaderCard({
             {/* Infos bien */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: 'var(--text-primary)' }}>🏠 {bien.nom}</h2>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="house" size={20} color="var(--color-accent)" />
+                  {bien.nom}
+                </h2>
                 <span className="badge" style={{ background: badgeBg, color: badgeColor, borderRadius: 12, padding: '2px 8px', fontSize: 11, fontWeight: 800 }}>
                   ● {badgeText}
                 </span>
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 4 }}>
-                📍 {propertyAddress || '—'}
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="mapPin" size={13} color="#64748b" /> {propertyAddress || '—'}
               </div>
 
               <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4 }}>
@@ -125,22 +129,25 @@ export default function BienHeaderCard({
                 {activeBail ? (
                   <div>
                     <span
-                      style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', cursor: 'pointer' }}
+                      style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                       onClick={onNavigateLocataires}
                     >
-                      👤 {activeBail.locataire_prenom} {activeBail.locataire_nom}
+                      <Icon name="user" size={14} color="#64748b" />
+                      {activeBail.locataire_prenom} {activeBail.locataire_nom}
                     </span>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                       Bail {activeBail.type_bail || 'Location'} · Début : {formatDate(activeBail.date_debut)}
                     </div>
                   </div>
                 ) : champsMap['mode_occupation'] ? (
-                  <div style={{ fontSize: 12, fontWeight: 800, color: badgeColor }}>
-                    🏠 {champsMap['mode_occupation']}
+                  <div style={{ fontSize: 12, fontWeight: 800, color: badgeColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name="house" size={13} color={badgeColor} />
+                    {champsMap['mode_occupation']}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 700 }}>
-                    🔴 Logement vacant / Sans bail actif
+                  <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name="alert" size={12} color="#DC2626" />
+                    Logement vacant / Sans bail actif
                   </div>
                 )}
               </div>
@@ -175,14 +182,14 @@ export default function BienHeaderCard({
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <h4 style={{ margin: 0, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-              📋 RÉSUMÉ DU LOGEMENT
+              RÉSUMÉ DU LOGEMENT
             </h4>
             <div style={{ display: 'flex', gap: 4 }}>
-              <button className="btn btn-primary btn-sm" onClick={onNavigateToEdit} style={{ padding: '2px 6px', fontSize: 10 }}>
-                ✏️ Modifier
+              <button className="btn btn-primary btn-sm" onClick={onNavigateToEdit} style={{ padding: '2px 6px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="edit" size={11} /> Modifier
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={onAttachDoc} style={{ padding: '2px 6px', fontSize: 10 }}>
-                📎 Joindre
+              <button className="btn btn-secondary btn-sm" onClick={onAttachDoc} style={{ padding: '2px 6px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="paperclip" size={11} /> Joindre
               </button>
             </div>
           </div>
@@ -212,11 +219,11 @@ export default function BienHeaderCard({
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border-color)' }}>
-          <button className="btn btn-ghost btn-sm" style={{ flex: 1, padding: '4px 6px', fontSize: 11 }} onClick={onOpenMap}>
-            🗺️ Carte / Map
+          <button className="btn btn-ghost btn-sm" style={{ flex: 1, padding: '4px 6px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }} onClick={onOpenMap}>
+            <Icon name="map" size={12} /> Carte / Map
           </button>
-          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 6px', fontSize: 11 }} onClick={onSyncExcel} title="Régénérer Excel">
-            🔄 Excel
+          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 6px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }} onClick={onSyncExcel} title="Régénérer Excel">
+            <Icon name="refresh" size={12} /> Excel
           </button>
         </div>
       </div>

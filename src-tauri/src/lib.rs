@@ -40,6 +40,7 @@ pub fn run() {
             commands::biens::delete_bien,
             commands::biens::copy_file_to_bien,
             commands::biens::open_file_path,
+            commands::biens::open_bien_folder,
             commands::biens::get_file_preview,
             commands::biens::read_excel_file_preview,
             commands::biens::read_excel_sheet,

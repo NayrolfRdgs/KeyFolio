@@ -29,13 +29,16 @@ import BienPhotosGalleryModal from '../components/biens/BienPhotosGalleryModal'
 import BienImage from '../components/biens/BienImage'
 import NewBailModal from '../components/baux/NewBailModal'
 
+import BienPlanViewerTab from '../components/biens/BienPlanViewerTab'
+
 const TABS = [
-  { id: 'generale',    icon: '📋', label: 'Infos' },
-  { id: 'finances',    icon: '💶', label: 'Finances' },
-  { id: 'occupation',  icon: '🏠', label: 'Occupation & Bail' },
-  { id: 'documents',   icon: '📄', label: 'Documents' },
-  { id: 'maintenance', icon: '🔧', label: 'Maintenance' },
-  { id: 'email',       icon: '✉️', label: 'Email' },
+  { id: 'generale',    icon: 'fileText', label: 'Infos' },
+  { id: 'plan',        icon: 'plan', label: 'Plan' },
+  { id: 'finances',    icon: 'wallet', label: 'Finances' },
+  { id: 'occupation',  icon: 'house', label: 'Occupation & Bail' },
+  { id: 'documents',   icon: 'folder', label: 'Documents' },
+  { id: 'maintenance', icon: 'wrench', label: 'Maintenance' },
+  { id: 'email',       icon: 'mail', label: 'Email' },
 ]
 
 export default function BienPanel({ bienId, initialTab = 'generale', mailOptions = null, onNavigate, onOpenMail, onOpenInDocuments, onOpenSettings }) {
@@ -299,7 +302,7 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
   if (loading) return (
     <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
       <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
+        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
         <p>Chargement du logement...</p>
       </div>
     </div>
@@ -366,8 +369,10 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
                 key={t.id}
                 className={`bien-tab-btn ${tab === t.id ? 'active' : ''}`}
                 onClick={() => setTab(t.id)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                <span>{t.icon}</span> {t.label}
+                <Icon name={t.icon} size={15} color={tab === t.id ? 'var(--color-accent)' : 'var(--text-muted)'} />
+                <span>{t.label}</span>
               </button>
             ))}
           </div>
@@ -384,6 +389,13 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
                       isEditingExternal={isEditingOverview}
                       setIsEditingExternal={setIsEditingOverview}
                     />
+                  )}
+
+                  {/* ── TAB PLAN ── */}
+                  {tab === 'plan' && (
+                    <div style={{ background: 'var(--color-surface)', padding: 16, borderRadius: 10, border: '1px solid var(--border-color)' }}>
+                      <BienPlanViewerTab bien={bien} />
+                    </div>
                   )}
 
                   {/* ── TAB FINANCES ── */}
@@ -494,7 +506,7 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           champsMap={champsMap}
           onClose={() => setBailModal(false)}
           onSuccess={() => {
-            setSyncMsg('✅ Nouveau bail et locataire enregistrés avec succès !')
+            setSyncMsg(' Nouveau bail et locataire enregistrés avec succès !')
             loadAll()
             setTimeout(() => setSyncMsg(''), 4000)
           }}

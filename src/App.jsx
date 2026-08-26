@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react'
 import Sidebar             from './components/layout/Sidebar'
 import Dashboard           from './pages/Dashboard'
 import Biens               from './pages/Biens'
+import Prets               from './pages/Prets'
+import Rendements          from './pages/Rendements'
+import Simulations         from './pages/Simulations'
 import Locataires          from './pages/Locataires'
 import Baux                from './pages/Baux'
+import EtatsDesLieux       from './pages/EtatsDesLieux'
 import Paiements           from './pages/Paiements'
 import Depenses            from './pages/Depenses'
 import Documents           from './pages/Documents'
 import Maintenance         from './pages/Maintenance'
+import TachesEcheances     from './pages/TachesEcheances'
+import AnalysesRapports    from './pages/AnalysesRapports'
+import NotificationsPage   from './pages/NotificationsPage'
 import BienPanel           from './pages/BienPanel'
 import GlobalSearchModal   from './components/common/GlobalSearchModal'
 import ExcelGeneratorModal from './components/documents/ExcelGeneratorModal'
@@ -19,6 +26,16 @@ import { initThemeListener } from './lib/theme'
 export default function App() {
   useEffect(() => {
     initThemeListener()
+
+    // Raccourci universel Ctrl + K pour la recherche globale
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchModalOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   const [page, setPage] = useState('dashboard')
@@ -41,12 +58,15 @@ export default function App() {
   const navigate = (p, param = null) => {
     setMailOptions(null)
     setDocumentFilePath(null)
+    if (p === 'settings') {
+      handleOpenSettings('general')
+      return
+    }
     if (p === 'bien' && param) {
       setCurrentBienId(param)
-      setSelectedBienId(param) // Synchroniser le bien sélectionné
+      setSelectedBienId(param)
       setPage('bien')
     } else if (p === 'documents' && param) {
-      // param peut être un objet { bienId, filePath } ou juste un id numérique
       if (typeof param === 'object' && param.bienId) {
         setSelectedBienId(param.bienId)
         setDocumentFilePath(param.filePath || null)
@@ -73,22 +93,41 @@ export default function App() {
         return <Dashboard onNavigate={navigate} onOpenWizard={() => setWizardOpen(true)} />
       case 'biens':
         return <Biens onNavigate={navigate} onOpenWizard={() => setWizardOpen(true)} />
+      case 'projets':
+      case 'carte':
+        return <Biens onNavigate={navigate} initialFilter="projet" onOpenWizard={() => setWizardOpen(true)} />
+      case 'prets':
+        return <Prets onNavigate={navigate} />
+      case 'rendements':
+        return <Rendements onNavigate={navigate} />
+      case 'simulations':
+        return <Simulations onNavigate={navigate} />
       case 'locataires':
         return <Locataires onNavigate={navigate} onOpenMail={openMail} />
       case 'baux':
         return <Baux onNavigate={navigate} onOpenMail={openMail} />
+      case 'edl':
+        return <EtatsDesLieux onNavigate={navigate} />
       case 'paiements':
         return <Paiements onNavigate={navigate} onOpenMail={openMail} />
       case 'depenses':
         return <Depenses onNavigate={navigate} />
-      case 'documents':
-        return <Documents onNavigate={navigate} initialFilePath={documentFilePath} />
       case 'maintenance':
         return <Maintenance onNavigate={navigate} />
+      case 'taches':
+      case 'echeances':
+        return <TachesEcheances onNavigate={navigate} />
+      case 'documents':
+        return <Documents onNavigate={navigate} initialFilePath={documentFilePath} />
+      case 'analyses':
+      case 'rapports':
+        return <AnalysesRapports onNavigate={navigate} />
+      case 'notifications':
+        return <NotificationsPage onNavigate={navigate} />
       case 'bien':
         return <BienPanel bienId={currentBienId} onNavigate={navigate} initialOptions={mailOptions} onOpenSettings={handleOpenSettings} />
       default:
-        return <Dashboard onNavigate={navigate} />
+        return <Dashboard onNavigate={navigate} onOpenWizard={() => setWizardOpen(true)} />
     }
   }
 

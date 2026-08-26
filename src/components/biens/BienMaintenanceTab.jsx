@@ -20,7 +20,7 @@ export default function BienMaintenanceTab({
 
       {maintenance.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🔧</div>
+          <div className="empty-state-icon"><Icon name="wrench" size={40} color="#94a3b8" /></div>
           <p>Aucun ticket de maintenance pour ce logement</p>
         </div>
       ) : (

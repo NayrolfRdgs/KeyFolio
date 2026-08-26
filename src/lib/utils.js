@@ -2,16 +2,16 @@
 import { useState, useCallback } from 'react'
 
 export const SUBFOLDERS = [
-  { id: '01_ADMINISTRATIF', label: '01. Administratif', icon: '📋' },
-  { id: '02_DIAGNOSTICS_DDT', label: '02. Diagnostics (DDT)', icon: '🔍' },
-  { id: '03_COPROPRIETE', label: '03. Copropriété', icon: '🏢' },
-  { id: '04_FISCAL_FINANCIER', label: '04. Fiscal & Financier', icon: '💶' },
-  { id: '05_TRAVAUX', label: '05. Travaux & Devis', icon: '🔨' },
-  { id: '06_ENERGIE_CONTRATS', label: '06. Énergie & Contrats', icon: '⚡' },
-  { id: '07_LOCATION', label: '07. Location (Baux)', icon: '🔑' },
-  { id: '08_GESTION', label: '08. Gestion courante', icon: '📂' },
-  { id: '09_VENTE', label: '09. Vente & Notaire', icon: '📜' },
-  { id: '10_DIVERS', label: '10. Divers & Photos', icon: '📁' },
+  { id: '01_ADMINISTRATIF', label: '01. Administratif', icon: 'fileText' },
+  { id: '02_DIAGNOSTICS_DDT', label: '02. Diagnostics (DDT)', icon: 'search' },
+  { id: '03_COPROPRIETE', label: '03. Copropriété', icon: 'building' },
+  { id: '04_FISCAL_FINANCIER', label: '04. Fiscal & Financier', icon: 'wallet' },
+  { id: '05_TRAVAUX', label: '05. Travaux & Devis', icon: 'wrench' },
+  { id: '06_ENERGIE_CONTRATS', label: '06. Énergie & Contrats', icon: 'zap' },
+  { id: '07_LOCATION', label: '07. Location (Baux)', icon: 'key' },
+  { id: '08_GESTION', label: '08. Gestion courante', icon: 'folderOpen' },
+  { id: '09_VENTE', label: '09. Vente & Notaire', icon: 'fileSignature' },
+  { id: '10_DIVERS', label: '10. Divers & Photos', icon: 'image' },
 ]
 
 export function formatBytes(bytes, decimals = 1) {

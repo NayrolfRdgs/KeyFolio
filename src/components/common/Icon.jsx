@@ -1,103 +1,263 @@
 import React from 'react'
+import {
+  LayoutDashboard, House, Building2, Building, User, Users, UserRound, FileSignature,
+  CreditCard, Receipt, FileText, FolderArchive, Wrench, BarChart3, Settings,
+  HardHat, CheckCircle2, Check, CircleSlash, Clock, Flame, TriangleAlert,
+  AlertCircle, Info, Plus, Pencil, Trash2, Search, RefreshCw, X, Eye, Download,
+  Upload, ExternalLink, Link2, Copy, Filter, ArrowUpDown, Maximize2, Minimize2,
+  ZoomIn, ZoomOut, RotateCcw, Wallet, Euro, Banknote, TrendingUp, PieChart,
+  Calculator, PiggyBank, DraftingCompass, Ruler, Folder, FolderOpen, File,
+  FileSpreadsheet, Image, Camera, Paperclip, Mail, Send, Phone, Calendar,
+  MapPin, Map, Globe, Square, DoorClosed, BedDouble, Bath, Trees, Zap,
+  KeyRound, Lock, Unlock, ShieldCheck, Wifi, Thermometer, Droplets, HelpCircle,
+  Warehouse, Store, Sparkles, Bell, ChevronDown, ChevronRight, ChevronUp,
+  ArrowRight, ArrowLeft, Percent, SlidersHorizontal, Layers, Activity,
+  CheckSquare, CircleDollarSign, CircleDot, Kanban, Bookmark, EyeOff
+} from 'lucide-react'
 
-// Icônes SVG inline légères (pas de dépendance externe)
-const icons = {
-  dashboard: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-    </svg>
-  ),
-  biens: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-      <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  ),
-  locataires: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  baux: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
-      <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-    </svg>
-  ),
-  paiements: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-      <line x1="1" y1="10" x2="23" y2="10"/>
-    </svg>
-  ),
-  depenses: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-    </svg>
-  ),
-  documents: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  ),
-  maintenance: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-    </svg>
-  ),
-  plus: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  ),
-  edit: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  ),
-  trash: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-    </svg>
-  ),
-  check: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  x: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  ),
-  alert: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-    </svg>
-  ),
-  folder: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  ),
+// Mapping direct et optimisé
+const ICON_MAP = {
+  // Navigation & Sections
+  dashboard: LayoutDashboard,
+  logement: House,
+  logements: House,
+  bien: House,
+  biens: House,
+  home: House,
+  house: House,
+  immeuble: Building2,
+  building: Building,
+  building2: Building2,
+  projet: HardHat,
+  projets: HardHat,
+  carte: Map,
+  map: Map,
+  globe: Globe,
+  locataire: User,
+  locataires: Users,
+  user: User,
+  users: Users,
+  proprietaire: UserRound,
+  bail: FileSignature,
+  baux: FileSignature,
+  filesignature: FileSignature,
+  edl: FileSignature,
+  etatdeslieux: FileSignature,
+  paiement: CreditCard,
+  paiements: CreditCard,
+  revenus: CreditCard,
+  creditcard: CreditCard,
+  depense: Receipt,
+  depenses: Receipt,
+  receipt: Receipt,
+  pret: CircleDollarSign,
+  prets: CircleDollarSign,
+  loan: CircleDollarSign,
+  rendement: TrendingUp,
+  rendements: TrendingUp,
+  simulation: Calculator,
+  simulations: Calculator,
+  document: FileText,
+  documents: FolderArchive,
+  folderarchive: FolderArchive,
+  maintenance: Wrench,
+  ticket: Wrench,
+  wrench: Wrench,
+  tache: CheckSquare,
+  taches: CheckSquare,
+  echeance: Clock,
+  echeances: Clock,
+  calendar: Calendar,
+  analyse: BarChart3,
+  analyses: BarChart3,
+  rapport: BarChart3,
+  rapports: BarChart3,
+  barchart3: BarChart3,
+  notification: Bell,
+  notifications: Bell,
+  bell: Bell,
+  parametres: Settings,
+  settings: Settings,
+
+  // Types de biens & projets
+  appartement: Building,
+  maison: House,
+  studio: DoorClosed,
+  parking: Square,
+  garage: Warehouse,
+  warehouse: Warehouse,
+  store: Store,
+  local_commercial: Store,
+  localcommercial: Store,
+  terrain: Trees,
+  trees: Trees,
+  sparkles: Sparkles,
+  chantier: HardHat,
+  hardhat: HardHat,
+  construction: HardHat,
+  renovation: Wrench,
+  amenagement: Sparkles,
+  transformation: DraftingCompass,
+
+  // Statuts & Badges
+  actif: CheckCircle2,
+  check: Check,
+  checkcircle: CheckCircle2,
+  checkcircle2: CheckCircle2,
+  inactif: CircleSlash,
+  circleslash: CircleSlash,
+  attente: Clock,
+  clock: Clock,
+  urgent: Flame,
+  flame: Flame,
+  alert: TriangleAlert,
+  alerte: TriangleAlert,
+  warning: TriangleAlert,
+  trianglealert: TriangleAlert,
+  danger: AlertCircle,
+  alertcircle: AlertCircle,
+  info: Info,
+  activity: Activity,
+  dot: CircleDot,
+
+  // Actions & Flèches
+  plus: Plus,
+  ajouter: Plus,
+  edit: Pencil,
+  modifier: Pencil,
+  pencil: Pencil,
+  trash: Trash2,
+  trash2: Trash2,
+  supprimer: Trash2,
+  search: Search,
+  recherche: Search,
+  refresh: RefreshCw,
+  refreshcw: RefreshCw,
+  close: X,
+  x: X,
+  eye: Eye,
+  eyeoff: EyeOff,
+  download: Download,
+  upload: Upload,
+  externallink: ExternalLink,
+  link: Link2,
+  copy: Copy,
+  filter: Filter,
+  sort: ArrowUpDown,
+  expand: Maximize2,
+  collapse: Minimize2,
+  zoomin: ZoomIn,
+  zoomout: ZoomOut,
+  reset: RotateCcw,
+  chevrondown: ChevronDown,
+  chevronright: ChevronRight,
+  chevronup: ChevronUp,
+  arrowright: ArrowRight,
+  arrowleft: ArrowLeft,
+  sliders: SlidersHorizontal,
+  slidershorizontal: SlidersHorizontal,
+  layers: Layers,
+  kanban: Kanban,
+  bookmark: Bookmark,
+  percent: Percent,
+
+  // Finances
+  wallet: Wallet,
+  finances: Wallet,
+  euro: Euro,
+  cash: Banknote,
+  banknote: Banknote,
+  chart: TrendingUp,
+  trendingup: TrendingUp,
+  piechart: PieChart,
+  calculator: Calculator,
+  piggybank: PiggyBank,
+
+  // Documents & Plans
+  plan: DraftingCompass,
+  plans: DraftingCompass,
+  draftingcompass: DraftingCompass,
+  ruler: Ruler,
+  folder: Folder,
+  folderopen: FolderOpen,
+  file: File,
+  filetext: FileText,
+  filespreadsheet: FileSpreadsheet,
+  filepdf: FileText,
+  fileimage: Image,
+  camera: Camera,
+  image: Image,
+  paperclip: Paperclip,
+
+  // Communication & Coordonnées
+  mail: Mail,
+  email: Mail,
+  send: Send,
+  phone: Phone,
+  location: MapPin,
+  mappin: MapPin,
+
+  // Équipements
+  surface: Square,
+  room: DoorClosed,
+  doorclosed: DoorClosed,
+  bedroom: BedDouble,
+  beddouble: BedDouble,
+  bathroom: Bath,
+  bath: Bath,
+  tree: Trees,
+  power: Zap,
+  zap: Zap,
+  energy: Zap,
+  key: KeyRound,
+  keys: KeyRound,
+  keyround: KeyRound,
+  lock: Lock,
+  unlock: Unlock,
+  shield: ShieldCheck,
+  shieldcheck: ShieldCheck,
+  wifi: Wifi,
+  thermometer: Thermometer,
+  droplet: Droplets,
+  droplets: Droplets,
+  water: Droplets,
+  gas: Flame,
 }
 
-export default function Icon({ name, size = 16, className = '' }) {
-  const icon = icons[name]
-  if (!icon) return null
+export default function Icon({
+  name,
+  size = 16,
+  color = 'currentColor',
+  strokeWidth = 2,
+  className = '',
+  style = {},
+  ...props
+}) {
+  const normalizedKey = String(name || '').toLowerCase().replace(/[-_]/g, '')
+  const LucideComponent = ICON_MAP[name] || ICON_MAP[normalizedKey] || HelpCircle
+
   return (
     <span
-      className={`nav-icon ${className}`}
-      style={{ width: size, height: size, display: 'inline-flex', flexShrink: 0 }}
+      className={`app-icon ${className}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        verticalAlign: 'middle',
+        ...style
+      }}
       aria-hidden="true"
+      {...props}
     >
-      {icon}
+      <LucideComponent
+        size={size}
+        color={color}
+        strokeWidth={strokeWidth}
+        style={{ width: '100%', height: '100%' }}
+      />
     </span>
   )
 }
