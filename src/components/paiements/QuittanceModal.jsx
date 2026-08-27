@@ -1,221 +1,462 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Icon from '../common/Icon'
 import { formatEuro, formatDate, todayISO } from '../../lib/utils'
 import { buildQuittancePDF } from '../../lib/pdfGenerator'
-import { getLoadedTemplateConfig } from '../../lib/pdfTemplateEngine'
-import PdfTemplateManagerModal from '../documents/PdfTemplateManagerModal'
-import { saveFileToDisk, openFilePath } from '../../lib/db'
+import { buildDataContext } from '../../lib/pdfTemplateEngine'
+import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
+import { saveFileToDisk, openFilePath, openTemplatesFolder, savePdfToBien } from '../../lib/db'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
-export default function QuittanceModal({ paiement, bien, locataire, bail, onClose, onSendMail }) {
-  const quittanceTpl = getLoadedTemplateConfig('quittance_template.json') || {}
-
-  const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
-  const [bailleurNom, setBailleurNom] = useState(quittanceTpl?.bailleur?.nomParDefaut || 'Bailleur / Propriétaire')
-  const [bailleurAdresse, setBailleurAdresse] = useState(quittanceTpl?.bailleur?.adresseParDefaut || 'Adresse du bailleur')
+export default function QuittanceModal({ paiement, bien, locataire, bail, onClose, onSendMail, onSaved }) {
+  const [bailleurNom, setBailleurNom] = useState(() => {
+    const saved = localStorage.getItem('keyfolio_bailleur_profile')
+    if (saved) try { return JSON.parse(saved).nom || 'Bailleur / Propriétaire' } catch (e) {}
+    return 'Bailleur / Propriétaire'
+  })
+  const [bailleurAdresse, setBailleurAdresse] = useState(() => {
+    const saved = localStorage.getItem('keyfolio_bailleur_profile')
+    if (saved) try { return JSON.parse(saved).adresse || 'Adresse du bailleur' } catch (e) {}
+    return 'Adresse du bailleur'
+  })
   const [dateQuittance, setDateQuittance] = useState(todayISO())
-  const [exporting, setExporting] = useState(false)
-  const [toastMsg, setToastMsg] = useState(null)
-
-  const loyerHC = bail?.loyer_mensuel || (paiement?.montant ? paiement.montant - (bail?.charges_mensuelles || 0) : 0)
-  const charges = bail?.charges_mensuelles || 0
-  const total = paiement?.montant || (loyerHC + charges)
+  const [modePaiement, setModePaiement] = useState('Virement bancaire')
 
   const datePrevue = paiement?.date_prevue ? new Date(paiement.date_prevue) : new Date()
-  const moisNom = datePrevue.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  
-  const debutMois = new Date(datePrevue.getFullYear(), datePrevue.getMonth(), 1).toISOString().split('T')[0]
-  const finMois = new Date(datePrevue.getFullYear(), datePrevue.getMonth() + 1, 0).toISOString().split('T')[0]
+  const defaultPeriode = `Mois de ${datePrevue.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
+  const [periode, setPeriode] = useState(defaultPeriode)
 
-  const getDoc = () => {
+  const initialLoyer = bail?.loyer_mensuel || (paiement?.montant ? paiement.montant - (bail?.charges_mensuelles || 0) : 650)
+  const initialCharges = bail?.charges_mensuelles || 50
+  const [loyerHC, setLoyerHC] = useState(String(initialLoyer))
+  const [charges, setCharges] = useState(String(initialCharges))
+
+  const [locataireNomCustom, setLocataireNomCustom] = useState(() => {
+    if (locataire) return `${locataire.prenom} ${locataire.nom}`.trim()
+    if (paiement?.locataire_nom) return paiement.locataire_nom
+    return 'Locataire'
+  })
+  const [bienNomCustom, setBienNomCustom] = useState(bien?.nom || paiement?.bien_nom || 'Logement')
+  const [bienAdresseCustom, setBienAdresseCustom] = useState(bien?.adresse || 'Adresse du bien')
+
+  // PDF Preview State
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [toastMsg, setToastMsg] = useState(null)
+  const [savedPath, setSavedPath] = useState(null)
+
+  const debounceRef = useRef(null)
+
+  const getFallbackDoc = useCallback(() => {
     return buildQuittancePDF({
       paiement,
-      bien,
-      locataire,
+      bien: { ...(bien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
+      locataire: { ...(locataire || {}), nom: locataireNomCustom },
       bail,
       bailleurNom,
       bailleurAdresse,
       datePaiement: dateQuittance,
-      periode: moisNom,
-      montantLoyer: loyerHC,
-      montantCharges: charges
+      periode,
+      loyerHC: parseFloat(loyerHC || 0),
+      charges: parseFloat(charges || 0),
+      modePaiement
     })
+  }, [paiement, bien, locataire, bail, bienNomCustom, bienAdresseCustom, locataireNomCustom, bailleurNom, bailleurAdresse, dateQuittance, periode, loyerHC, charges, modePaiement])
+
+  const getPdfResult = useCallback(async () => {
+    const dataCtx = buildDataContext({
+      bail,
+      bien: { ...(bien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
+      locataire: { ...(locataire || {}), nom: locataireNomCustom },
+      periode,
+      dateDoc: dateQuittance,
+      loyerHC: parseFloat(loyerHC || 0),
+      charges: parseFloat(charges || 0),
+      customValues: {
+        bailleur_nom: bailleurNom,
+        bailleur_adresse: bailleurAdresse
+      }
+    })
+
+    return await createPdfFromTemplate({
+      templatePdfName: 'modele_quittance.pdf',
+      dataContext: dataCtx,
+      fallbackGenerator: getFallbackDoc
+    })
+  }, [bail, bien, locataire, bienNomCustom, bienAdresseCustom, locataireNomCustom, periode, dateQuittance, loyerHC, charges, bailleurNom, bailleurAdresse, getFallbackDoc])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getPdfResult()
+        setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return res.blobUrl })
+      } catch (e) {
+        console.warn('PDF preview error', e)
+      }
+    }, 350)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [getPdfResult])
+
+  useEffect(() => {
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
+  }, [])
+
+  // Sauvegarder dans le sous-dossier 07_LOCATION/Quittances de loyer du bien
+  const handleSaveToProperty = async () => {
+    const targetId = bien?.id || paiement?.bien_id
+    if (!targetId) {
+      setToastMsg('⚠️ Veuillez associer un bien pour enregistrer la quittance.')
+      return null
+    }
+    setSaving(true)
+    try {
+      const res = await getPdfResult()
+      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const sanitizedPeriode = periode.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filename = `Quittance_${sanitizedPeriode}_${sanitizedLoc}.pdf`
+      const title = `Quittance de Loyer - ${periode} - ${locataireNomCustom}`
+
+      const relPath = await savePdfToBien(targetId, '07_LOCATION/Quittances de loyer', filename, res.dataUri, title)
+      setSavedPath(relPath)
+      setToastMsg(`✅ Quittance archivée avec succès : ${relPath}`)
+      if (onSaved) onSaved(relPath)
+      return relPath
+    } catch (err) {
+      setToastMsg(`❌ Erreur d'enregistrement : ${err?.toString()}`)
+      return null
+    } finally {
+      setSaving(false)
+      setTimeout(() => setToastMsg(null), 5000)
+    }
   }
 
+  // Export PDF direct
   const handleExportPDF = async () => {
     setExporting(true)
     try {
-      const doc = getDoc()
-      const locNom = locataire ? `${locataire.nom}_${locataire.prenom}` : 'locataire'
-      const moisSlug = datePrevue.toISOString().slice(0, 7)
-      const defaultFilename = `Quittance_${moisSlug}_${locNom}.pdf`
+      const res = await getPdfResult()
+      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const sanitizedPeriode = periode.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const defaultFilename = `Quittance_${sanitizedPeriode}_${sanitizedLoc}.pdf`
 
-      const chosenPath = await openSaveDialog({
+      const savePath = await openSaveDialog({
         defaultPath: defaultFilename,
         filters: [{ name: 'Document PDF (*.pdf)', extensions: ['pdf'] }]
       })
 
-      if (chosenPath) {
-        const pdfBase64 = doc.output('datauristring')
-        await saveFileToDisk(chosenPath, pdfBase64)
-        setToastMsg(` Quittance PDF enregistrée : ${chosenPath}`)
-        await openFilePath(chosenPath)
+      if (savePath) {
+        const rawBase64 = res.dataUri.split(',')[1]
+        await saveFileToDisk(savePath, rawBase64)
+        setToastMsg(`✅ Quittance exportée : ${savePath}`)
       }
-    } catch (e) {
-      console.error(e)
+    } catch (err) {
+      setToastMsg(`❌ Erreur export PDF : ${err?.toString()}`)
     } finally {
       setExporting(false)
       setTimeout(() => setToastMsg(null), 5000)
     }
   }
 
+  const total = parseFloat(loyerHC || 0) + parseFloat(charges || 0)
+
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 99999 }}>
-      <div className="modal-card" style={{ maxWidth: 780, width: '95%', maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        {/* Header Modal */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}> Quittance de Loyer — Édition & Export PDF</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Quittance certifiée pour le mois de {moisNom}
-            </span>
+      <div
+        className="modal-card"
+        style={{
+          maxWidth: 1480,
+          width: '96vw',
+          height: '92vh',
+          maxHeight: '92vh',
+          overflow: 'hidden',
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 16,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ─── EN-TÊTE PRINCIPAL ─── */}
+        <div style={{
+          padding: '14px 24px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
+            }}>
+              <Icon name="receipt" size={22} color="#ffffff" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>
+                Quittance de Loyer & Attestation de Paiement
+              </h3>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Document officiel conforme Loi n° 89-462 (Article 21) • {periode}
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => setTemplateEditorOpen(true)}
+              onClick={openTemplatesFolder}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 5,
                 fontWeight: 700,
+                fontSize: 11.5,
                 color: '#4f46e5',
                 borderColor: '#c7d2fe',
                 background: '#eef2ff'
               }}
+              title="Ouvrir le dossier contenant les fichiers modèles PDF"
             >
-              <Icon name="sparkles" size={13} color="#4f46e5" /> Modèle & Balises
+              <Icon name="folder" size={13} color="#4f46e5" /> 📂 Modèles PDF
             </button>
-            <button className="btn btn-primary btn-sm" onClick={handleExportPDF} disabled={exporting}>
-              {exporting ? ' Exportation...' : ' Exporter le PDF'}
-            </button>
+
             {onSendMail && (
-              <button className="btn btn-secondary btn-sm" onClick={() => onSendMail(bien?.id, { recipientEmail: locataire?.email || '', initialTemplate: 'quittance' })}>
-                 Envoyer par Mail
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => onSendMail(bien?.id, { recipientEmail: locataire?.email || '', initialTemplate: 'quittance' })}
+                style={{ fontWeight: 700, fontSize: 11.5 }}
+              >
+                <Icon name="mail" size={13} /> Envoyer par Mail
               </button>
             )}
+
             <button className="btn btn-ghost btn-icon" onClick={onClose}>
-              <Icon name="x" size={18} />
+              <Icon name="x" size={20} />
             </button>
           </div>
         </div>
 
-        {/* Toast */}
-        {toastMsg && (
-          <div style={{ marginBottom: 12, padding: '10px 14px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12 }}>
-            {toastMsg}
-          </div>
-        )}
-
-        {/* Options de personnalisation */}
-        <div style={{ marginBottom: 16, background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Bailleur</label>
-            <input type="text" className="form-control" style={{ fontSize: 12 }} value={bailleurNom} onChange={e => setBailleurNom(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Adresse du Bailleur</label>
-            <input type="text" className="form-control" style={{ fontSize: 12 }} value={bailleurAdresse} onChange={e => setBailleurAdresse(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Date de quittance</label>
-            <input type="date" className="form-control" style={{ fontSize: 12 }} value={dateQuittance} onChange={e => setDateQuittance(e.target.value)} />
-          </div>
-        </div>
-
-        {/* CONTENU OFFICIEL DE LA QUITTANCE */}
-        <div style={{ background: '#ffffff', color: '#0f172a', padding: 32, borderRadius: 8, border: '1px solid #cbd5e1', fontFamily: 'Arial, sans-serif', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          
-          {/* Entête Document */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: 16, marginBottom: 24 }}>
-            <div>
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: 22, fontWeight: 800 }}>QUITTANCE DE LOYER</h2>
-              <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Période du {formatDate(debutMois)} au {formatDate(finMois)}</div>
+        {/* ─── CORPS SPLIT-SCREEN (Gauche: Formulaire | Droite: Aperçu PDF) ─── */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {/* COLONNE GAUCHE (46%) : Formulaire */}
+          <div style={{
+            width: '46%',
+            borderRight: '1px solid var(--border-color)',
+            overflowY: 'auto',
+            background: '#f8fafc',
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
+          }}>
+            {/* PARTIES */}
+            <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+                1. Bailleur & Locataire
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Bailleur</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={bailleurNom}
+                    onChange={e => setBailleurNom(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Locataire</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={locataireNomCustom}
+                    onChange={e => setLocataireNomCustom(e.target.value)}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Adresse du Bailleur</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={bailleurAdresse}
+                    onChange={e => setBailleurAdresse(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Adresse du Logement Loué</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={bienAdresseCustom}
+                    onChange={e => setBienAdresseCustom(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+              </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>Date d'émission</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{formatDate(dateQuittance)}</div>
+
+            {/* PÉRIODE & MONTANTS */}
+            <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+                2. Période & Sommes Acquittées
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Période de Location</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={periode}
+                    onChange={e => setPeriode(e.target.value)}
+                    style={{ fontSize: 12, fontWeight: 700 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Date de règlement</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={dateQuittance}
+                    onChange={e => setDateQuittance(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Loyer Hors Charges (€)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={loyerHC}
+                    onChange={e => setLoyerHC(e.target.value)}
+                    style={{ fontSize: 12, fontWeight: 700 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700 }}>Provisions Charges (€)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={charges}
+                    onChange={e => setCharges(e.target.value)}
+                    style={{ fontSize: 12, fontWeight: 700 }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>Total Reçu Net</label>
+                  <div style={{ padding: '7px 10px', background: '#dcfce7', borderRadius: 6, fontWeight: 800, fontSize: 13, color: '#166534' }}>
+                    {formatEuro(total)}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Adresses */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
-            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Bailleur / Propriétaire</div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{bailleurNom}</div>
-              <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{bailleurAdresse}</div>
+          {/* COLONNE DROITE (54%) : Prévisualisation PDF Live */}
+          <div style={{
+            width: '54%',
+            background: '#0f172a',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '10px 16px',
+              background: '#1e293b',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid #334155',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                <span style={{ color: '#f8fafc', fontSize: 12, fontWeight: 700 }}>
+                  Aperçu Quittance PDF — Temps Réel
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleExportPDF}
+                  disabled={exporting}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    borderColor: '#475569',
+                    color: '#ffffff',
+                    fontSize: 11.5,
+                    fontWeight: 700
+                  }}
+                >
+                  <Icon name="download" size={13} color="#ffffff" /> Exporter PDF
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSaveToProperty}
+                  disabled={saving}
+                  style={{
+                    background: '#059669',
+                    borderColor: '#059669',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.4)'
+                  }}
+                >
+                  <Icon name="save" size={13} color="#ffffff" /> Sauvegarder & Archiver
+                </button>
+              </div>
             </div>
-            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Locataire</div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{locataire ? `${locataire.prenom} ${locataire.nom}` : (paiement?.locataire_nom || 'Locataire')}</div>
-              <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>Logement : {bien?.nom || paiement?.bien_nom || 'Logement'}</div>
-              {bien?.adresse && <div style={{ fontSize: 12, color: '#475569' }}>{bien.adresse}</div>}
+
+            {toastMsg && (
+              <div style={{
+                background: toastMsg.startsWith('✅') ? '#059669' : '#dc2626',
+                color: '#ffffff',
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                textAlign: 'center'
+              }}>
+                {toastMsg}
+              </div>
+            )}
+
+            <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
+              {pdfUrl ? (
+                <iframe
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  title="Quittance Preview"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
+                  Génération de l'aperçu Quittance...
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Tableau des montants */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-            <thead>
-              <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: '#334155' }}>Désignation</th>
-                <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 12, color: '#334155' }}>Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '10px 12px', fontSize: 13 }}>Loyer principal (hors charges)</td>
-                <td style={{ textAlign: 'right', padding: '10px 12px', fontSize: 13, fontWeight: 600 }}>{formatEuro(loyerHC)}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '10px 12px', fontSize: 13 }}>Provisions sur charges locatives</td>
-                <td style={{ textAlign: 'right', padding: '10px 12px', fontSize: 13, fontWeight: 600 }}>{formatEuro(charges)}</td>
-              </tr>
-              <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
-                <td style={{ padding: '12px', fontSize: 14, color: '#16a34a' }}>TOTAL PAYÉ ET ACQUITTÉ</td>
-                <td style={{ textAlign: 'right', padding: '12px', fontSize: 15, color: '#16a34a' }}>{formatEuro(total)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Mention légale & attestation */}
-          <div style={{ fontSize: 12, lineHeight: 1.6, color: '#334155', background: '#f8fafc', padding: 14, borderRadius: 6, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-            Je soussigné <strong>{bailleurNom}</strong>, propriétaire du logement désigné ci-dessus, atteste avoir reçu de Monsieur/Madame <strong>{locataire ? `${locataire.prenom} ${locataire.nom}` : (paiement?.locataire_nom || 'le locataire')}</strong> la somme de <strong>{formatEuro(total)}</strong> au titre du loyer et des charges pour la période du {formatDate(debutMois)} au {formatDate(finMois)}.
-          </div>
-
-          {/* Signature */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <div style={{ textAlign: 'center', width: 220, borderTop: '1px solid #cbd5e1', paddingTop: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>Signature du Bailleur</div>
-              <div style={{ height: 48 }}></div>
-            </div>
-          </div>
-
         </div>
       </div>
-
-      {templateEditorOpen && (
-        <PdfTemplateManagerModal
-          isOpen={templateEditorOpen}
-          initialTemplateId="quittance_template"
-          onClose={() => {
-            setTemplateEditorOpen(false)
-            const updated = getLoadedTemplateConfig('quittance_template.json')
-            if (updated?.bailleur?.nomParDefaut) setBailleurNom(updated.bailleur.nomParDefaut)
-            if (updated?.bailleur?.adresseParDefaut) setBailleurAdresse(updated.bailleur.adresseParDefaut)
-          }}
-        />
-      )}
     </div>
   )
 }

@@ -2,13 +2,11 @@ import Icon from '../common/Icon'
 import React, { useState, useEffect } from 'react'
 import { applyTheme } from '../../lib/theme'
 import { openExternalUrl, openTemplatesFolder } from '../../lib/db'
-import PdfTemplateManagerModal from '../documents/PdfTemplateManagerModal'
 
 export default function SettingsModal({ isOpen, onClose, initialTab = 'general' }) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
 
   // Settings State — 'system' par défaut
   const [theme, setTheme] = useState(localStorage.getItem('app_theme') || 'system')
@@ -194,24 +192,6 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setTemplateEditorOpen(true)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontWeight: 700,
-                      fontSize: 12,
-                      background: '#ffffff',
-                      borderColor: '#c7d2fe',
-                      color: '#4f46e5'
-                    }}
-                  >
-                    <Icon name="edit" size={14} color="#4f46e5" /> Modifier les balises (UI)
-                  </button>
-
-                  <button
-                    type="button"
                     className="btn btn-primary"
                     onClick={() => openTemplatesFolder()}
                     style={{
@@ -223,46 +203,46 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                       boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
                     }}
                   >
-                    <Icon name="folderOpen" size={15} /> Ouvrir le dossier des Templates →
+                    <Icon name="folderOpen" size={15} /> Ouvrir le dossier des Modèles PDF →
                   </button>
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
-                  Fichiers de modèles disponibles dans votre dossier :
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
+                  Fichiers PDF modèles disponibles dans votre dossier :
                 </div>
 
                 {[
                   {
-                    file: 'quittance_template.json',
+                    file: 'modele_quittance.pdf',
                     title: 'Quittance de loyer mensuelle',
-                    desc: 'Couleurs de charte, coordonnées du bailleur, texte d\'attestation officiel.'
+                    desc: 'Attestation de paiement officiel avec coordonnées bailleur et locataire.'
                   },
                   {
-                    file: 'avis_echeance_template.json',
+                    file: 'modele_avis_echeance.pdf',
                     title: 'Avis d\'échéance / Appel de loyer',
-                    desc: 'IBAN/BIC par défaut, jour d\'échéance, mentions légales de paiement.'
+                    desc: 'Appel de loyer avec montants, échéance et coordonnées bancaires (IBAN).'
                   },
                   {
-                    file: 'etat_des_lieux_template.json',
-                    title: 'États des lieux (Entrée & Sortie)',
-                    desc: 'Liste des pièces par défaut (Séjour, Cuisine, Chambres, etc.) et observations types.'
-                  },
-                  {
-                    file: 'fin_bail_template.json',
+                    file: 'modele_fin_bail.pdf',
                     title: 'Attestation de fin de bail & caution',
-                    desc: 'Clause de libération des lieux et modèle de restitution de garantie.'
+                    desc: 'Clôture de bail, libération des lieux, décompte retenues et solde net de caution.'
                   },
                   {
-                    file: 'contrat_bail_template.json',
+                    file: 'modele_etat_des_lieux.pdf',
+                    title: 'États des lieux (Entrée & Sortie)',
+                    desc: 'Constat par pièce, relevé compteurs (élec/eau/gaz), clés et dépôt de garantie.'
+                  },
+                  {
+                    file: 'modele_contrat_bail.pdf',
                     title: 'Contrat de location Loi ALUR',
-                    desc: 'Clauses d\'indexation IRL, clause résolutoire et inventaire meublé obligatoire.'
+                    desc: 'Contrat d\'habitation officiel avec clauses légales, conditions financières et signatures.'
                   },
                   {
                     file: 'GUIDE_PERSONNALISATION_TEMPLATES.md',
-                    title: 'Guide complet d\'explication',
-                    desc: 'Manuel pas-à-pas expliquant comment modifier chaque paramètre et variable.'
+                    title: 'Guide des balises disponibles',
+                    desc: 'Liste complète des balises "{{...}}" utilisables dans vos fichiers PDF.'
                   }
                 ].map((item, idx) => (
                   <div
@@ -295,8 +275,8 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                 ))}
               </div>
 
-              <div style={{ padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, color: '#475569', lineHeight: 1.5 }}>
-                💡 <strong>Prise en compte immédiate :</strong> Chaque modification effectuée dans ces fichiers JSON est automatiquement et instantanément prise en compte lors de la génération de vos prochains documents PDF, sans nécessiter de redémarrage de l'application.
+              <div style={{ padding: 12, background: 'var(--color-surface-2)', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                💡 <strong>Personnalisation libre :</strong> Vous pouvez ouvrir et modifier ces fichiers PDF dans n'importe quel logiciel (Word, Canva, Acrobat, Illustrator...). Tant que vous conservez les balises entre guillemets comme <code>"&#123;&#123;bailleur_nom&#125;&#125;"</code> ou <code>"&#123;&#123;locataire_nom&#125;&#125;"</code>, KeyFolio remplacera automatiquement le texte par les vraies valeurs !
               </div>
             </div>
           )}
@@ -465,12 +445,6 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
           </button>
         </div>
       </div>
-
-      {/* Modale d'Édition des Modèles PDF */}
-      <PdfTemplateManagerModal
-        isOpen={templateEditorOpen}
-        onClose={() => setTemplateEditorOpen(false)}
-      />
     </div>
   )
 }

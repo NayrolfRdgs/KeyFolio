@@ -49,19 +49,19 @@ export default function ThemesDashboard({
   const totalSize = Object.values(folderStats).reduce((s, x) => s + x.totalBytes, 0)
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: '24px 28px', background: '#fafbfc' }}>
+    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: '18px 22px', background: '#fafbfc', width: '100%', boxSizing: 'border-box' }}>
       {/* ── BANNIÈRE D'ACCUEIL DU DOSSIER ── */}
       <div style={{
-        padding: '22px 26px',
-        borderRadius: 16,
+        padding: '18px 22px',
+        borderRadius: 14,
         background: 'linear-gradient(135deg, #eef4ff 0%, #f5f3ff 100%)',
         border: '1px solid #e0e7ff',
-        marginBottom: 24,
+        marginBottom: 20,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 16
+        gap: 14
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -78,7 +78,7 @@ export default function ThemesDashboard({
               <Icon name="folderOpen" size={20} color="#ffffff" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a' }}>
                 Dossier Documentaire : {bien?.nom || 'Logement'}
               </h2>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
@@ -95,19 +95,20 @@ export default function ThemesDashboard({
             display: 'flex',
             alignItems: 'center',
             gap: 7,
-            padding: '9px 18px',
+            padding: '8px 16px',
             fontWeight: 700,
+            fontSize: 12.5,
             boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
           }}
         >
-          <Icon name="filePlus" size={16} /> Générer un document
+          <Icon name="filePlus" size={15} /> Générer un document
         </button>
       </div>
 
       {/* ── GRILLE DES THÈMES & DOSSIERS ── */}
       <div style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}>
             Thématiques & Dossiers de Gestion
           </h3>
           <span style={{ fontSize: 11, color: '#64748b' }}>
@@ -115,7 +116,7 @@ export default function ThemesDashboard({
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
           {Object.values(FOLDER_THEMES).map(theme => {
             const stat = folderStats[theme.id] || { count: 0, totalBytes: 0 }
             const hasFiles = stat.count > 0

@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { formatEuro, formatDate, todayISO } from './utils'
-import { getLoadedTemplateConfig, replaceTextTags, buildDataContext } from './pdfTemplateEngine'
+import { buildDataContext } from './pdfTemplateEngine'
 import {
   KF_COLORS,
   drawDocHeader,

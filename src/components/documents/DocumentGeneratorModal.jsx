@@ -16,10 +16,10 @@ import {
   buildFinBailLetterPDF,
   buildAvisEcheancePDF
 } from '../../lib/pdfGenerator'
-import { getLoadedTemplateConfig } from '../../lib/pdfTemplateEngine'
+import { buildDataContext } from '../../lib/pdfTemplateEngine'
+import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
 import { SUBFOLDERS, todayISO, formatEuro, formatDate } from '../../lib/utils'
 import Icon from '../common/Icon'
-import PdfTemplateManagerModal from './PdfTemplateManagerModal'
 
 const ALL_TEMPLATES = [
   // ─── DOCUMENTS PDF OFFICIELS ───
@@ -34,7 +34,7 @@ const ALL_TEMPLATES = [
     filename: 'Quittance_Loyer.pdf',
     badge: 'PDF Officiel',
     iconName: 'receipt',
-    templateFile: 'quittance_template.json'
+    templatePdf: 'modele_quittance.pdf'
   },
   {
     id: 'pdf_avis_echeance',
@@ -47,7 +47,7 @@ const ALL_TEMPLATES = [
     filename: 'Avis_Echeance_Loyer.pdf',
     badge: 'PDF Officiel',
     iconName: 'fileText',
-    templateFile: 'avis_echeance_template.json'
+    templatePdf: 'modele_avis_echeance.pdf'
   },
   {
     id: 'pdf_edl_entree',
@@ -60,7 +60,7 @@ const ALL_TEMPLATES = [
     filename: 'Etat_des_lieux_entree.pdf',
     badge: 'PDF Officiel',
     iconName: 'fileSignature',
-    templateFile: 'etat_des_lieux_template.json'
+    templatePdf: 'modele_etat_des_lieux.pdf'
   },
   {
     id: 'pdf_edl_sortie',
@@ -73,7 +73,7 @@ const ALL_TEMPLATES = [
     filename: 'Etat_des_lieux_sortie.pdf',
     badge: 'PDF Officiel',
     iconName: 'fileSignature',
-    templateFile: 'etat_des_lieux_template.json'
+    templatePdf: 'modele_etat_des_lieux.pdf'
   },
   {
     id: 'pdf_fin_bail',
@@ -86,7 +86,7 @@ const ALL_TEMPLATES = [
     filename: 'Attestation_Fin_Bail.pdf',
     badge: 'Fin de contrat',
     iconName: 'logOut',
-    templateFile: 'fin_bail_template.json'
+    templatePdf: 'modele_fin_bail.pdf'
   },
   {
     id: 'pdf_contrat_bail',
@@ -99,7 +99,7 @@ const ALL_TEMPLATES = [
     filename: 'Contrat_de_Location.pdf',
     badge: 'PDF Conforme',
     iconName: 'fileText',
-    templateFile: 'contrat_bail_template.json'
+    templatePdf: 'modele_contrat_bail.pdf'
   },
 
   // ─── TABLEURS EXCEL (.XLSX) ───
@@ -170,7 +170,6 @@ export default function DocumentGeneratorModal({
   // Filtre format & catégorie
   const [formatFilter, setFormatFilter] = useState('all') // 'all' | 'pdf' | 'xlsx'
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [templateManagerOpen, setTemplateManagerOpen] = useState(false)
 
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [subfolder, setSubfolder] = useState(targetSubfolder || '07_LOCATION')
@@ -251,12 +250,13 @@ export default function DocumentGeneratorModal({
     }
 
     // Charger les infos par défaut du bailleur
-    const defaultTpl = getLoadedTemplateConfig('quittance_template.json')
-    if (defaultTpl?.bailleur?.nomParDefaut && bailleurNom === 'Bailleur / Propriétaire') {
-      setBailleurNom(defaultTpl.bailleur.nomParDefaut)
+    const savedNom = localStorage.getItem('bailleur_nom')
+    const savedAdr = localStorage.getItem('bailleur_adresse')
+    if (savedNom && bailleurNom === 'Bailleur / Propriétaire') {
+      setBailleurNom(savedNom)
     }
-    if (defaultTpl?.bailleur?.adresseParDefaut && bailleurAdresse === 'Adresse du bailleur') {
-      setBailleurAdresse(defaultTpl.bailleur.adresseParDefaut)
+    if (savedAdr && bailleurAdresse === 'Adresse du bailleur') {
+      setBailleurAdresse(savedAdr)
     }
   }, [bienId, baux])
 
@@ -312,101 +312,67 @@ export default function DocumentGeneratorModal({
         })
         setCreatedFilePath(path || finalFilename)
       } else {
-        // ── GÉNÉRATION PDF AVEC BALISES REMPLACÉES & TEMPLATE DYNAMIQUE ──
-        let pdfDoc = null
+        // ── GÉNÉRATION PDF OFFICIEL À PARTIR DU MODÈLE PDF ──
+        const dataCtx = buildDataContext({
+          bail: currentBail,
+          bien: currentBien,
+          locataire: currentLocataire,
+          periode,
+          dateDoc,
+          loyerHC: montantLoyer,
+          charges: montantCharges,
+          depotGarantie,
+          montantRetenu,
+          motifRetenue,
+          motifFin,
+          elecIndex,
+          eauIndex,
+          gazIndex,
+          clesRemises,
+          bailleurNom,
+          bailleurAdresse
+        })
 
-        if (activeTemplate.id === 'pdf_quittance') {
-          pdfDoc = buildQuittancePDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            bailleurNom,
-            bailleurAdresse,
-            datePaiement: dateDoc,
-            periode,
-            montantLoyer: parseFloat(montantLoyer || 0),
-            montantCharges: parseFloat(montantCharges || 0)
-          })
-        } else if (activeTemplate.id === 'pdf_avis_echeance') {
-          pdfDoc = buildAvisEcheancePDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            bailleurNom,
-            bailleurAdresse,
-            periode,
-            dateEcheance: dateDoc,
-            loyerHC: parseFloat(montantLoyer || 0),
-            charges: parseFloat(montantCharges || 0)
-          })
-        } else if (activeTemplate.id === 'pdf_edl_entree') {
-          pdfDoc = buildEtatDesLieuxPDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            typeEdl: 'entree',
-            bailleurNom,
-            bailleurAdresse,
-            dateEdl: dateDoc,
-            elecIndex,
-            eauIndex,
-            gazIndex,
-            clesRemises,
-            depotGarantieInitial: parseFloat(depotGarantie || 0),
-            observationsGenerales: observations
-          })
-        } else if (activeTemplate.id === 'pdf_edl_sortie') {
-          pdfDoc = buildEtatDesLieuxPDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            typeEdl: 'sortie',
-            bailleurNom,
-            bailleurAdresse,
-            dateEdl: dateDoc,
-            elecIndex,
-            eauIndex,
-            gazIndex,
-            clesRemises,
-            depotGarantieInitial: parseFloat(depotGarantie || 0),
-            montantRetenu: parseFloat(montantRetenu || 0),
-            motifRetenue,
-            observationsGenerales: observations
-          })
-        } else if (activeTemplate.id === 'pdf_fin_bail') {
-          pdfDoc = buildFinBailLetterPDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            bailleurNom,
-            bailleurAdresse,
-            dateFin: dateDoc,
-            motifFin,
-            depotGarantie: parseFloat(depotGarantie || 0),
-            montantRetenu: parseFloat(montantRetenu || 0),
-            motifRetenue,
-            compteurElec: elecIndex,
-            compteurEau: eauIndex,
-            compteurGaz: gazIndex,
-            clesRemises
-          })
-        } else if (activeTemplate.id === 'pdf_contrat_bail') {
-          pdfDoc = buildContratBailPDF({
-            bail: currentBail,
-            bien: currentBien,
-            locataire: currentLocataire,
-            bailleurNom,
-            bailleurAdresse,
-            typeBail: typeBail || currentBail?.type_bail || 'meuble',
-            dateDebut: dateDoc,
-            loyerHC: parseFloat(montantLoyer || 0),
-            charges: parseFloat(montantCharges || 0),
-            depotGarantie: parseFloat(depotGarantie || 0),
-            elecEntree: elecIndex,
-            eauEntree: eauIndex,
-            gazEntree: gazIndex
-          })
-        }
+        const result = await createPdfFromTemplate({
+          templatePdfName: activeTemplate.templatePdf || 'modele_contrat_bail.pdf',
+          dataContext: dataCtx,
+          fallbackGenerator: () => {
+            if (activeTemplate.id === 'pdf_quittance') {
+              return buildQuittancePDF({
+                bail: currentBail, bien: currentBien, locataire: currentLocataire,
+                bailleurNom, bailleurAdresse, datePaiement: dateDoc, periode,
+                montantLoyer: parseFloat(montantLoyer || 0), montantCharges: parseFloat(montantCharges || 0)
+              })
+            } else if (activeTemplate.id === 'pdf_avis_echeance') {
+              return buildAvisEcheancePDF({
+                bail: currentBail, bien: currentBien, locataire: currentLocataire,
+                bailleurNom, bailleurAdresse, periode, dateEcheance: dateDoc,
+                loyerHC: parseFloat(montantLoyer || 0), charges: parseFloat(montantCharges || 0)
+              })
+            } else if (activeTemplate.id === 'pdf_edl_entree' || activeTemplate.id === 'pdf_edl_sortie') {
+              return buildEtatDesLieuxPDF({
+                bail: currentBail, bien: currentBien, locataire: currentLocataire,
+                typeEdl: activeTemplate.id === 'pdf_edl_entree' ? 'entree' : 'sortie',
+                bailleurNom, bailleurAdresse, dateEdl: dateDoc, elecIndex, eauIndex, gazIndex, clesRemises,
+                depotGarantieInitial: parseFloat(depotGarantie || 0), montantRetenu: parseFloat(montantRetenu || 0),
+                motifRetenue, observationsGenerales: observations
+              })
+            } else if (activeTemplate.id === 'pdf_fin_bail') {
+              return buildFinBailLetterPDF({
+                bail: currentBail, bien: currentBien, locataire: currentLocataire,
+                bailleurNom, bailleurAdresse, dateFin: dateDoc, motifFin,
+                depotGarantie: parseFloat(depotGarantie || 0), montantRetenu: parseFloat(montantRetenu || 0),
+                motifRetenue, compteurElec: elecIndex, compteurEau: eauIndex, compteurGaz: gazIndex, clesRemises
+              })
+            }
+            return buildContratBailPDF({
+              bail: currentBail, bien: currentBien, locataire: currentLocataire,
+              bailleurNom, bailleurAdresse, typeBail: typeBail || currentBail?.type_bail || 'meuble',
+              dateDebut: dateDoc, loyerHC: parseFloat(montantLoyer || 0), charges: parseFloat(montantCharges || 0),
+              depotGarantie: parseFloat(depotGarantie || 0), elecEntree: elecIndex, eauEntree: eauIndex, gazEntree: gazIndex
+            })
+          }
+        })
 
         // Si fin de bail et option de synchronisation cochée
         if (activeTemplate.id === 'pdf_fin_bail' && syncTerminateLease && currentBail?.id) {
@@ -414,17 +380,14 @@ export default function DocumentGeneratorModal({
           await terminateBail(currentBail.id, dateDoc, motifFin, notesSum)
         }
 
-        if (pdfDoc) {
-          const pdfBase64 = pdfDoc.output('datauristring')
-          const rel = await savePdfToBien(
-            parseInt(bienId, 10),
-            chosenSubfolder,
-            filename,
-            pdfBase64,
-            customTitle || activeTemplate.title
-          )
-          setCreatedFilePath(rel)
-        }
+        const rel = await savePdfToBien(
+          parseInt(bienId, 10),
+          chosenSubfolder,
+          filename,
+          result.dataUri,
+          customTitle || activeTemplate.title
+        )
+        setCreatedFilePath(rel)
       }
 
       if (onSuccess) onSuccess()
@@ -498,23 +461,12 @@ export default function DocumentGeneratorModal({
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => setTemplateManagerOpen(true)}
-              title="Modifier les balises et textes des modèles directement dans l'interface"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 10px', fontWeight: 600, color: '#4f46e5', borderColor: '#c7d2fe', background: '#eef2ff' }}
-            >
-              <Icon name="sparkles" size={13} color="#4f46e5" />
-              <span>✨ Balises (UI)</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
               onClick={() => openTemplatesFolder()}
-              title="Ouvrir le dossier contenant les fichiers JSON des modèles pour les modifier"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 10px', fontWeight: 600 }}
+              title="Ouvrir le dossier contenant les fichiers modèles PDF pour les personnaliser"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, padding: '5px 12px', fontWeight: 700, color: '#4f46e5', borderColor: '#c7d2fe', background: '#eef2ff' }}
             >
-              <Icon name="folderOpen" size={13} color="#4f46e5" />
-              <span>Dossier Modèles</span>
+              <Icon name="folderOpen" size={14} color="#4f46e5" />
+              <span>Dossier Modèles PDF</span>
             </button>
 
             <button
@@ -1169,14 +1121,6 @@ export default function DocumentGeneratorModal({
           </form>
         </div>
       </div>
-
-      {templateManagerOpen && (
-        <PdfTemplateManagerModal
-          isOpen={templateManagerOpen}
-          initialTemplateId={activeTemplate.templateFile || 'quittance_template'}
-          onClose={() => setTemplateManagerOpen(false)}
-        />
-      )}
     </div>
   )
 }

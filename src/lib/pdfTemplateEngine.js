@@ -1,240 +1,135 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
-import { formatEuro, formatDate, todayISO } from './utils'
-import { getPdfTemplate, savePdfTemplate } from './db'
-
-/**
- * Modèles JSON par défaut intégrés (utilisés immédiatement en mémoire et comme fallback)
- */
-export const DEFAULT_TEMPLATES = {
-  'quittance_template.json': {
-    theme: {
-      primaryColor: '#2563eb',
-      darkColor: '#0f172a',
-      textColor: '#334155',
-      textMuted: '#64748b',
-      badgeBg: '#e0e7ff',
-      badgeText: '#3730a3'
-    },
-    bailleur: {
-      nomParDefaut: 'Bailleur / Propriétaire',
-      adresseParDefaut: 'Adresse du bailleur',
-      villeParDefaut: '75000 Paris',
-      telephone: '',
-      email: ''
-    },
-    mentions: {
-      titre: 'QUITTANCE DE LOYER',
-      sousTitre: 'Loi n° 89-462 du 6 juillet 1989 modifiée — Article 21',
-      texteAttestation: 'Je soussigné {bailleur_nom}, propriétaire du logement situé au {bien_adresse}, atteste avoir reçu de {locataire_nom} la somme de {montant_total} au titre du loyer et des charges pour la période mentionnée.',
-      mentionPiedDePage: 'Cette quittance annule tous les reçus qui auraient pu être donnés pour acompte. Document émis via KeyFolio.'
-    },
-    options: {
-      afficherLogoKeyFolio: true,
-      afficherCadreSignature: true,
-      mentionSignature: 'Signature du Bailleur :'
-    }
-  },
-
-  'avis_echeance_template.json': {
-    theme: {
-      primaryColor: '#2563eb',
-      darkColor: '#0f172a',
-      textColor: '#334155',
-      textMuted: '#64748b'
-    },
-    bailleur: {
-      nomParDefaut: 'Bailleur / Propriétaire',
-      adresseParDefaut: 'Adresse du bailleur',
-      iban: 'FR76 3000 4000 5000 6000 7000 890',
-      bic: 'BNPAFRPP'
-    },
-    mentions: {
-      titre: 'AVIS D\'ÉCHÉANCE — APPEL DE LOYER',
-      sousTitre: 'Appel de loyer et provisions sur charges locatives',
-      texteIntro: 'Nous vous prions de bien vouloir trouver ci-dessous le détail de votre appel de loyer pour la période de {periode}.',
-      mentionPiedDePage: 'Cet avis d\'échéance ne constitue pas une quittance de loyer. Document émis via KeyFolio.'
-    }
-  },
-
-  'etat_des_lieux_template.json': {
-    theme: {
-      couleurEntree: '#16a34a',
-      couleurSortie: '#2563eb',
-      darkColor: '#0f172a',
-      textColor: '#334155',
-      textMuted: '#64748b'
-    },
-    bailleur: {
-      nomParDefaut: 'Bailleur / Propriétaire',
-      adresseParDefaut: 'Adresse du bailleur'
-    },
-    mentions: {
-      titreEntree: 'ÉTAT DES LIEUX CONTRADICTOIRE D\'ENTRÉE',
-      titreSortie: 'ÉTAT DES LIEUX CONTRADICTOIRE DE SORTIE',
-      sousTitre: 'Établi en application de la Loi n° 89-462 du 6 juillet 1989 modifiée — Décret n° 2016-382',
-      observationsEntreeDefaut: 'Logement remis en bon état général d\'usage et d\'entretien. L\'ensemble des clés et accès mentionnés ont été remis en main propre ce jour.',
-      observationsSortieDefaut: 'Logement restitué propre et vidé de tout meuble et encombrant. Clés remises en main propre au bailleur ce jour.',
-      clesDefaut: '2 jeux complets (porte d\'entrée + boîte aux lettres + badge d\'accès)'
-    },
-    piecesParDefaut: [
-      { nom: 'Entrée / Dégagement', etat: 'Bon état', obs: 'Peinture propre, interphone fonctionnel' },
-      { nom: 'Séjour / Salon', etat: 'Très bon état', obs: 'Murs et sols propres, fenêtres en bon état' },
-      { nom: 'Cuisine', etat: 'Bon état', obs: 'Évier, placards et plaques nettoyés et fonctionnels' },
-      { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement de sol et prises électriques conformes' },
-      { nom: 'Salle d\'eau / WC', etat: 'Bon état', obs: 'Robinetterie et sanitaires sans fuite ni tartre' }
-    ]
-  },
-
-  'fin_bail_template.json': {
-    theme: {
-      primaryColor: '#dc2626',
-      darkColor: '#0f172a',
-      textColor: '#334155',
-      textMuted: '#64748b'
-    },
-    bailleur: {
-      nomParDefaut: 'Bailleur / Propriétaire',
-      adresseParDefaut: 'Adresse du bailleur'
-    },
-    mentions: {
-      titre: 'ATTESTATION DE FIN DE CONTRAT DE LOCATION',
-      sousTitre: 'Restitution des clés et solde du dépôt de garantie (Loi n° 89-462, art. 22)',
-      texteAttestation: 'Je soussigné {bailleur_nom}, propriétaire du logement situé au {bien_adresse}, atteste avoir procédé à la clôture du contrat de bail consenti à {locataire_nom}.',
-      mentionPiedDePage: 'Document certifié conforme émis via KeyFolio.'
-    }
-  },
-
-  'contrat_bail_template.json': {
-    theme: {
-      primaryColor: '#2563eb',
-      darkColor: '#0f172a',
-      textColor: '#334155',
-      textMuted: '#64748b'
-    },
-    bailleur: {
-      nomParDefaut: 'Bailleur / Propriétaire',
-      adresseParDefaut: 'Adresse du bailleur',
-      email: 'contact@bailleur.fr',
-      telephone: '06 00 00 00 00'
-    },
-    clauses: {
-      clauseIRL: true,
-      texteClauseIRL: 'Le loyer sera révisé annuellement à la date anniversaire du contrat selon la variation de l\'Indice de Référence des Loyers (IRL) publié par l\'INSEE.',
-      clauseResolutoire: true,
-      texteClauseResolutoire: 'Il est expressément convenu qu\'à défaut de paiement de tout ou partie du loyer ou des charges au terme convenu, ou à défaut d\'assurance des risques locatifs, le présent contrat sera résilié de plein droit après commandement demeuré infructueux.',
-      equipementsMeuble: 'Cuisine équipée, literie conforme, rangements, luminaires, table et chaises, nécessaire d\'entretien ménager',
-      clausesParticulieres: 'Interdiction de sous-louer sans accord exprès et écrit du bailleur. Respect de la tranquillité et du règlement de copropriété.'
-    }
-  }
-}
+import { PDFDocument, PDFName } from 'pdf-lib'
+import { inflate, inflateRaw, deflate } from 'pako'
+import { formatEuro, formatDate, todayISO } from './utils.js'
 
 /**
  * Dictionnaire complet des variables de données disponibles dans KeyFolio
  */
 export const AVAILABLE_VARIABLES = [
-  { key: 'bailleur_nom', label: 'Nom du Bailleur', category: 'Bailleur', sample: 'SCI Immobilière Dupont' },
+  // Bailleur
+  { key: 'bailleur_nom', label: 'Nom du Bailleur', category: 'Bailleur', sample: 'M. Jean DUPONT' },
   { key: 'bailleur_adresse', label: 'Adresse du Bailleur', category: 'Bailleur', sample: '12 rue de la Paix, 75002 Paris' },
   { key: 'bailleur_email', label: 'Email du Bailleur', category: 'Bailleur', sample: 'contact@sci-dupont.fr' },
   { key: 'bailleur_telephone', label: 'Téléphone du Bailleur', category: 'Bailleur', sample: '06 12 34 56 78' },
   { key: 'bailleur_iban', label: 'IBAN du Bailleur', category: 'Bailleur', sample: 'FR76 3000 4000 5000 6000 7000 890' },
   { key: 'bailleur_bic', label: 'BIC / SWIFT', category: 'Bailleur', sample: 'BNPAFRPP' },
 
-  { key: 'locataire_nom', label: 'Nom & Prénom du Locataire', category: 'Locataire', sample: 'Thomas Bernard' },
-  { key: 'locataire_prenom', label: 'Prénom du Locataire', category: 'Locataire', sample: 'Thomas' },
-  { key: 'locataire_email', label: 'Email du Locataire', category: 'Locataire', sample: 'thomas.bernard@email.fr' },
+  // Locataire
+  { key: 'locataire_nom', label: 'Nom & Prénom du Locataire', category: 'Locataire', sample: 'Mme Sophie MARTIN' },
+  { key: 'locataire_prenom', label: 'Prénom du Locataire', category: 'Locataire', sample: 'Sophie' },
+  { key: 'locataire_email', label: 'Email du Locataire', category: 'Locataire', sample: 'sophie.martin@email.fr' },
   { key: 'locataire_telephone', label: 'Téléphone du Locataire', category: 'Locataire', sample: '06 98 76 54 32' },
 
-  { key: 'bien_nom', label: 'Nom du Bien', category: 'Bien', sample: 'Appartement T3 Centre' },
-  { key: 'bien_adresse', label: 'Adresse complète du Bien', category: 'Bien', sample: '15 avenue des Lilas, 69003 Lyon' },
-  { key: 'bien_surface', label: 'Surface habitable (m²)', category: 'Bien', sample: '65 m²' },
-  { key: 'bien_pieces', label: 'Nombre de pièces', category: 'Bien', sample: '3 pièces' },
+  // Bien
+  { key: 'bien_nom', label: 'Nom du Bien', category: 'Bien', sample: 'Appartement T2 Centre' },
+  { key: 'bien_adresse', label: 'Adresse complète du Bien', category: 'Bien', sample: '45 avenue Victor Hugo, 69006 Lyon' },
+  { key: 'bien_surface', label: 'Surface habitable (m²)', category: 'Bien', sample: '52 m²' },
+  { key: 'bien_pieces', label: 'Nombre de pièces', category: 'Bien', sample: '2 pièces' },
+  { key: 'bien_type', label: 'Type de bien / Régime', category: 'Bien', sample: 'Meublé' },
 
-  { key: 'loyer_hc', label: 'Loyer Hors Charges (€)', category: 'Financier', sample: '680.00 €' },
-  { key: 'charges', label: 'Provisions sur Charges (€)', category: 'Financier', sample: '70.00 €' },
-  { key: 'montant_total', label: 'Montant Total Loyer + Charges (€)', category: 'Financier', sample: '750.00 €' },
-  { key: 'depot_garantie', label: 'Dépôt de Garantie / Caution (€)', category: 'Financier', sample: '680.00 €' },
-  { key: 'montant_retenu', label: 'Montant Retenu sur Caution (€)', category: 'Financier', sample: '50.00 €' },
-  { key: 'solde_restitue', label: 'Solde Net Restitué (€)', category: 'Financier', sample: '630.00 €' },
-  { key: 'motif_retenue', label: 'Motif de la Retenue', category: 'Financier', sample: 'Nettoyage moquette' },
+  // Financier
+  { key: 'loyer_hc', label: 'Loyer Hors Charges (€)', category: 'Financier', sample: '680,00 €' },
+  { key: 'charges', label: 'Provisions sur Charges (€)', category: 'Financier', sample: '70,00 €' },
+  { key: 'montant_total', label: 'Montant Total Loyer + Charges (€)', category: 'Financier', sample: '750,00 €' },
+  { key: 'depot_garantie', label: 'Dépôt de Garantie / Caution (€)', category: 'Financier', sample: '680,00 €' },
+  { key: 'montant_retenu', label: 'Montant Retenu sur Caution (€)', category: 'Financier', sample: '50,00 €' },
+  { key: 'solde_restitue', label: 'Solde Net Restitué (€)', category: 'Financier', sample: '630,00 €' },
+  { key: 'motif_retenue', label: 'Motif de la Retenue', category: 'Financier', sample: 'Nettoyage moquette et réfection joint' },
 
-  { key: 'periode', label: 'Période / Mois concerné', category: 'Date', sample: 'Mars 2026' },
+  // Dates & Période
+  { key: 'periode', label: 'Période / Mois concerné', category: 'Date', sample: 'Août 2026' },
   { key: 'date_jour', label: 'Date du jour', category: 'Date', sample: '27/08/2026' },
-  { key: 'date_paiement', label: 'Date de règlement', category: 'Date', sample: '05/03/2026' },
-  { key: 'date_echeance', label: 'Date d\'échéance', category: 'Date', sample: '05/03/2026' },
+  { key: 'date_paiement', label: 'Date de règlement', category: 'Date', sample: '05/08/2026' },
+  { key: 'date_echeance', label: 'Date d\'échéance', category: 'Date', sample: '05/08/2026' },
   { key: 'date_debut_bail', label: 'Date d\'entrée / Début du bail', category: 'Date', sample: '01/09/2024' },
-  { key: 'date_fin_bail', label: 'Date de sortie / Fin du bail', category: 'Date', sample: '28/02/2026' },
-  { key: 'motif_fin', label: 'Motif de fin de bail', category: 'Gestion', sample: 'Congé donné par le locataire' },
+  { key: 'date_fin_bail', label: 'Date de sortie / Fin du bail', category: 'Date', sample: '31/08/2026' },
+  { key: 'motif_fin', label: 'Motif de fin de bail', category: 'Gestion', sample: 'Départ convenu / Congé locataire' },
 
-  { key: 'index_elec', label: 'Index Électricité (kWh)', category: 'Technique', sample: '14250 kWh' },
+  // Technique / Compteurs
+  { key: 'index_elec', label: 'Index Électricité (kWh)', category: 'Technique', sample: '14 250 kWh' },
   { key: 'index_eau', label: 'Index Eau (m³)', category: 'Technique', sample: '385 m³' },
   { key: 'index_gaz', label: 'Index Gaz (m³)', category: 'Technique', sample: '890 m³' },
-  { key: 'cles_remises', label: 'Clés & Accès', category: 'Technique', sample: '2 jeux complets + badge' }
+  { key: 'cles_remises', label: 'Clés & Accès remis', category: 'Technique', sample: '2 jeux complets + 1 badge Vigik' }
 ]
 
 /**
- * Récupère la configuration d'un template avec double couche de cache (LocalStorage + Tauri + Fallback)
+ * Décodeur ASCII85 pour les flux PDF
  */
-export function getLoadedTemplateConfig(filename) {
-  try {
-    const cached = localStorage.getItem(`keyfolio_tpl_${filename}`)
-    if (cached) return JSON.parse(cached)
-  } catch (e) {}
+function decodeAscii85(str) {
+  let clean = str.replace(/\s+/g, '')
+  if (clean.startsWith('<~')) clean = clean.slice(2)
+  if (clean.endsWith('~>')) clean = clean.slice(0, -2)
 
-  return DEFAULT_TEMPLATES[filename] || {}
-}
-
-/**
- * Remplace toutes les balises textuelles {cle}, {{cle}}, "{cle}", etc. par les vraies valeurs
- */
-export function replaceTextTags(text, dataContext) {
-  if (!text || typeof text !== 'string') return ''
-  let result = text
-
-  // Alias courants
-  const fullContext = {
-    ...dataContext,
-    bailleurNom: dataContext.bailleur_nom,
-    bailleurAdresse: dataContext.bailleur_adresse,
-    locataireNom: dataContext.locataire_nom,
-    locatairePrenom: dataContext.locataire_prenom,
-    bienNom: dataContext.bien_nom,
-    bienAdresse: dataContext.bien_adresse,
-    montantTotal: dataContext.montant_total,
-    loyerHC: dataContext.loyer_hc,
-    depotGarantie: dataContext.depot_garantie,
-    soldeRestitue: dataContext.solde_restitue
+  const out = []
+  let count = 0
+  let tuple = 0
+  for (let i = 0; i < clean.length; i++) {
+    const c = clean.charCodeAt(i)
+    if (c === 122 && count === 0) {
+      out.push(0, 0, 0, 0)
+      continue
+    }
+    if (c < 33 || c > 117) continue
+    tuple = tuple * 85 + (c - 33)
+    count++
+    if (count === 5) {
+      out.push((tuple >> 24) & 255, (tuple >> 16) & 255, (tuple >> 8) & 255, tuple & 255)
+      tuple = 0
+      count = 0
+    }
   }
-
-  Object.entries(fullContext).forEach(([key, val]) => {
-    if (val === undefined || val === null) return
-    // Formes {key}, {{key}}, "{key}", "{{key}}", "[key]", ""{{key}}""
-    result = result.split(`""{{${key}}}""`).join(strVal)
-    result = result.split(`"{{${key}}}"`).join(strVal)
-    result = result.split(`""{${key}}""`).join(strVal)
-    result = result.split(`"{${key}}"`).join(strVal)
-    result = result.split(`{{${key}}}`).join(strVal)
-    result = result.split(`{${key}}`).join(strVal)
-    result = result.split(`"${key}"`).join(strVal)
-    result = result.split(`[${key.toUpperCase()}]`).join(strVal)
-  })
-
-  return result
+  if (count > 0) {
+    const padding = 5 - count
+    for (let i = 0; i < padding; i++) tuple = tuple * 85 + 84
+    for (let i = 0; i < count - 1; i++) {
+      out.push((tuple >> (24 - 8 * i)) & 255)
+    }
+  }
+  return new Uint8Array(out)
 }
 
-export const replacePlaceholdersInText = replacePlaceholders
+/**
+ * Échappement des caractères spéciaux et accents français en notation PDF Standard
+ */
+function escapePdfString(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/é/g, '\\351')
+    .replace(/è/g, '\\350')
+    .replace(/ê/g, '\\352')
+    .replace(/ë/g, '\\353')
+    .replace(/à/g, '\\340')
+    .replace(/â/g, '\\342')
+    .replace(/ù/g, '\\371')
+    .replace(/û/g, '\\373')
+    .replace(/ô/g, '\\364')
+    .replace(/î/g, '\\356')
+    .replace(/ï/g, '\\357')
+    .replace(/ç/g, '\\347')
+    .replace(/É/g, '\\311')
+    .replace(/È/g, '\\310')
+    .replace(/À/g, '\\300')
+    .replace(/Ô/g, '\\324')
+    .replace(/—/g, '\\227')
+    .replace(/–/g, '-')
+    .replace(/€/g, '\\200')
+}
 
 /**
- * Construit un objet de contexte de données complet
+ * Construit un objet de contexte de données complet à partir des modèles de la BDD
  */
 export function buildDataContext({
-  bail,
-  bien,
-  locataire,
+  bail = null,
+  bien = null,
+  locataire = null,
   periode = '',
   dateDoc = '',
-  loyerHC = 0,
-  charges = 0,
-  depotGarantie = 0,
+  loyerHC = null,
+  charges = null,
+  depotGarantie = null,
   montantRetenu = 0,
   motifRetenue = '',
   motifFin = '',
@@ -242,97 +137,197 @@ export function buildDataContext({
   eauIndex = '',
   gazIndex = '',
   clesRemises = '',
+  bailleurNom = '',
+  bailleurAdresse = '',
+  bailleurEmail = '',
+  bailleurTelephone = '',
+  bailleurIban = '',
+  bailleurBic = '',
   customValues = {}
 }) {
   const locFullName = locataire
-    ? `${locataire.prenom} ${locataire.nom}`
+    ? `${locataire.prenom || ''} ${locataire.nom || ''}`.trim()
     : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
 
-  const total = parseFloat(loyerHC || 0) + parseFloat(charges || 0)
-  const solde = Math.max(0, parseFloat(depotGarantie || 0) - parseFloat(montantRetenu || 0))
+  const finalLoyerHC = loyerHC !== null && loyerHC !== undefined
+    ? parseFloat(loyerHC)
+    : parseFloat(bail?.loyer_mensuel || 0)
+
+  const finalCharges = charges !== null && charges !== undefined
+    ? parseFloat(charges)
+    : parseFloat(bail?.charges_mensuelles || 0)
+
+  const total = finalLoyerHC + finalCharges
+
+  const caution = depotGarantie !== null && depotGarantie !== undefined
+    ? parseFloat(depotGarantie)
+    : parseFloat(bail?.depot_garantie || 0)
+
+  const retenu = parseFloat(montantRetenu || 0)
+  const solde = Math.max(0, caution - retenu)
+
+  const getLs = (k) => {
+    try {
+      return typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null
+    } catch (e) {
+      return null
+    }
+  }
 
   return {
-    bailleur_nom: customValues.bailleur_nom || 'Bailleur / Propriétaire',
-    bailleur_adresse: customValues.bailleur_adresse || 'Adresse du bailleur',
-    bailleur_email: customValues.bailleur_email || '',
-    bailleur_telephone: customValues.bailleur_telephone || '',
-    bailleur_iban: customValues.bailleur_iban || 'FR76 3000 4000 5000 6000 7000 890',
-    bailleur_bic: customValues.bailleur_bic || 'BNPAFRPP',
+    bailleur_nom: bailleurNom || customValues.bailleur_nom || getLs('bailleur_nom') || 'Bailleur / Propriétaire',
+    bailleur_adresse: bailleurAdresse || customValues.bailleur_adresse || getLs('bailleur_adresse') || 'Adresse du bailleur',
+    bailleur_email: bailleurEmail || customValues.bailleur_email || getLs('bailleur_email') || '',
+    bailleur_telephone: bailleurTelephone || customValues.bailleur_telephone || getLs('bailleur_telephone') || '',
+    bailleur_iban: bailleurIban || customValues.bailleur_iban || getLs('bailleur_iban') || 'FR76 3000 4000 5000 6000 7000 890',
+    bailleur_bic: bailleurBic || customValues.bailleur_bic || getLs('bailleur_bic') || 'BNPAFRPP',
 
     locataire_nom: locFullName,
     locataire_prenom: locataire?.prenom || bail?.locataire_prenom || '',
-    locataire_email: locataire?.email || '',
-    locataire_telephone: locataire?.telephone || '',
+    locataire_email: locataire?.email || bail?.locataire_email || '',
+    locataire_telephone: locataire?.telephone || bail?.locataire_telephone || '',
 
     bien_nom: bien?.nom || bail?.bien_nom || 'Logement',
-    bien_adresse: bien?.adresse || 'Adresse non spécifiée',
-    bien_surface: bien?.surface_m2 ? `${bien.surface_m2} m²` : '',
-    bien_pieces: bien?.nb_pieces ? `${bien.nb_pieces} pièce(s)` : '',
+    bien_adresse: bien?.adresse || bail?.bien_adresse || 'Adresse du logement',
+    bien_surface: bien?.surface_m2 ? `${bien.surface_m2} m²` : (bail?.bien_surface ? `${bail.bien_surface} m²` : ''),
+    bien_pieces: bien?.nb_pieces ? `${bien.nb_pieces} pièce(s)` : '2 pièces',
+    bien_type: (bail?.type_bail === 'meuble' || bien?.type_bien?.toLowerCase().includes('meubl')) ? 'Meublé' : 'Nu',
 
-    loyer_hc: formatEuro(loyerHC || bail?.loyer_mensuel || 0),
-    charges: formatEuro(charges || bail?.charges_mensuelles || 0),
+    loyer_hc: formatEuro(finalLoyerHC),
+    charges: formatEuro(finalCharges),
     montant_total: formatEuro(total),
-    depot_garantie: formatEuro(depotGarantie || bail?.depot_garantie || 0),
-    montant_retenu: formatEuro(montantRetenu || 0),
+    depot_garantie: formatEuro(caution),
+    montant_retenu: formatEuro(retenu),
     solde_restitue: formatEuro(solde),
     motif_retenue: motifRetenue || '',
 
-    periode: periode || 'Période courante',
+    periode: periode || formatDate(dateDoc || todayISO()),
     date_jour: formatDate(todayISO()),
     date_paiement: formatDate(dateDoc || todayISO()),
     date_echeance: formatDate(dateDoc || todayISO()),
     date_debut_bail: formatDate(bail?.date_debut || todayISO()),
     date_fin_bail: formatDate(dateDoc || bail?.date_fin || todayISO()),
-    motif_fin: motifFin || bail?.motif_fin || 'Congé donné par le locataire',
+    motif_fin: motifFin || bail?.motif_fin || 'Départ convenu / Congé locataire',
 
-    index_elec: elecIndex ? `${elecIndex} kWh` : '—',
-    index_eau: eauIndex ? `${eauIndex} m³` : '—',
-    index_gaz: gazIndex ? `${gazIndex} m³` : '—',
-    cles_remises: clesRemises || '2 jeux complets (porte d\'entrée + boîte aux lettres + badge)'
+    index_elec: elecIndex ? (String(elecIndex).includes('kWh') ? elecIndex : `${elecIndex} kWh`) : '—',
+    index_eau: eauIndex ? (String(eauIndex).includes('m³') ? eauIndex : `${eauIndex} m³`) : '—',
+    index_gaz: gazIndex ? (String(gazIndex).includes('m³') ? gazIndex : `${gazIndex} m³`) : '—',
+    cles_remises: clesRemises || '2 jeux complets (porte + boîte aux lettres + badge)'
   }
 }
 
 /**
- * Charge un fichier PDF modèle et remplit les balises textuelles et champs
+ * Remplit directement un fichier PDF modèle en remplaçant toutes les balises textuelles {{...}}
  */
-export async function fillPdfTemplate(pdfBytes, dataContext, mappingConfig = null) {
-  const pdfDoc = await PDFDocument.load(pdfBytes)
-  const form = pdfDoc.getForm()
-  const fields = form.getFields()
+export async function fillPdfTemplate(pdfBytes, dataContext) {
+  const doc = await PDFDocument.load(pdfBytes)
 
-  let filledFieldsCount = 0
+  // 1. Remplissage des formulaires interactifs s'il y en a (AcroForm)
+  try {
+    const form = doc.getForm()
+    const fields = form ? form.getFields() : []
+    if (fields && fields.length > 0) {
+      fields.forEach(field => {
+        const name = field.getName().toLowerCase().replace(/[{}_-]/g, '').trim()
+        const matchedEntry = Object.entries(dataContext).find(([k]) => {
+          const cleanK = k.toLowerCase().replace(/_/g, '')
+          return cleanK === name || name.includes(cleanK) || cleanK.includes(name)
+        })
+        if (matchedEntry && matchedEntry[1] !== undefined && matchedEntry[1] !== null) {
+          try {
+            if (field.constructor.name === 'PDFTextField') {
+              field.setText(String(matchedEntry[1]))
+            }
+          } catch (e) {}
+        }
+      })
+      try { form.flatten() } catch (e) {}
+    }
+  } catch (e) {}
 
-  if (fields.length > 0) {
-    fields.forEach(field => {
-      const fieldName = field.getName().toLowerCase().trim().replace(/[{}]/g, '')
+  // 2. Remplacement direct dans les flux textuels du PDF
+  const pageCount = doc.getPageCount()
+  for (let p = 0; p < pageCount; p++) {
+    const page = doc.getPage(p)
+    const contentsRef = page.node.get(PDFName.of('Contents'))
+    if (!contentsRef) continue
 
-      const matchedKey = Object.keys(dataContext).find(k => {
-        const cleanK = k.toLowerCase().replace(/_/g, '')
-        const cleanF = fieldName.replace(/_/g, '')
-        return cleanF === cleanK || cleanF.includes(cleanK) || cleanK.includes(cleanF)
+    const contentsObj = doc.context.lookup(contentsRef)
+    if (!contentsObj) continue
+
+    const streamList = Array.isArray(contentsObj) ? contentsObj : [contentsObj]
+
+    for (const stream of streamList) {
+      if (!stream.getContents) continue
+
+      const filterObj = stream.dict.get(PDFName.of('Filter'))
+      const filterStr = filterObj ? filterObj.toString() : ''
+
+      let rawBuffer = new Uint8Array(stream.getContents())
+      let decodedText = ''
+
+      if (filterStr.includes('ASCII85Decode')) {
+        let latinStr = ''
+        for (let i = 0; i < rawBuffer.length; i++) latinStr += String.fromCharCode(rawBuffer[i])
+        rawBuffer = decodeAscii85(latinStr)
+      }
+
+      if (filterStr.includes('FlateDecode') || !filterStr) {
+        try {
+          const decomp = inflate(rawBuffer)
+          let decStr = ''
+          for (let i = 0; i < decomp.length; i++) decStr += String.fromCharCode(decomp[i])
+          decodedText = decStr
+        } catch (e) {
+          try {
+            const decomp = inflateRaw(rawBuffer)
+            let decStr = ''
+            for (let i = 0; i < decomp.length; i++) decStr += String.fromCharCode(decomp[i])
+            decodedText = decStr
+          } catch (e2) {
+            let decStr = ''
+            for (let i = 0; i < rawBuffer.length; i++) decStr += String.fromCharCode(rawBuffer[i])
+            decodedText = decStr
+          }
+        }
+      } else {
+        let decStr = ''
+        for (let i = 0; i < rawBuffer.length; i++) decStr += String.fromCharCode(rawBuffer[i])
+        decodedText = decStr
+      }
+
+      let modifiedText = decodedText
+
+      // Remplacement de chaque balise
+      Object.entries(dataContext).forEach(([k, val]) => {
+        if (val === undefined || val === null) return
+        const escVal = escapePdfString(val)
+
+        // Remplacement formes avec et sans guillemets
+        modifiedText = modifiedText.split(`"{{${k}}}"`).join(escVal)
+        modifiedText = modifiedText.split(`{{${k}}}`).join(escVal)
+        modifiedText = modifiedText.split(`"{${k}}"`).join(escVal)
+        modifiedText = modifiedText.split(`{${k}}`).join(escVal)
+        modifiedText = modifiedText.split(`""{{${k}}}""`).join(escVal)
+        modifiedText = modifiedText.split(`""{${k}}""`).join(escVal)
       })
 
-      if (matchedKey && dataContext[matchedKey] !== undefined) {
-        try {
-          const type = field.constructor.name
-          if (type === 'PDFTextField') {
-            field.setText(String(dataContext[matchedKey]))
-            filledFieldsCount++
-          }
-        } catch (e) {
-          console.warn(`Erreur champ ${fieldName}:`, e)
-        }
+      // Re-compression Flate standard
+      const textBytes = new Uint8Array(modifiedText.length)
+      for (let i = 0; i < modifiedText.length; i++) {
+        textBytes[i] = modifiedText.charCodeAt(i) & 0xff
       }
-    })
+      const newCompressed = deflate(textBytes)
 
-    try {
-      form.flatten()
-    } catch (e) {}
+      stream.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'))
+      stream.dict.set(PDFName.of('Length'), doc.context.obj(newCompressed.length))
+      stream.contents = newCompressed
+    }
   }
 
-  const outputBytes = await pdfDoc.save()
+  const outputBytes = await doc.save()
   return {
     bytes: outputBytes,
-    filledFieldsCount
+    doc
   }
 }

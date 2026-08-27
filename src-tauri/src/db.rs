@@ -332,36 +332,6 @@ pub fn ensure_pdf_templates_folder(app: &tauri::AppHandle) -> std::io::Result<Pa
     let tpl_dir = base.join("Templates_PDF");
     std::fs::create_dir_all(&tpl_dir)?;
 
-    let quittance_file = tpl_dir.join("quittance_template.json");
-    if !quittance_file.exists() {
-        let content = include_str!("../../templates/pdf/quittance_template.json");
-        std::fs::write(&quittance_file, content)?;
-    }
-
-    let avis_file = tpl_dir.join("avis_echeance_template.json");
-    if !avis_file.exists() {
-        let content = include_str!("../../templates/pdf/avis_echeance_template.json");
-        std::fs::write(&avis_file, content)?;
-    }
-
-    let edl_file = tpl_dir.join("etat_des_lieux_template.json");
-    if !edl_file.exists() {
-        let content = include_str!("../../templates/pdf/etat_des_lieux_template.json");
-        std::fs::write(&edl_file, content)?;
-    }
-
-    let fin_file = tpl_dir.join("fin_bail_template.json");
-    if !fin_file.exists() {
-        let content = include_str!("../../templates/pdf/fin_bail_template.json");
-        std::fs::write(&fin_file, content)?;
-    }
-
-    let bail_file = tpl_dir.join("contrat_bail_template.json");
-    if !bail_file.exists() {
-        let content = include_str!("../../templates/pdf/contrat_bail_template.json");
-        std::fs::write(&bail_file, content)?;
-    }
-
     let guide_file = tpl_dir.join("GUIDE_PERSONNALISATION_TEMPLATES.md");
     if !guide_file.exists() {
         let content = include_str!("../../templates/pdf/GUIDE_PERSONNALISATION_TEMPLATES.md");

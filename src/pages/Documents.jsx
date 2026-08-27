@@ -17,6 +17,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import Icon from '../components/common/Icon'
 import ExcelGeneratorModal from '../components/documents/ExcelGeneratorModal'
+import InteractivePdfEditorModal from '../components/documents/InteractivePdfEditorModal'
 
 import DocumentsTreeSidebar from '../components/documents/DocumentsTreeSidebar'
 import TreeNodeItem, { getFileIcon } from '../components/documents/TreeNodeItem'
@@ -24,7 +25,6 @@ import FolderContentView from '../components/documents/FolderContentView'
 import DocumentPreviewer from '../components/documents/DocumentPreviewer'
 import ThemesDashboard from '../components/documents/ThemesDashboard'
 import AddDocumentModal from '../components/documents/AddDocumentModal'
-import InteractivePdfEditorModal from '../components/documents/InteractivePdfEditorModal'
 import BailGenerateurModal from '../components/baux/BailGenerateurModal'
 import EtatDesLieuxModal from '../components/baux/EtatDesLieuxModal'
 import QuittanceModal from '../components/paiements/QuittanceModal'
@@ -105,11 +105,9 @@ export default function Documents({ selectedBienId, initialFilePath }) {
   // Toast notifications
   const [toasts, setToasts] = useState([])
 
-  // Excel Generator Modal
+  // Excel & PDF Generator Modals
   const [excelModal, setExcelModal] = useState(null) // { bienId, targetSubfolder }
-
-  // Modale Interactive PDF Editor Modal
-  const [interactiveEditorDoc, setInteractiveEditorDoc] = useState(null)
+  const [pdfModal, setPdfModal] = useState(null) // { bienId, targetSubfolder }
 
   // Modales Générateurs Officiels (Bail, EDL, Quittance)
   const [docHubAction, setDocHubAction] = useState(null) // 'bail' | 'edl' | 'quittance'
@@ -583,50 +581,53 @@ export default function Documents({ selectedBienId, initialFilePath }) {
   }
 
   return (
-    <div className="page-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="page-header" style={{ marginBottom: 16 }}>
+    <div className="page-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '18px 24px', boxSizing: 'border-box', overflow: 'hidden' }}>
+      <div className="page-header" style={{ marginBottom: 14, flexShrink: 0 }}>
         <div>
-          <h2>Documents & Fichiers</h2>
-          <p>Explorateur de fichiers avec prévisualisation, liens web et glisser-déposer</p>
+          <h2 style={{ fontSize: 20, fontWeight: 800 }}>Documents & Fichiers</h2>
+          <p style={{ fontSize: 12 }}>Explorateur de fichiers avec prévisualisation, modèles filtrés et glisser-déposer</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm"
             onClick={() => performScan(currentBienId)}
             title="Re-scanner le dossier sur le disque dur"
             disabled={loading || !currentBienId}
+            style={{ fontSize: 12 }}
           >
-            Actualiser
+            <Icon name="rotateCw" size={13} /> Actualiser
           </button>
           <button
-            className="btn btn-secondary"
-            onClick={() => setDocHubAction('bail')}
+            className="btn btn-primary btn-sm"
+            onClick={() => setPdfModal({ bienId: currentBienId })}
             disabled={!currentBienId}
-            title="Rédiger un contrat de bail légal ALUR"
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+            title="Rédiger et générer un document PDF officiel (Quittance, Fin de bail, EDL, Contrat ALUR...)"
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+              borderColor: '#4338ca',
+              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
+            }}
           >
-            <Icon name="fileSignature" size={13} color="#4f46e5" /> 📜 Rédiger Bail
+            <Icon name="fileSignature" size={13} color="#ffffff" />
+            <span>Générer un document</span>
           </button>
           <button
-            className="btn btn-secondary"
-            onClick={() => setDocHubAction('edl')}
+            className="btn btn-secondary btn-sm"
+            onClick={() => setExcelModal({ bienId: currentBienId })}
             disabled={!currentBienId}
-            title="Rédiger un état des lieux contradictoire"
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+            title="Générer un tableur Excel (.xlsx)"
+            style={{ fontSize: 12 }}
           >
-            <Icon name="clipboardCheck" size={13} color="#16a34a" /> 📋 État des Lieux
+            <Icon name="fileSpreadsheet" size={13} color="#16a34a" />
+            <span>Tableur Excel</span>
           </button>
           <button
-            className="btn btn-secondary"
-            onClick={() => setDocHubAction('quittance')}
-            disabled={!currentBienId}
-            title="Générer une quittance de loyer certifiée"
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
-          >
-            <Icon name="fileText" size={13} color="#2563eb" /> 💶 Quittance
-          </button>
-          <button
-            className="btn btn-primary"
+            className="btn btn-secondary btn-sm"
             onClick={() => {
               setSourcePath('')
               setWebTitle('')
@@ -636,8 +637,9 @@ export default function Documents({ selectedBienId, initialFilePath }) {
               setAddModal(true)
             }}
             disabled={!currentBienId}
+            style={{ fontSize: 12 }}
           >
-            <Icon name="plus" size={14} /> + Ajouter un fichier / Lien
+            <Icon name="upload" size={13} /> + Importer un fichier
           </button>
         </div>
       </div>
@@ -700,7 +702,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   const cf = currentBien?.chemin_dossier || ''
                   let f = selectedFile.relative_path
                   if (cf && f.startsWith(cf)) f = f.replace(cf, '').replace(/^\//, '')
-                  setExcelModal({ bienId: parseInt(currentBienId), targetSubfolder: f })
+                  setExcelModal({ bienId: currentBienId, targetSubfolder: f })
                 }}
                 onBackToThemes={() => setSelectedFile(null)}
                 onContextMenu={handleContextMenu}
@@ -726,30 +728,13 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   </div>
 
                   <div className="actions-cell">
-                    {selectedFile.name.toLowerCase().endsWith('.pdf') && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setInteractiveEditorDoc(selectedFile)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          fontWeight: 700,
-                          background: '#4f46e5',
-                          borderColor: '#4f46e5',
-                          boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)'
-                        }}
-                        title="Remplir / Modifier ce document PDF avec l'assistant"
-                      >
-                        <Icon name="fileSignature" size={13} color="#ffffff" /> Modifier / Remplir
-                      </button>
-                    )}
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => handleOpenFile(selectedFile.relative_path)}
                       title={selectedFile.name.toLowerCase().endsWith('.url') ? "Ouvrir le lien web" : "Ouvrir dans l'application externe"}
                     >
-                      {selectedFile.name.toLowerCase().endsWith('.url') ? 'Ouvrir le lien' : 'Ouvrir'}
+                      <Icon name="folderOpen" size={13} />
+                      {selectedFile.name.toLowerCase().endsWith('.url') ? 'Ouvrir le lien' : 'Ouvrir le document'}
                     </button>
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
@@ -789,17 +774,17 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   setSelectedFile(node)
                   toggleExpand(folderPath)
                 } else {
-                  // Si le dossier n'a pas encore de fichier ou nœud scanné, ouvrir le générateur
+                  // Si le dossier n'a pas encore de fichier ou nœud scanné, ouvrir le générateur filtré
                   const currentBien = biens.find(b => b.id === parseInt(currentBienId))
                   const cf = currentBien?.chemin_dossier || ''
                   let f = folderPath
                   if (cf && f.startsWith(cf)) f = f.replace(cf, '').replace(/^\//, '')
-                  setExcelModal({ bienId: parseInt(currentBienId), targetSubfolder: f })
+                  setExcelModal({ bienId: currentBienId, targetSubfolder: f })
                 }
               }}
               onGenerateDocument={(subfolder) => {
                 setExcelModal({
-                  bienId: parseInt(currentBienId),
+                  bienId: currentBienId,
                   targetSubfolder: subfolder || '07_LOCATION'
                 })
               }}
@@ -876,6 +861,21 @@ export default function Documents({ selectedBienId, initialFilePath }) {
         onClose={() => setConfirmDeleteFile(null)}
       />
 
+      {/* Interactive PDF Editor Modal (Sélection -> Modification & Aperçu direct) */}
+      {pdfModal && (
+        <InteractivePdfEditorModal
+          document={{ isNew: true }}
+          initialBienId={pdfModal.bienId}
+          targetSubfolder={pdfModal.targetSubfolder}
+          onClose={() => setPdfModal(null)}
+          onSaved={() => {
+            setPdfModal(null)
+            performScan(currentBienId)
+            addToast('Document PDF officiel généré et classé avec succès !')
+          }}
+        />
+      )}
+
       {/* Excel Generator Modal ciblé sur un dossier */}
       {excelModal && (
         <ExcelGeneratorModal
@@ -883,20 +883,6 @@ export default function Documents({ selectedBienId, initialFilePath }) {
           targetSubfolder={excelModal.targetSubfolder}
           onClose={() => setExcelModal(null)}
           onSuccess={() => { setExcelModal(null); performScan(currentBienId) }}
-        />
-      )}
-
-      {/* Interactive PDF Editor Modal */}
-      {interactiveEditorDoc && (
-        <InteractivePdfEditorModal
-          document={interactiveEditorDoc}
-          initialBienId={currentBienId}
-          onClose={() => setInteractiveEditorDoc(null)}
-          onSaved={() => {
-            setInteractiveEditorDoc(null)
-            performScan(currentBienId)
-            addToast('Document modifié et synchronisé avec succès !', 'success')
-          }}
         />
       )}
 

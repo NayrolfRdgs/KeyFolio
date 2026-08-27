@@ -1,112 +1,76 @@
-# 📄 Guide de Personnalisation des Modèles PDF KeyFolio
+# Guide de Personnalisation des Modèles PDF KeyFolio
 
-Bienvenue dans le guide de personnalisation des modèles de documents PDF de **KeyFolio** !
-
-Ce système vous permet d'adapter facilement la charte graphique, les coordonnées par défaut du bailleur, les mentions légales, les clauses particulières et les textes types de l'ensemble des documents PDF générés par le logiciel.
+Bienvenue dans le guide de personnalisation documentaire de **KeyFolio** !
 
 ---
 
-## 📂 1. Emplacement des fichiers de modèles
+## Comment personnaliser vos modèles PDF ?
 
-À chaque démarrage de KeyFolio, les fichiers de modèles sont automatiquement copiés et maintenus dans le dossier :
-```
-[Dossier_KeyFolio]/Templates_PDF/
-```
-*(Ou dans le dossier `templates/pdf/` à la racine du projet).*
+KeyFolio utilise directement les fichiers `.pdf` stockés dans ce dossier. Vous pouvez les ouvrir, les modifier ou créer de nouveaux documents avec n'importe quel logiciel de votre choix :
+* **Canva** (import de PDF et édition vectorielle)
+* **Microsoft Word / LibreOffice** (export en PDF)
+* **Adobe Acrobat / Illustrator / InDesign**
+* **Figma** (export en PDF)
 
-Vous pouvez ouvrir ce dossier directement depuis l'application via :
-👉 **Options & Réglages (⚙️) ➔ Onglet « Modèles PDF » ➔ Ouvrir le dossier des Templates**.
-
----
-
-## 📑 2. Liste des modèles disponibles
-
-| Fichier | Document généré | Emplacement de destination |
-| :--- | :--- | :--- |
-| `quittance_template.json` | Quittance de loyer mensuelle | `07_LOCATION/Quittances de loyer/` |
-| `avis_echeance_template.json` | Avis d'échéance / Appel de loyer | `07_LOCATION/Quittances de loyer/` |
-| `etat_des_lieux_template.json` | États des lieux d'Entrée & de Sortie | `07_LOCATION/Etat des lieux/` |
-| `fin_bail_template.json` | Attestation de fin de contrat & caution | `07_LOCATION/Etat des lieux/Sortie/` |
-| `contrat_bail_template.json` | Contrat de location type Loi ALUR | `07_LOCATION/Baux/` |
+Il vous suffit de placer vos balises de texte entre guillemets doubles `"{{nom_de_variable}}"` à l'endroit souhaité. Lors de la génération dans KeyFolio, le logiciel remplacera automatiquement et instantanément ces balises par les vraies informations de votre bien, locataire ou bail !
 
 ---
 
-## 🎨 3. Comment personnaliser un modèle ?
+## Liste complète des balises disponibles
 
-Chaque modèle est un simple fichier texte au format **JSON**, facilement modifiable avec n'importe quel éditeur de texte (Bloc-notes Windows, VS Code, Notepad++, etc.).
+### 1. Informations du Bailleur / Propriétaire
+* `"{{bailleur_nom}}"` : Nom complet ou raison sociale (ex: *M. Jean DUPONT*)
+* `"{{bailleur_adresse}}"` : Adresse postale du bailleur
+* `"{{bailleur_email}}"` : Adresse email de contact
+* `"{{bailleur_telephone}}"` : Numéro de téléphone
+* `"{{bailleur_iban}}"` : Numéro de compte IBAN pour les virements
+* `"{{bailleur_bic}}"` : Code BIC / SWIFT
 
-### A. Modifier la charte graphique & les couleurs
-Vous pouvez changer les codes couleurs hexadécimaux (`#2563eb`, `#16a34a`, `#0f172a`, etc.) dans la section `"theme"` :
-```json
-"theme": {
-  "primaryColor": "#2563eb",   // Couleur de la barre d'en-tête et des titres
-  "darkColor": "#0f172a",      // Couleur du texte principal
-  "textColor": "#334155",      // Couleur des paragraphes
-  "textMuted": "#64748b"       // Couleur des sous-titres et notes
-}
-```
+### 2. Informations du Locataire
+* `"{{locataire_nom}}"` : Nom et prénom complet du locataire
+* `"{{locataire_prenom}}"` : Prénom du locataire
+* `"{{locataire_email}}"` : Email du locataire
+* `"{{locataire_telephone}}"` : Téléphone du locataire
 
----
+### 3. Informations du Logement / Bien
+* `"{{bien_nom}}"` : Nom / désignation du bien (ex: *Appartement T2 Centre*)
+* `"{{bien_adresse}}"` : Adresse complète du logement
+* `"{{bien_surface}}"` : Surface habitable avec unité (ex: *52 m²*)
+* `"{{bien_pieces}}"` : Nombre de pièces (ex: *2 pièces*)
+* `"{{bien_type}}"` : Régime de location (*Meublé* ou *Nu*)
 
-### B. Définir vos coordonnées bailleur par défaut
-Pour ne plus avoir à ressaisir vos informations de bailleur à chaque document, renseignez la section `"bailleur"` :
-```json
-"bailleur": {
-  "nomParDefaut": "SCI Immobilière Dupont",
-  "adresseParDefaut": "12 rue de la Paix",
-  "villeParDefaut": "75002 Paris",
-  "email": "contact@sci-dupont.fr",
-  "telephone": "06 12 34 56 78",
-  "iban": "FR76 3000 4000 5000 6000 7000 890",
-  "modePaiement": "Virement bancaire"
-}
-```
+### 4. Informations Financières
+* `"{{loyer_hc}}"` : Montant du loyer hors charges en euros (ex: *680,00 €*)
+* `"{{charges}}"` : Provisions sur charges locatives en euros (ex: *70,00 €*)
+* `"{{montant_total}}"` : Montant total loyer + charges en euros (ex: *750,00 €*)
+* `"{{depot_garantie}}"` : Montant du dépôt de garantie / caution versé (ex: *680,00 €*)
+* `"{{montant_retenu}}"` : Montant retenu sur la caution lors de la sortie (ex: *50,00 €*)
+* `"{{solde_restitue}}"` : Solde net restitué au locataire (ex: *630,00 €*)
+* `"{{motif_retenue}}"` : Motif de la retenue sur caution
 
----
+### 5. Dates et Périodes
+* `"{{periode}}"` : Période ou mois acquitté (ex: *Août 2026*)
+* `"{{date_jour}}"` : Date du jour
+* `"{{date_paiement}}"` : Date de règlement
+* `"{{date_echeance}}"` : Date limite d'échéance de loyer
+* `"{{date_debut_bail}}"` : Date de prise d'effet du bail
+* `"{{date_fin_bail}}"` : Date de fin / sortie du logement
+* `"{{motif_fin}}"` : Motif de fin de contrat
 
-### C. Personnaliser le texte des attestations et mentions
-Dans `quittance_template.json`, vous pouvez personnaliser le texte de la quittance :
-```json
-"mentions": {
-  "texteAttestation": "Je soussigné {bailleurNom}, propriétaire du logement situé au {bienAdresse}, atteste avoir reçu de {locataireNom} la somme de {montantTotal} au titre du loyer et des charges pour la période mentionnée.",
-  "mentionPiedDePage": "Cette quittance annule tous les reçus qui auraient pu être donnés pour acompte. Document certifié conforme émis via KeyFolio."
-}
-```
-*💡 Les balises `{bailleurNom}`, `{bienAdresse}`, `{locataireNom}`, `{montantTotal}` sont automatiquement remplacées par les vraies données lors de la génération.*
-
----
-
-### D. Personnaliser les pièces par défaut de l'État des Lieux
-Dans `etat_des_lieux_template.json`, modifiez ou ajoutez des pièces prédéfinies :
-```json
-"piecesParDefaut": [
-  { "nom": "Entrée / Couloir", "etat": "Bon état", "obs": "Peinture propre, interphone fonctionnel" },
-  { "nom": "Séjour / Salon", "etat": "Très bon état", "obs": "Murs et sols propres, fenêtres double vitrage" },
-  { "nom": "Cuisine", "etat": "Bon état", "obs": "Évier, placards et plaques nettoyés et fonctionnels" },
-  { "nom": "Chambre principale", "etat": "Très bon état", "obs": "Parquet et prises électriques conformes" },
-  { "nom": "Salle d'eau / WC", "etat": "Bon état", "obs": "Robinetterie sans fuite" },
-  { "nom": "Balcon / Terrasse", "etat": "Bon état", "obs": "Dalles propres, garde-corps scellé" }
-]
-```
+### 6. Compteurs et Clés
+* `"{{index_elec}}"` : Relevé du compteur électrique (ex: *14 250 kWh*)
+* `"{{index_eau}}"` : Relevé du compteur d'eau (ex: *385 m³*)
+* `"{{index_gaz}}"` : Relevé du compteur de gaz (ex: *890 m³*)
+* `"{{cles_remises}}"` : Nombre et description des clés et badges remis
 
 ---
 
-### E. Personnaliser les clauses du Contrat de Bail
-Dans `contrat_bail_template.json`, adaptez la clause d'indexation annuelle IRL, la clause résolutoire ou les équipements d'un meublé :
-```json
-"clauses": {
-  "clauseIRL": true,
-  "texteClauseIRL": "Le loyer sera révisé annuellement à la date anniversaire du contrat selon la variation de l'Indice de Référence des Loyers (IRL) publié par l'INSEE.",
-  "clauseResolutoire": true,
-  "texteClauseResolutoire": "Il est expressément convenu qu'à défaut de paiement de tout ou partie du loyer ou des charges au terme convenu...",
-  "equipementsMeuble": "Cuisine équipée, literie conforme, rangements, luminaires, table et chaises, nécessaire d'entretien ménager",
-  "clausesParticulieres": "Interdiction de sous-louer sans accord exprès et écrit du bailleur. Respect de la tranquillité."
-}
-```
+## Modèles officiels fournis dans ce dossier
 
----
-
-## ⚡ 4. Prise en compte immédiate
-
-* Dès que vous enregistrez vos modifications dans un fichier `.json`, KeyFolio les applique **instantanément lors de votre prochaine génération de document**, sans redémarrage requis !
-* Si vous souhaitez restaurer un modèle à son état d'origine, supprimez simplement le fichier `.json` concerné : KeyFolio le recréera automatiquement avec sa configuration standard lors du prochain lancement.
+| Fichier PDF | Usage |
+| :--- | :--- |
+| **`modele_quittance.pdf`** | Quittance de loyer mensuelle certifiée |
+| **`modele_avis_echeance.pdf`** | Avis d'échéance / Appel de loyer mensuel |
+| **`modele_fin_bail.pdf`** | Attestation de fin de bail & décompte caution |
+| **`modele_etat_des_lieux.pdf`** | État des lieux contradictoire (Entrée & Sortie) |
+| **`modele_contrat_bail.pdf`** | Contrat de location d'habitation (Loi ALUR) |

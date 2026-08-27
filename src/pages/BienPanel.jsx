@@ -28,7 +28,6 @@ import BienMapModal from '../components/biens/BienMapModal'
 import BienPhotosGalleryModal from '../components/biens/BienPhotosGalleryModal'
 import BienImage from '../components/biens/BienImage'
 import NewBailModal from '../components/baux/NewBailModal'
-import InteractivePdfEditorModal from '../components/documents/InteractivePdfEditorModal'
 
 import BienPlanViewerTab from '../components/biens/BienPlanViewerTab'
 
@@ -66,7 +65,6 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
 
   const [isEditingOverview, setIsEditingOverview] = useState(false)
   const [viewingDoc, setViewingDoc] = useState(null)
-  const [editingPdfDoc, setEditingPdfDoc] = useState(null)
 
   // Documents par dossier
   const [bienFiles, setBienFiles] = useState([])
@@ -511,21 +509,6 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
           onSuccess={() => {
             setSyncMsg(' Nouveau bail et locataire enregistrés avec succès !')
             loadAll()
-            setTimeout(() => setSyncMsg(''), 4000)
-          }}
-        />
-      )}
-
-      {/* Interactive PDF Editor Modal */}
-      {editingPdfDoc && (
-        <InteractivePdfEditorModal
-          document={editingPdfDoc}
-          initialBienId={bienId}
-          onClose={() => setEditingPdfDoc(null)}
-          onSaved={() => {
-            setEditingPdfDoc(null)
-            loadAll()
-            setSyncMsg(' Document mis à jour et synchronisé avec succès !')
             setTimeout(() => setSyncMsg(''), 4000)
           }}
         />

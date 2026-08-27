@@ -1,848 +1,803 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Icon from '../common/Icon'
-import { formatEuro, formatDate, todayISO } from '../../lib/utils'
 import {
   getBiens,
   getBaux,
   getLocataires,
-  getBienChampsLibres,
-  openTemplatesFolder,
-  saveEtatDesLieuxPdf,
-  saveContratBailPdf,
   savePdfToBien,
-  saveFileToDisk,
   openFilePath,
-  saveEtatDesLieuxRecord,
-  saveBienChampsLibresBatch,
-  updateBien,
-  updateLocataire,
-  updateBail
+  terminateBail
 } from '../../lib/db'
-import {
-  buildEtatDesLieuxPDF,
-  buildContratBailPDF,
-  buildQuittancePDF,
-  buildAvisEcheancePDF,
-  buildFinBailLetterPDF
-} from '../../lib/pdfGenerator'
-import { buildDataContext, replacePlaceholdersInText } from '../../lib/pdfTemplateEngine'
+import { formatEuro, formatDate, todayISO } from '../../lib/utils'
 import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
+import { buildDataContext } from '../../lib/pdfTemplateEngine'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
+import { writeFile } from '@tauri-apps/plugin-fs'
 
-const DOC_TYPES = [
-  { id: 'etat_des_lieux_entree', label: "État des Lieux d'Entrée", icon: 'fileSignature', color: '#16a34a', templateName: 'modele_etat_des_lieux.pdf' },
-  { id: 'etat_des_lieux_sortie', label: "État des Lieux de Sortie", icon: 'fileSignature', color: '#2563eb', templateName: 'modele_etat_des_lieux.pdf' },
-  { id: 'contrat_bail', label: "Contrat de Location (Bail)", icon: 'fileText', color: '#4f46e5', templateName: 'modele_contrat_bail.pdf' },
-  { id: 'quittance', label: "Quittance de Loyer", icon: 'receipt', color: '#059669', templateName: 'modele_quittance.pdf' },
-  { id: 'avis_echeance', label: "Avis d'Échéance", icon: 'bell', color: '#d97706', templateName: 'modele_avis_echeance.pdf' },
-  { id: 'fin_bail', label: "Attestation Fin de Bail & Caution", icon: 'logOut', color: '#dc2626', templateName: 'modele_fin_bail.pdf' }
+export const DOC_TEMPLATES = [
+  // ── 07_LOCATION ──
+  {
+    id: 'quittance',
+    category: '07_LOCATION',
+    subfolderMatch: ['quittances', 'loyer', 'recus'],
+    defaultSubfolder: '07_LOCATION/Quittances de loyer',
+    title: "Quittance de Loyer Mensuelle",
+    desc: "Attestation de paiement intégral du loyer et des charges pour le mois concerné.",
+    icon: 'receipt',
+    color: '#2563eb',
+    bg: '#eff6ff',
+    badge: 'Quittance',
+    templateName: 'modele_quittance.pdf'
+  },
+  {
+    id: 'avis_echeance',
+    category: '07_LOCATION',
+    subfolderMatch: ['avis', 'echeance', 'appel'],
+    defaultSubfolder: '07_LOCATION/Quittances de loyer',
+    title: "Avis d'Échéance / Appel de Loyer",
+    desc: "Appel de loyer avec montant exigible, date d'échéance et coordonnées bancaires (IBAN).",
+    icon: 'fileText',
+    color: '#0284c7',
+    bg: '#f0f9ff',
+    badge: 'Appel loyer',
+    templateName: 'modele_avis_echeance.pdf'
+  },
+  {
+    id: 'etat_des_lieux_entree',
+    category: '07_LOCATION',
+    subfolderMatch: ['etat_des_lieux', 'edl', 'entree'],
+    defaultSubfolder: '07_LOCATION/Etat des lieux/Entree',
+    title: "État des Lieux d'Entrée",
+    desc: "Constat contradictoire d'arrivée, remise des clés et relevés compteurs.",
+    icon: 'clipboardCheck',
+    color: '#16a34a',
+    bg: '#f0fdf4',
+    badge: 'Entrée',
+    templateName: 'modele_etat_des_lieux.pdf'
+  },
+  {
+    id: 'etat_des_lieux_sortie',
+    category: '07_LOCATION',
+    subfolderMatch: ['etat_des_lieux', 'edl', 'sortie'],
+    defaultSubfolder: '07_LOCATION/Etat des lieux/Sortie',
+    title: "État des Lieux de Sortie",
+    desc: "Constat de départ, restitution des clés et solde du dépôt de garantie.",
+    icon: 'clipboardX',
+    color: '#0891b2',
+    bg: '#ecfeff',
+    badge: 'Sortie',
+    templateName: 'modele_etat_des_lieux.pdf'
+  },
+  {
+    id: 'fin_bail',
+    category: '07_LOCATION',
+    subfolderMatch: ['fin_bail', 'caution', 'baux_anciens', 'cloture'],
+    defaultSubfolder: '07_LOCATION/Etat des lieux/Sortie',
+    title: "Attestation Fin de Bail & Caution",
+    desc: "Lettre de clôture, libération des lieux, décompte retenues et solde net restitué.",
+    icon: 'logOut',
+    color: '#dc2626',
+    bg: '#fef2f2',
+    badge: 'Clôture',
+    templateName: 'modele_fin_bail.pdf'
+  },
+  {
+    id: 'contrat_bail',
+    category: '07_LOCATION',
+    subfolderMatch: ['bail', 'contrat', 'baux'],
+    defaultSubfolder: '07_LOCATION/Baux',
+    title: "Contrat de Location (Loi ALUR)",
+    desc: "Bail officiel d'habitation meublé ou nu complet avec conditions financières et clauses légales.",
+    icon: 'fileCheck',
+    color: '#4f46e5',
+    bg: '#eef2ff',
+    badge: 'Bail ALUR',
+    templateName: 'modele_contrat_bail.pdf'
+  }
+]
+
+export const CATEGORIES = [
+  { id: 'all', label: 'Tous les documents' },
+  { id: '07_LOCATION', label: 'Location & Baux' },
+  { id: '01_ADMINISTRATIF', label: 'Administratif & Propriété' }
 ]
 
 export default function InteractivePdfEditorModal({
   document = null,
-  initialType = null,
   initialBienId = null,
-  initialLocataireId = null,
+  targetSubfolder = null,
   onClose,
   onSaved
 }) {
-  const [allBiens, setAllBiens] = useState([])
-  const [allLocataires, setAllLocataires] = useState([])
-  const [allBaux, setAllBaux] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [step, setStep] = useState(document?.isNew ? 'select' : 'edit')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Détection du type de document
-  const detectType = () => {
-    if (initialType) return initialType
-    const filename = (document?.name || document?.filename || document?.relative_path || '').toLowerCase()
-    if (filename.includes('edl') || filename.includes('etat_des_lieux') || filename.includes('état des lieux')) {
-      if (filename.includes('sortie')) return 'etat_des_lieux_sortie'
-      return 'etat_des_lieux_entree'
-    }
-    if (filename.includes('bail') || filename.includes('contrat') || filename.includes('location')) return 'contrat_bail'
-    if (filename.includes('quittance')) return 'quittance'
-    if (filename.includes('avis') || filename.includes('echeance')) return 'avis_echeance'
-    if (filename.includes('fin') || filename.includes('caution') || filename.includes('restitution')) return 'fin_bail'
-    return 'contrat_bail'
-  }
+  // Données globales
+  const [biens, setBiens] = useState([])
+  const [baux, setBaux] = useState([])
+  const [locataires, setLocataires] = useState([])
+  const [selectedBienId, setSelectedBienId] = useState(initialBienId || '')
 
-  const [docType, setDocType] = useState(detectType)
-  const [step, setStep] = useState(1)
+  // Modèle actif
+  const [docType, setDocType] = useState('quittance')
+  const [templateName, setTemplateName] = useState('modele_quittance.pdf')
+  const [subfolder, setSubfolder] = useState(targetSubfolder || '07_LOCATION/Quittances de loyer')
 
-  // Sélection Entités
-  const [currentBienId, setCurrentBienId] = useState(initialBienId || document?.bien_id || '')
-  const [currentLocataireId, setCurrentLocataireId] = useState(initialLocataireId || document?.locataire_id || '')
-  const [currentBailId, setCurrentBailId] = useState('')
+  // Champs modifiables
+  const [bailleurNom, setBailleurNom] = useState(localStorage.getItem('bailleur_nom') || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(localStorage.getItem('bailleur_adresse') || 'Adresse du bailleur')
+  const [bailleurIban, setBailleurIban] = useState(localStorage.getItem('bailleur_iban') || 'FR76 3000 4000 5000 6000 7000 890')
+  const [bailleurBic, setBailleurBic] = useState(localStorage.getItem('bailleur_bic') || 'BNPAFRPP')
 
-  // Profil Bailleur
-  const [bailleurNom, setBailleurNom] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).nom || 'Bailleur / Propriétaire' } catch (e) {}
-    return 'Bailleur / Propriétaire'
-  })
-  const [bailleurAdresse, setBailleurAdresse] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).adresse || 'Adresse du bailleur' } catch (e) {}
-    return 'Adresse du bailleur'
-  })
-  const [bailleurEmail, setBailleurEmail] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).email || '' } catch (e) {}
-    return ''
-  })
-  const [bailleurTelephone, setBailleurTelephone] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).telephone || '' } catch (e) {}
-    return ''
-  })
+  const [locataireNom, setLocataireNom] = useState('')
+  const [locataireEmail, setLocataireEmail] = useState('')
+  const [locataireTelephone, setLocataireTelephone] = useState('')
 
-  // Champs Logement personnalisés
-  const [bienNomCustom, setBienNomCustom] = useState('')
-  const [bienAdresseCustom, setBienAdresseCustom] = useState('')
-  const [bienSurfaceCustom, setBienSurfaceCustom] = useState('')
-  const [bienTypeCustom, setBienTypeCustom] = useState('Location nue')
+  const [bienNom, setBienNom] = useState('')
+  const [bienAdresse, setBienAdresse] = useState('')
+  const [bienSurface, setBienSurface] = useState('')
+  const [bienPieces, setBienPieces] = useState('')
 
-  // Champs Locataire
-  const [locataireNomCustom, setLocataireNomCustom] = useState('')
-  const [locataireEmailCustom, setLocataireEmailCustom] = useState('')
-  const [locataireTelephoneCustom, setLocataireTelephoneCustom] = useState('')
-  const [locataireProfessionCustom, setLocataireProfessionCustom] = useState('')
-
-  // Dates & Finances
-  const [dateDoc, setDateDoc] = useState(todayISO())
-  const [dateFinDoc, setDateFinDoc] = useState('')
-  const [loyerHC, setLoyerHC] = useState('650')
-  const [charges, setCharges] = useState('50')
-  const [depotGarantie, setDepotGarantie] = useState('650')
-  const [montantRetenu, setMontantRetenu] = useState('0')
+  const [loyerHC, setLoyerHC] = useState(680)
+  const [charges, setCharges] = useState(70)
+  const [depotGarantie, setDepotGarantie] = useState(680)
+  const [montantRetenu, setMontantRetenu] = useState(0)
   const [motifRetenue, setMotifRetenue] = useState('')
-  const [motifFin, setMotifFin] = useState('Congé donné par le locataire')
-  const [periodeStr, setPeriodeStr] = useState('')
+  const [motifFin, setMotifFin] = useState('Départ convenu / Congé locataire')
 
-  // Compteurs & Clés
+  const [periode, setPeriode] = useState(() => {
+    const d = new Date()
+    return `${d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}`
+  })
+  const [dateDoc, setDateDoc] = useState(todayISO())
   const [elecIndex, setElecIndex] = useState('')
   const [eauIndex, setEauIndex] = useState('')
   const [gazIndex, setGazIndex] = useState('')
-  const [clesRemises, setClesRemises] = useState('2 jeux complets (porte d\'entrée + boîte aux lettres + badge)')
+  const [clesRemises, setClesRemises] = useState('2 jeux complets (porte + boîte aux lettres + badge)')
+  const [syncTerminateLease, setSyncTerminateLease] = useState(true)
 
-  // Grille des pièces (EDL)
-  const [pieces, setPieces] = useState([
-    { nom: 'Entrée / Dégagement', etat: 'Bon état', obs: 'Murs et interphone fonctionnels' },
-    { nom: 'Séjour / Salon', etat: 'Très bon état', obs: 'Sols propres, fenêtres conformes' },
-    { nom: 'Cuisine', etat: 'Bon état', obs: 'Évier et plaques nettoyés et testés' },
-    { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement et prises conformes' },
-    { nom: 'Salle d\'eau / WC', etat: 'Bon état', obs: 'Robinetterie et sanitaires sans fuite' }
-  ])
-  const [observationsGenerales, setObservationsGenerales] = useState('Logement remis en bon état général d\'usage et d\'entretien.')
-
-  // PDF Preview State
+  // Aperçu PDF live
   const [pdfUrl, setPdfUrl] = useState(null)
+  const [lastPdfBytes, setLastPdfBytes] = useState(null)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
-  const [savedPath, setSavedPath] = useState(null)
+  const debounceTimer = useRef(null)
 
-  const debounceRef = useRef(null)
-
-  // Chargement des données
+  // Chargement initial
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true)
-      try {
-        const [bi, lo, ba] = await Promise.all([
-          getBiens().catch(() => []),
-          getLocataires().catch(() => []),
-          getBaux().catch(() => [])
-        ])
-        setAllBiens(bi || [])
-        setAllLocataires(lo || [])
-        setAllBaux(ba || [])
+    Promise.all([
+      getBiens().catch(() => []),
+      getBaux().catch(() => []),
+      getLocataires().catch(() => [])
+    ]).then(([bi, ba, lo]) => {
+      setBiens(bi || [])
+      setBaux(ba || [])
+      setLocataires(lo || [])
 
-        // Initialiser l'entité sélectionnée
-        let targetB = null
-        if (currentBienId) targetB = (bi || []).find(b => String(b.id) === String(currentBienId))
-        else if (bi && bi.length > 0) targetB = bi[0]
-
-        if (targetB) {
-          setCurrentBienId(targetB.id)
-          setBienNomCustom(targetB.nom || '')
-          setBienAdresseCustom(targetB.adresse || '')
-          setBienSurfaceCustom(targetB.surface_m2 ? String(targetB.surface_m2) : '')
-          setBienTypeCustom(targetB.type_bien || 'Location nue')
-          if (targetB.loyer_actuel) setLoyerHC(String(targetB.loyer_actuel))
-
-          // Rechercher le bail actif de ce bien
-          const bailActif = (ba || []).find(b => String(b.bien_id) === String(targetB.id) && b.statut === 'actif')
-          if (bailActif) {
-            setCurrentBailId(bailActif.id)
-            if (bailActif.loyer_mensuel) setLoyerHC(String(bailActif.loyer_mensuel))
-            if (bailActif.charges_mensuelles) setCharges(String(bailActif.charges_mensuelles))
-            if (bailActif.depot_garantie) setDepotGarantie(String(bailActif.depot_garantie))
-            if (bailActif.date_debut) setDateDoc(bailActif.date_debut)
-            if (bailActif.date_fin) setDateFinDoc(bailActif.date_fin)
-
-            const loc = (lo || []).find(l => String(l.id) === String(bailActif.locataire_id))
-            if (loc) {
-              setCurrentLocataireId(loc.id)
-              setLocataireNomCustom(`${loc.prenom} ${loc.nom}`.trim())
-              setLocataireEmailCustom(loc.email || '')
-              setLocataireTelephoneCustom(loc.telephone || '')
-              setLocataireProfessionCustom(loc.profession || '')
-            }
-          }
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadData()
+      const bid = selectedBienId || (bi && bi.length > 0 ? String(bi[0].id) : '')
+      if (bid) setSelectedBienId(bid)
+    })
   }, [])
 
-  // Auto-remplissage lors du choix d'un bien
-  const handleSelectBien = (bId) => {
-    setCurrentBienId(bId)
-    const b = allBiens.find(x => String(x.id) === String(bId))
-    if (b) {
-      setBienNomCustom(b.nom || '')
-      setBienAdresseCustom(b.adresse || '')
-      if (b.surface_m2) setBienSurfaceCustom(String(b.surface_m2))
-      if (b.type_bien) setBienTypeCustom(b.type_bien)
-      if (b.loyer_actuel) setLoyerHC(String(b.loyer_actuel))
+  // Auto-remplissage selon le bien sélectionné
+  useEffect(() => {
+    if (!selectedBienId) return
+    const currentBien = biens.find(b => String(b.id) === String(selectedBienId))
+    const currentBail = baux.find(b => String(b.bien_id) === String(selectedBienId) && b.statut === 'actif') || baux.find(b => String(b.bien_id) === String(selectedBienId))
+    const currentLocataire = currentBail ? locataires.find(l => String(l.id) === String(currentBail.locataire_id)) : null
 
-      const bailDuBien = allBaux.find(ba => String(ba.bien_id) === String(bId) && ba.statut === 'actif') || allBaux.find(ba => String(ba.bien_id) === String(bId))
-      if (bailDuBien) {
-        setCurrentBailId(bailDuBien.id)
-        if (bailDuBien.loyer_mensuel) setLoyerHC(String(bailDuBien.loyer_mensuel))
-        if (bailDuBien.charges_mensuelles) setCharges(String(bailDuBien.charges_mensuelles))
-        if (bailDuBien.depot_garantie) setDepotGarantie(String(bailDuBien.depot_garantie))
-        if (bailDuBien.date_debut) setDateDoc(bailDuBien.date_debut)
-
-        const loc = allLocataires.find(l => String(l.id) === String(bailDuBien.locataire_id))
-        if (loc) {
-          setCurrentLocataireId(loc.id)
-          setLocataireNomCustom(`${loc.prenom} ${loc.nom}`.trim())
-          setLocataireEmailCustom(loc.email || '')
-          setLocataireTelephoneCustom(loc.telephone || '')
-          setLocataireProfessionCustom(loc.profession || '')
-        }
-      }
+    if (currentBien) {
+      setBienNom(currentBien.nom || 'Logement')
+      setBienAdresse(currentBien.adresse || '')
+      setBienSurface(currentBien.surface_m2 ? `${currentBien.surface_m2} m²` : '')
+      setBienPieces(currentBien.nb_pieces ? `${currentBien.nb_pieces} pièces` : '')
     }
+
+    if (currentLocataire) {
+      setLocataireNom(`${currentLocataire.prenom || ''} ${currentLocataire.nom || ''}`.trim())
+      setLocataireEmail(currentLocataire.email || '')
+      setLocataireTelephone(currentLocataire.telephone || '')
+    } else if (currentBail) {
+      setLocataireNom(`${currentBail.locataire_prenom || ''} ${currentBail.locataire_nom || ''}`.trim())
+      setLocataireEmail(currentBail.locataire_email || '')
+      setLocataireTelephone(currentBail.locataire_telephone || '')
+    }
+
+    if (currentBail) {
+      setLoyerHC(currentBail.loyer_mensuel || 680)
+      setCharges(currentBail.charges_mensuelles || 70)
+      setDepotGarantie(currentBail.depot_garantie || 680)
+    }
+  }, [selectedBienId, biens, baux, locataires])
+
+  // Sélection d'un modèle (Passe à l'étape 2)
+  const handleSelectTemplate = (tpl) => {
+    setDocType(tpl.id)
+    setTemplateName(tpl.templateName)
+    setSubfolder(tpl.defaultSubfolder)
+    setStep('edit')
   }
 
-  // Auto-remplissage lors du choix d'un locataire
-  const handleSelectLocataire = (locId) => {
-    setCurrentLocataireId(locId)
-    const l = allLocataires.find(x => String(x.id) === String(locId))
-    if (l) {
-      setLocataireNomCustom(`${l.prenom} ${l.nom}`.trim())
-      setLocataireEmailCustom(l.email || '')
-      setLocataireTelephoneCustom(l.telephone || '')
-      setLocataireProfessionCustom(l.profession || '')
-    }
-  }
-
-  const currentBien = useMemo(() => allBiens.find(b => String(b.id) === String(currentBienId)), [allBiens, currentBienId])
-  const currentLocataire = useMemo(() => allLocataires.find(l => String(l.id) === String(currentLocataireId)), [allLocataires, currentLocataireId])
-  const currentBail = useMemo(() => allBaux.find(b => String(b.id) === String(currentBailId)), [allBaux, currentBailId])
-
-  // Générateur jsPDF Fallback selon le type de document
-  const getFallbackDoc = useCallback(() => {
-    const isEdlEntree = docType === 'etat_des_lieux_entree'
-    const isEdlSortie = docType === 'etat_des_lieux_sortie'
-
-    if (isEdlEntree || isEdlSortie) {
-      return buildEtatDesLieuxPDF({
-        bail: currentBail,
-        bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
-        locataire: { ...(currentLocataire || {}), nom: locataireNomCustom },
-        typeEdl: isEdlEntree ? 'entree' : 'sortie',
-        bailleurNom,
-        bailleurAdresse,
-        dateEdl: dateDoc,
-        elecIndex,
-        eauIndex,
-        gazIndex,
-        clesRemises,
-        depotGarantieInitial: parseFloat(depotGarantie || 0),
-        montantRetenu: parseFloat(montantRetenu || 0),
-        motifRetenue,
-        pieces,
-        observationsGenerales
-      })
-    }
-
-    if (docType === 'contrat_bail') {
-      return buildContratBailPDF({
-        bail: currentBail,
-        bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom, surface_m2: parseFloat(bienSurfaceCustom || 0), type_bien: bienTypeCustom },
-        locataire: { ...(currentLocataire || {}), nom: locataireNomCustom, email: locataireEmailCustom, telephone: locataireTelephoneCustom, profession: locataireProfessionCustom },
-        bienNom: bienNomCustom,
-        bienAdresse: bienAdresseCustom,
-        bienSurface: bienSurfaceCustom,
-        bienType: bienTypeCustom,
-        locatairePrenom: '',
-        locataireNom: locataireNomCustom,
-        locataireEmail: locataireEmailCustom,
-        locataireTelephone: locataireTelephoneCustom,
-        locataireProfession: locataireProfessionCustom,
-        bailleurNom,
-        bailleurAdresse,
-        bailleurEmail,
-        bailleurTelephone,
-        typeBail: bienTypeCustom,
-        dateDebut: dateDoc,
-        dateFin: dateFinDoc,
-        loyerHC: parseFloat(loyerHC || 0),
-        charges: parseFloat(charges || 0),
-        depotGarantie: parseFloat(depotGarantie || 0),
-        jourPaiement: 5,
-        clauseIRL: true,
-        elecEntree: elecIndex,
-        eauEntree: eauIndex,
-        gazEntree: gazIndex,
-        equipements: [],
-        clausesParticulieres: ''
-      })
-    }
-
-    if (docType === 'quittance') {
-      return buildQuittancePDF({
-        bail: currentBail,
-        bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
-        locataire: { ...(currentLocataire || {}), nom: locataireNomCustom },
-        periode: periodeStr || `Mois de ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}`,
-        loyerHC: parseFloat(loyerHC || 0),
-        charges: parseFloat(charges || 0),
-        datePaiement: dateDoc,
-        modePaiement: 'Virement bancaire',
-        bailleurNom,
-        bailleurAdresse
-      })
-    }
-
-    if (docType === 'avis_echeance') {
-      return buildAvisEcheancePDF({
-        bail: currentBail,
-        bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
-        locataire: { ...(currentLocataire || {}), nom: locataireNomCustom },
-        periode: periodeStr || `Mois de ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}`,
-        loyerHC: parseFloat(loyerHC || 0),
-        charges: parseFloat(charges || 0),
-        dateEcheance: dateDoc,
-        bailleurNom,
-        bailleurAdresse
-      })
-    }
-
-    // Fin de bail
-    return buildFinBailLetterPDF({
-      bail: currentBail,
-      bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
-      locataire: { ...(currentLocataire || {}), nom: locataireNomCustom },
-      dateFinBail: dateDoc,
-      motifFin,
-      depotGarantie: parseFloat(depotGarantie || 0),
-      montantRetenu: parseFloat(montantRetenu || 0),
+  // Génération temps réel de l'aperçu PDF
+  const updatePdfPreview = useCallback(async () => {
+    const dataCtx = buildDataContext({
+      bail: { loyer_mensuel: loyerHC, charges_mensuelles: charges, depot_garantie: depotGarantie, date_debut: dateDoc, date_fin: dateDoc },
+      bien: { nom: bienNom, adresse: bienAdresse, surface_m2: bienSurface, nb_pieces: bienPieces },
+      locataire: { nom: locataireNom, email: locataireEmail, telephone: locataireTelephone },
+      periode,
+      dateDoc,
+      loyerHC,
+      charges,
+      depotGarantie,
+      montantRetenu,
       motifRetenue,
+      motifFin,
       elecIndex,
       eauIndex,
       gazIndex,
       clesRemises,
       bailleurNom,
-      bailleurAdresse
+      bailleurAdresse,
+      bailleurIban,
+      bailleurBic
     })
-  }, [docType, currentBail, currentBien, currentLocataire, bienNomCustom, bienAdresseCustom, bienSurfaceCustom, bienTypeCustom, locataireNomCustom, locataireEmailCustom, locataireTelephoneCustom, locataireProfessionCustom, bailleurNom, bailleurAdresse, bailleurEmail, bailleurTelephone, dateDoc, dateFinDoc, loyerHC, charges, depotGarantie, montantRetenu, motifRetenue, motifFin, periodeStr, elecIndex, eauIndex, gazIndex, clesRemises, pieces, observationsGenerales])
 
-  // Résultat PDF (Template réel ou Fallback)
-  const getPdfResult = useCallback(async () => {
-    const dataCtx = buildDataContext({
-      bail: currentBail,
-      bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom, surface_m2: parseFloat(bienSurfaceCustom || 0), type_bien: bienTypeCustom },
-      locataire: { ...(currentLocataire || {}), nom: locataireNomCustom, email: locataireEmailCustom, telephone: locataireTelephoneCustom },
-      periode: periodeStr,
-      dateDoc,
-      loyerHC: parseFloat(loyerHC || 0),
-      charges: parseFloat(charges || 0),
-      depotGarantie: parseFloat(depotGarantie || 0),
-      montantRetenu: parseFloat(montantRetenu || 0),
-      motifRetenue,
-      motifFin,
-      elecIndex,
-      eauIndex,
-      gazIndex,
-      clesRemises,
-      customValues: {
-        bailleur_nom: bailleurNom,
-        bailleur_adresse: bailleurAdresse,
-        bailleur_email: bailleurEmail,
-        bailleur_telephone: bailleurTelephone
+    try {
+      const result = await createPdfFromTemplate({
+        templatePdfName: templateName,
+        dataContext: dataCtx
+      })
+
+      if (result?.blobUrl) {
+        setPdfUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return result.blobUrl
+        })
       }
-    })
-
-    const activeTypeConfig = DOC_TYPES.find(d => d.id === docType) || DOC_TYPES[0]
-    return await createPdfFromTemplate({
-      templatePdfName: activeTypeConfig.templateName,
-      dataContext: dataCtx,
-      fallbackGenerator: getFallbackDoc
-    })
-  }, [docType, currentBail, currentBien, currentLocataire, bienNomCustom, bienAdresseCustom, bienSurfaceCustom, bienTypeCustom, locataireNomCustom, locataireEmailCustom, locataireTelephoneCustom, periodeStr, dateDoc, loyerHC, charges, depotGarantie, montantRetenu, motifRetenue, motifFin, elecIndex, eauIndex, gazIndex, clesRemises, bailleurNom, bailleurAdresse, bailleurEmail, bailleurTelephone, getFallbackDoc])
-
-  // Rafraîchissement live de l'aperçu PDF
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await getPdfResult()
-        setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return res.blobUrl })
-      } catch (e) {
-        console.warn('PDF preview error', e)
+      if (result?.doc) {
+        const bytes = await result.doc.save()
+        setLastPdfBytes(bytes)
       }
-    }, 400)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [getPdfResult])
+    } catch (err) {
+      console.warn('Erreur aperçu PDF:', err)
+    }
+  }, [templateName, loyerHC, charges, depotGarantie, montantRetenu, motifRetenue, motifFin, periode, dateDoc, elecIndex, eauIndex, gazIndex, clesRemises, bailleurNom, bailleurAdresse, bailleurIban, bailleurBic, bienNom, bienAdresse, bienSurface, bienPieces, locataireNom, locataireEmail, locataireTelephone])
 
   useEffect(() => {
-    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
-  }, [])
+    if (step !== 'edit') return
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      updatePdfPreview()
+    }, 250)
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    }
+  }, [step, updatePdfPreview])
 
-  // Sauvegarde dans le sous-dossier correspondant du bien
+  // Sauvegarder dans le dossier du bien
   const handleSaveToProperty = async () => {
-    const targetId = currentBienId || currentBien?.id
-    if (!targetId) {
-      setToastMsg('⚠️ Veuillez sélectionner un bien immobilier pour enregistrer le document.')
-      return null
+    if (!selectedBienId) {
+      alert('Veuillez sélectionner un bien immobilier.')
+      return
     }
     setSaving(true)
     try {
-      const res = await getPdfResult()
-      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
-      let subfolder = '01_ADMINISTRATIF'
-      let filename = `Document_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-      let title = `Document - ${locataireNomCustom}`
+      const dataCtx = buildDataContext({
+        bail: { loyer_mensuel: loyerHC, charges_mensuelles: charges, depot_garantie: depotGarantie, date_debut: dateDoc, date_fin: dateDoc },
+        bien: { nom: bienNom, adresse: bienAdresse, surface_m2: bienSurface, nb_pieces: bienPieces },
+        locataire: { nom: locataireNom, email: locataireEmail, telephone: locataireTelephone },
+        periode,
+        dateDoc,
+        loyerHC,
+        charges,
+        depotGarantie,
+        montantRetenu,
+        motifRetenue,
+        motifFin,
+        elecIndex,
+        eauIndex,
+        gazIndex,
+        clesRemises,
+        bailleurNom,
+        bailleurAdresse,
+        bailleurIban,
+        bailleurBic
+      })
 
-      if (docType === 'etat_des_lieux_entree') {
-        subfolder = '07_LOCATION/Etat des lieux/Entree'
-        filename = `EDL_Entree_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `État des Lieux (Entrée) - ${locataireNomCustom}`
-      } else if (docType === 'etat_des_lieux_sortie') {
-        subfolder = '07_LOCATION/Etat des lieux/Sortie'
-        filename = `EDL_Sortie_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `État des Lieux (Sortie) - ${locataireNomCustom}`
-      } else if (docType === 'contrat_bail') {
-        subfolder = '07_LOCATION/Bail/Bail_en_cours'
-        filename = `Contrat_Bail_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `Contrat de Bail - ${locataireNomCustom}`
-      } else if (docType === 'quittance') {
-        subfolder = '07_LOCATION/Quittances de loyer'
-        filename = `Quittance_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `Quittance de Loyer - ${locataireNomCustom}`
-      } else if (docType === 'avis_echeance') {
-        subfolder = '07_LOCATION/Avis d echeance et Relances'
-        filename = `Avis_Echeance_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `Avis d'Échéance - ${locataireNomCustom}`
-      } else if (docType === 'fin_bail') {
-        subfolder = '07_LOCATION/Bail/Baux_anciens'
-        filename = `Attestation_Fin_Bail_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
-        title = `Attestation Fin de Bail - ${locataireNomCustom}`
+      const result = await createPdfFromTemplate({
+        templatePdfName: templateName,
+        dataContext: dataCtx
+      })
+
+      const dateClean = dateDoc ? dateDoc.replace(/-/g, '') : todayISO().replace(/-/g, '')
+      const locClean = locataireNom ? locataireNom.replace(/[^a-zA-Z0-9]/g, '_') : 'Locataire'
+      const finalFilename = `${docType.toUpperCase()}_${locClean}_${dateClean}.pdf`
+
+      const currentBail = baux.find(b => String(b.bien_id) === String(selectedBienId) && b.statut === 'actif')
+      if (docType === 'fin_bail' && syncTerminateLease && currentBail?.id) {
+        const notesSum = `Fin de bail générée le ${dateDoc} | Motif : ${motifFin} | Retenue : ${montantRetenu || 0}€`
+        await terminateBail(currentBail.id, dateDoc, motifFin, notesSum)
       }
 
-      let relPath = null
-      if (docType.startsWith('etat_des_lieux')) {
-        try {
-          relPath = await saveEtatDesLieuxPdf(targetId, locataireNomCustom, dateDoc, res.dataUri, docType === 'etat_des_lieux_entree' ? 'entree' : 'sortie')
-        } catch (e) {
-          relPath = await savePdfToBien(targetId, subfolder, filename, res.dataUri, title)
-        }
-        await saveEtatDesLieuxRecord({
-          bailId: currentBailId || null,
-          bien_id: parseInt(targetId),
-          bien_nom: bienNomCustom,
-          locataire_id: currentLocataireId ? parseInt(currentLocataireId) : null,
-          locataire_nom: locataireNomCustom,
-          type_edl: docType === 'etat_des_lieux_entree' ? 'entree' : 'sortie',
-          date_edl: dateDoc,
-          pdf_path: relPath,
-          elec_index: elecIndex,
-          eau_index: eauIndex,
-          gaz_index: gazIndex,
-          cles_remises: clesRemises,
-          pieces,
-          observations: observationsGenerales,
-          depot_garantie: parseFloat(depotGarantie || 0),
-          montant_retenu: docType === 'etat_des_lieux_entree' ? 0 : parseFloat(montantRetenu || 0),
-          motif_retenue: docType === 'etat_des_lieux_entree' ? null : motifRetenue
-        })
-      } else if (docType === 'contrat_bail') {
-        relPath = await saveContratBailPdf(targetId, res.dataUri, filename)
-      } else {
-        relPath = await savePdfToBien(targetId, subfolder, filename, res.dataUri, title)
-      }
+      await savePdfToBien(
+        parseInt(selectedBienId, 10),
+        subfolder,
+        finalFilename,
+        result.dataUri,
+        finalFilename.replace('.pdf', '')
+      )
 
-      setSavedPath(relPath)
-      setToastMsg(`✅ Document archivé avec succès : ${relPath}`)
-      if (onSaved) onSaved(relPath)
-      return relPath
+      setToastMsg('✅ Document enregistré et classé avec succès dans le dossier du bien !')
+      setTimeout(() => {
+        if (onSaved) onSaved()
+        onClose()
+      }, 1200)
     } catch (err) {
-      setToastMsg(`❌ Erreur d'archivage : ${err?.toString()}`)
-      return null
+      alert(`Erreur d'enregistrement : ${err.message || err}`)
     } finally {
       setSaving(false)
-      setTimeout(() => setToastMsg(null), 6000)
     }
   }
 
-  // Export direct
+  // Exporter sur le disque
   const handleExportPDF = async () => {
+    if (!lastPdfBytes) return
     setExporting(true)
     try {
-      const res = await getPdfResult()
-      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
-      const defaultFilename = `KeyFolio_${docType}_${sanitizedLoc}_${dateDoc || todayISO()}.pdf`
+      const defaultName = `${docType}_${locataireNom ? locataireNom.replace(/\s+/g, '_') : 'document'}.pdf`
       const savePath = await openSaveDialog({
-        defaultPath: defaultFilename,
-        filters: [{ name: 'Document PDF (*.pdf)', extensions: ['pdf'] }]
+        defaultPath: defaultName,
+        filters: [{ name: 'Document PDF', extensions: ['pdf'] }]
       })
       if (savePath) {
-        const rawBase64 = res.dataUri.split(',')[1]
-        await saveFileToDisk(savePath, rawBase64)
-        setToastMsg(`✅ Document PDF exporté : ${savePath}`)
+        await writeFile(savePath, lastPdfBytes)
+        setToastMsg('✅ PDF exporté avec succès !')
+        setTimeout(() => setToastMsg(null), 3000)
       }
-    } catch (err) {
-      setToastMsg(`❌ Erreur export PDF : ${err?.toString()}`)
+    } catch (e) {
+      alert(`Erreur d'exportation : ${e.message || e}`)
     } finally {
       setExporting(false)
-      setTimeout(() => setToastMsg(null), 5000)
     }
   }
 
+  // Filtre des cartes étape 1
+  const filteredTemplates = useMemo(() => {
+    return DOC_TEMPLATES.filter(t => {
+      const matchCat = selectedCategory === 'all' || t.category === selectedCategory
+      const matchSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchCat && matchSearch
+    })
+  }, [selectedCategory, searchQuery])
+
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 99999 }}>
-      <div
-        className="modal-card"
-        style={{
-          maxWidth: 1480,
-          width: '96vw',
-          height: '92vh',
-          maxHeight: '92vh',
-          overflow: 'hidden',
-          padding: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: 16,
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* ─── EN-TÊTE PRINCIPAL WIZARD ─── */}
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      background: 'rgba(15, 23, 42, 0.75)',
+      backdropFilter: 'blur(6px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16
+    }}>
+      <div style={{
+        background: '#ffffff',
+        borderRadius: 16,
+        width: '94vw',
+        maxWidth: 1280,
+        height: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+        overflow: 'hidden',
+        border: '1px solid #cbd5e1'
+      }}>
+        {/* ─── EN-TÊTE DE LA MODALE ─── */}
         <div style={{
-          padding: '14px 24px',
-          borderBottom: '1px solid var(--border-color)',
+          padding: '14px 20px',
+          background: '#f8fafc',
+          borderBottom: '1px solid #e2e8f0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
-            }}>
-              <Icon name="fileSignature" size={22} color="#ffffff" />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Remplisseur & Éditeur de Documents PDF
-                </h3>
-                <span className="badge badge-accent" style={{ fontSize: 11, fontWeight: 700 }}>
-                  {DOC_TYPES.find(d => d.id === docType)?.label || 'Document'}
-                </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {step === 'edit' ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setStep('select')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+              >
+                <Icon name="arrowLeft" size={14} />
+                <span>← Changer de modèle</span>
+              </button>
+            ) : (
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'
+              }}>
+                <Icon name="fileSignature" size={20} />
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                Assistant interactif avec aperçu PDF instantané
+            )}
+
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                {step === 'select' ? '1. Sélection du Document' : `2. Remplissage & Aperçu — ${DOC_TEMPLATES.find(t => t.id === docType)?.title || 'Document'}`}
+              </h2>
+              <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
+                {step === 'select'
+                  ? 'Choisissez le document officiel à générer parmi les modèles PDF harmonisés'
+                  : 'Ajustez les informations ci-dessous et visualisez en direct le document final prêt à être archivé'}
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Sélecteur de type de document */}
-            <select
-              className="form-control"
-              value={docType}
-              onChange={e => setDocType(e.target.value)}
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#0f172a',
-                cursor: 'pointer'
-              }}
-            >
-              {DOC_TYPES.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: '#475569' }}>Bien :</span>
+              <select
+                value={selectedBienId}
+                onChange={e => setSelectedBienId(e.target.value)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  background: '#fff'
+                }}
+              >
+                {biens.map(b => (
+                  <option key={b.id} value={b.id}>🏠 {b.nom}</option>
+                ))}
+              </select>
+            </div>
 
             <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={openTemplatesFolder}
+              onClick={onClose}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                fontWeight: 700,
-                fontSize: 11.5,
-                color: '#4f46e5',
-                borderColor: '#c7d2fe',
-                background: '#eef2ff'
+                width: 32, height: 32, borderRadius: 8,
+                border: '1px solid #cbd5e1', background: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b'
               }}
-              title="Ouvrir le dossier contenant les fichiers modèles PDF et configurations"
             >
-              <Icon name="folder" size={13} color="#4f46e5" /> 📂 Modèles PDF
-            </button>
-
-            <button className="btn btn-ghost btn-icon" onClick={onClose}>
-              <Icon name="x" size={20} />
+              <Icon name="x" size={16} />
             </button>
           </div>
         </div>
 
-        {/* ─── CORPS SPLIT-SCREEN (Gauche: Formulaire | Droite: Aperçu PDF) ─── */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* COLONNE GAUCHE (46%) : Formulaire */}
-          <div style={{
-            width: '46%',
-            borderRight: '1px solid var(--border-color)',
-            overflowY: 'auto',
-            background: '#f8fafc',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16
-          }}>
-            {/* 🎯 SÉLECTION RAPIDE BIEN & LOCATAIRE */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: 12,
-              padding: '16px 18px',
-              border: '1.5px solid #c7d2fe',
-              boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.05)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 18 }}>🎯</span>
-                <h4 style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#1e1b4b' }}>
-                  Sélection du Logement & Données Pré-remplies
-                </h4>
+        {/* ─── CORPS SELON L'ÉTAPE ─── */}
+        {step === 'select' ? (
+          /* ═══════════════════════════════════════════════
+             ÉTAPE 1 : GRILLE DE SÉLECTION DU DOCUMENT
+             ═══════════════════════════════════════════════ */
+          <div style={{ flex: 1, padding: 24, overflowY: 'auto', background: '#f8fafc' }}>
+            {/* Barre de recherche et catégories */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 16 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`btn btn-sm ${selectedCategory === cat.id ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ fontWeight: 700, fontSize: 12 }}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Bien Immobilier *</label>
-                  <select
-                    className="form-control"
-                    value={currentBienId}
-                    onChange={e => handleSelectBien(e.target.value)}
-                    style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px' }}
-                  >
-                    <option value="">-- Choisir un bien --</option>
-                    {allBiens.map(b => (
-                      <option key={b.id} value={b.id}>{b.nom} ({b.adresse || 'Sans adresse'})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Locataire lié</label>
-                  <select
-                    className="form-control"
-                    value={currentLocataireId}
-                    onChange={e => handleSelectLocataire(e.target.value)}
-                    style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px' }}
-                  >
-                    <option value="">-- Choisir ou saisir libre --</option>
-                    {allLocataires.map(l => (
-                      <option key={l.id} value={l.id}>{l.prenom} {l.nom}</option>
-                    ))}
-                  </select>
+              <div style={{ position: 'relative', width: 280 }}>
+                <input
+                  type="text"
+                  placeholder="Rechercher un document..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 32px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 12,
+                    background: '#fff'
+                  }}
+                />
+                <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                  <Icon name="search" size={14} />
                 </div>
               </div>
             </div>
 
-            {/* PARTIES CONTRACTANTES */}
-            <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
-                1. Informations Parties & Logement
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Bailleur</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={bailleurNom}
-                    onChange={e => setBailleurNom(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Locataire</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={locataireNomCustom}
-                    onChange={e => setLocataireNomCustom(e.target.value)}
-                    style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}
-                  />
-                </div>
+            {/* Grille des cartes de documents */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {filteredTemplates.map(tpl => (
+                <div
+                  key={tpl.id}
+                  onClick={() => handleSelectTemplate(tpl)}
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: 14,
+                    padding: 20,
+                    border: '1.5px solid #e2e8f0',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    transition: 'all 0.18s ease',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = tpl.color
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 8px 16px -4px rgba(0, 0, 0, 0.1)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = '#e2e8f0'
+                    e.currentTarget.style.transform = 'none'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.04)'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: tpl.bg, color: tpl.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <Icon name={tpl.icon} size={22} />
+                      </div>
 
-                <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Adresse du Logement</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={bienAdresseCustom}
-                    onChange={e => setBienAdresseCustom(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-              </div>
-            </div>
+                      <span style={{
+                        fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                        padding: '2px 8px', borderRadius: 6,
+                        background: tpl.bg, color: tpl.color
+                      }}>
+                        {tpl.badge}
+                      </span>
+                    </div>
 
-            {/* CONDITIONS FINANCIÈRES & DATES */}
-            <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
-                2. Finances & Dates
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Date du document</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={dateDoc}
-                    onChange={e => setDateDoc(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Loyer Hors Charges (€)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={loyerHC}
-                    onChange={e => setLoyerHC(e.target.value)}
-                    style={{ fontSize: 12, fontWeight: 700 }}
-                  />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Provisions Charges (€)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={charges}
-                    onChange={e => setCharges(e.target.value)}
-                    style={{ fontSize: 12, fontWeight: 700 }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Dépôt Garantie (€)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={depotGarantie}
-                    onChange={e => setDepotGarantie(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-                {docType.includes('sortie') || docType === 'fin_bail' ? (
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>Retenue Travaux (€)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={montantRetenu}
-                      onChange={e => setMontantRetenu(e.target.value)}
-                      style={{ fontSize: 12, color: '#dc2626', fontWeight: 700 }}
-                    />
+                    <h3 style={{ fontSize: 14.5, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>
+                      {tpl.title}
+                    </h3>
+                    <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                      {tpl.desc}
+                    </p>
                   </div>
-                ) : (
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700 }}>Période / Mois</label>
+
+                  <div style={{
+                    paddingTop: 12, borderTop: '1px solid #f1f5f9',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: 11.5, fontWeight: 700, color: tpl.color
+                  }}>
+                    <span>Rédiger et personnaliser</span>
+                    <span>→</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* ═══════════════════════════════════════════════
+             ÉTAPE 2 : FORMULAIRE D'ÉDITION & APERÇU LIVE
+             ═══════════════════════════════════════════════ */
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            {/* COLONNE GAUCHE (46%) : Formulaire de saisie dynamique */}
+            <div style={{
+              width: '46%',
+              borderRight: '1px solid #e2e8f0',
+              overflowY: 'auto',
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              background: '#f8fafc'
+            }}>
+              {/* SECTION 1 : BAILLEUR */}
+              <div style={{ background: '#ffffff', borderRadius: 12, padding: 14, border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 12.5, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="user" size={14} color="#4f46e5" /> 1. Bailleur / Propriétaire
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Nom ou SCI</label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Ex: Février 2026"
-                      value={periodeStr}
-                      onChange={e => setPeriodeStr(e.target.value)}
+                      value={bailleurNom}
+                      onChange={e => setBailleurNom(e.target.value)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Adresse</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={bailleurAdresse}
+                      onChange={e => setBailleurAdresse(e.target.value)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2 : LOCATAIRE & LOGEMENT */}
+              <div style={{ background: '#ffffff', borderRadius: 12, padding: 14, border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 12.5, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="users" size={14} color="#0284c7" /> 2. Locataire & Logement
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Nom du Locataire</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={locataireNom}
+                      onChange={e => setLocataireNom(e.target.value)}
+                      style={{ fontSize: 12, fontWeight: 700 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Désignation Bien</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={bienNom}
+                      onChange={e => setBienNom(e.target.value)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Adresse complète du logement</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={bienAdresse}
+                    onChange={e => setBienAdresse(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
+              {/* SECTION 3 : FINANCES & PAIEMENT */}
+              <div style={{ background: '#ffffff', borderRadius: 12, padding: 14, border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 12.5, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="euro" size={14} color="#16a34a" /> 3. Conditions Financières
+                </h4>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Loyer HC (€)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={loyerHC}
+                      onChange={e => setLoyerHC(parseFloat(e.target.value) || 0)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Charges (€)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={charges}
+                      onChange={e => setCharges(parseFloat(e.target.value) || 0)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                      {docType.includes('fin_bail') || docType.includes('sortie') ? 'Dépôt initial (€)' : 'Dépôt de garantie (€)'}
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={depotGarantie}
+                      onChange={e => setDepotGarantie(parseFloat(e.target.value) || 0)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+
+                  {(docType.includes('fin_bail') || docType.includes('sortie')) && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 4 }}>Retenue travaux (€)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={montantRetenu}
+                        onChange={e => setMontantRetenu(parseFloat(e.target.value) || 0)}
+                        style={{ fontSize: 12, borderColor: '#fca5a5' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Si fin de bail ou sortie : motif retenue & fin */}
+                {(docType.includes('fin_bail') || docType.includes('sortie')) && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Motif fin de bail / Retenue</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ex: Congé locataire / Nettoyage..."
+                      value={motifFin}
+                      onChange={e => setMotifFin(e.target.value)}
                       style={{ fontSize: 12 }}
                     />
                   </div>
                 )}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>Total Mensuel CC</label>
-                  <div style={{ padding: '7px 10px', background: '#dcfce7', borderRadius: 6, fontWeight: 800, fontSize: 13, color: '#166534' }}>
-                    {formatEuro(parseFloat(loyerHC || 0) + parseFloat(charges || 0))}
-                  </div>
-                </div>
               </div>
-            </div>
 
-            {/* COMPTEURS & PIÈCES (Si applicable) */}
-            {(docType.includes('etat_des_lieux') || docType === 'contrat_bail') && (
-              <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
-                  3. Index des Compteurs & Clés
+              {/* SECTION 4 : DATES, COMPTEURS & CLÉS */}
+              <div style={{ background: '#ffffff', borderRadius: 12, padding: 14, border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 12.5, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="calendar" size={14} color="#f59e0b" /> 4. Dates & Éléments Techniques
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700 }}>Compteur Élec (kWh)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Période / Mois</label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Ex: 45892"
+                      value={periode}
+                      onChange={e => setPeriode(e.target.value)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Date du document</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dateDoc}
+                      onChange={e => setDateDoc(e.target.value)}
+                      style={{ fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Index Électricité (kWh)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ex: 14250"
                       value={elecIndex}
                       onChange={e => setElecIndex(e.target.value)}
                       style={{ fontSize: 12 }}
                     />
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700 }}>Compteur Eau (m³)</label>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Index Eau (m³)</label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Ex: 124"
+                      placeholder="Ex: 385"
                       value={eauIndex}
                       onChange={e => setEauIndex(e.target.value)}
                       style={{ fontSize: 12 }}
                     />
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700 }}>Compteur Gaz (m³)</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Ex: 850"
-                      value={gazIndex}
-                      onChange={e => setGazIndex(e.target.value)}
-                      style={{ fontSize: 12 }}
-                    />
-                  </div>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700 }}>Clés & Badges remis</label>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Clés & Accès remis</label>
                   <input
                     type="text"
                     className="form-control"
@@ -852,166 +807,99 @@ export default function InteractivePdfEditorModal({
                   />
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* GRILLE DES PIÈCES POUR ÉTAT DES LIEUX */}
-            {docType.includes('etat_des_lieux') && (
-              <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
-                    4. Constat par Pièce
-                  </h4>
+            {/* COLONNE DROITE (54%) : Aperçu PDF en temps réel */}
+            <div style={{
+              width: '54%',
+              background: '#0f172a',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              overflow: 'hidden'
+            }}>
+              {/* Barre d'actions supérieure */}
+              <div style={{
+                padding: '12px 18px',
+                background: '#1e293b',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #334155',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                  <span style={{ color: '#f8fafc', fontSize: 12, fontWeight: 700 }}>
+                    Aperçu Direct du Document PDF
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
-                    onClick={() => setPieces(prev => [...prev, { nom: 'Nouvelle pièce', etat: 'Bon état', obs: '' }])}
-                    style={{ fontSize: 11, fontWeight: 700 }}
+                    onClick={handleExportPDF}
+                    disabled={exporting || !pdfUrl}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      borderColor: '#475569',
+                      color: '#ffffff',
+                      fontSize: 11.5,
+                      fontWeight: 700
+                    }}
                   >
-                    + Ajouter une pièce
+                    <Icon name="download" size={13} color="#ffffff" /> Exporter PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleSaveToProperty}
+                    disabled={saving || !pdfUrl}
+                    style={{
+                      background: '#4f46e5',
+                      borderColor: '#4f46e5',
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
+                    }}
+                  >
+                    <Icon name="save" size={13} color="#ffffff" /> Sauvegarder & Archiver
                   </button>
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {pieces.map((p, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#f8fafc', padding: 6, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={p.nom}
-                        onChange={e => {
-                          const val = e.target.value
-                          setPieces(prev => prev.map((item, i) => i === idx ? { ...item, nom: val } : item))
-                        }}
-                        style={{ fontSize: 11, fontWeight: 700, width: '30%' }}
-                      />
-                      <select
-                        className="form-control"
-                        value={p.etat}
-                        onChange={e => {
-                          const val = e.target.value
-                          setPieces(prev => prev.map((item, i) => i === idx ? { ...item, etat: val } : item))
-                        }}
-                        style={{ fontSize: 11, fontWeight: 600, width: '28%' }}
-                      >
-                        <option value="Très bon état">Très bon état</option>
-                        <option value="Bon état">Bon état</option>
-                        <option value="État d'usage">État d'usage</option>
-                        <option value="Mauvais état">Mauvais état</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Observations..."
-                        className="form-control"
-                        value={p.obs}
-                        onChange={e => {
-                          const val = e.target.value
-                          setPieces(prev => prev.map((item, i) => i === idx ? { ...item, obs: val } : item))
-                        }}
-                        style={{ fontSize: 11, flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon btn-sm"
-                        onClick={() => setPieces(prev => prev.filter((_, i) => i !== idx))}
-                        style={{ color: '#ef4444' }}
-                      >
-                        <Icon name="trash" size={13} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* COLONNE DROITE (54%) : Prévisualisation PDF Live */}
-          <div style={{
-            width: '54%',
-            background: '#0f172a',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              padding: '10px 16px',
-              background: '#1e293b',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid #334155',
-              flexShrink: 0
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-                <span style={{ color: '#f8fafc', fontSize: 12, fontWeight: 700 }}>
-                  Aperçu Document PDF — Temps Réel
-                </span>
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleExportPDF}
-                  disabled={exporting}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    borderColor: '#475569',
-                    color: '#ffffff',
-                    fontSize: 11.5,
-                    fontWeight: 700
-                  }}
-                >
-                  <Icon name="download" size={13} color="#ffffff" /> Exporter PDF
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={handleSaveToProperty}
-                  disabled={saving}
-                  style={{
-                    background: '#4f46e5',
-                    borderColor: '#4f46e5',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
-                  }}
-                >
-                  <Icon name="save" size={13} color="#ffffff" /> Sauvegarder & Archiver
-                </button>
-              </div>
-            </div>
-
-            {toastMsg && (
-              <div style={{
-                background: toastMsg.startsWith('✅') ? '#059669' : '#dc2626',
-                color: '#ffffff',
-                padding: '8px 16px',
-                fontSize: 12,
-                fontWeight: 700,
-                textAlign: 'center'
-              }}>
-                {toastMsg}
-              </div>
-            )}
-
-            <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
-              {pdfUrl ? (
-                <iframe
-                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
-                  title="Document Preview"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
-                  Génération de l'aperçu PDF...
+              {toastMsg && (
+                <div style={{
+                  background: toastMsg.startsWith('✅') ? '#059669' : '#dc2626',
+                  color: '#ffffff',
+                  padding: '8px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textAlign: 'center'
+                }}>
+                  {toastMsg}
                 </div>
               )}
+
+              {/* Rendu iFrame du PDF */}
+              <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
+                {pdfUrl ? (
+                  <iframe
+                    src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+                    title="Document Preview"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: 13 }}>
+                    Génération de l'aperçu PDF en cours...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

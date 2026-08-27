@@ -13,8 +13,8 @@ import {
   updateBail
 } from '../../lib/db'
 import { buildContratBailPDF } from '../../lib/pdfGenerator'
-import { getLoadedTemplateConfig, buildDataContext } from '../../lib/pdfTemplateEngine'
 import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
+import { buildDataContext } from '../../lib/pdfTemplateEngine'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
 const STEPS = [
@@ -35,7 +35,6 @@ export default function BailGenerateurModal({
   onSendMail
 }) {
   const [step, setStep] = useState(1)
-  const bailTpl = getLoadedTemplateConfig('contrat_bail_template.json') || {}
 
   // Profil Bailleur sauvegardé
   const savedBailleur = (() => {
@@ -46,10 +45,10 @@ export default function BailGenerateurModal({
   })()
 
   // 1. Informations Bailleur
-  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || bailTpl?.bailleur?.nomParDefaut || 'Bailleur / Propriétaire')
-  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || bailTpl?.bailleur?.adresseParDefaut || 'Adresse du bailleur')
-  const [bailleurEmail, setBailleurEmail] = useState(savedBailleur.email || bailTpl?.bailleur?.email || '')
-  const [bailleurTelephone, setBailleurTelephone] = useState(savedBailleur.telephone || bailTpl?.bailleur?.telephone || '')
+  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || localStorage.getItem('bailleur_nom') || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || localStorage.getItem('bailleur_adresse') || 'Adresse du bailleur')
+  const [bailleurEmail, setBailleurEmail] = useState(savedBailleur.email || localStorage.getItem('bailleur_email') || '')
+  const [bailleurTelephone, setBailleurTelephone] = useState(savedBailleur.telephone || localStorage.getItem('bailleur_telephone') || '')
 
   // 2. Informations Logement
   const [bienNom, setBienNom] = useState(bien?.nom || formValues?.bien_nom || 'Logement')

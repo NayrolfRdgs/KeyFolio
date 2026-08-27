@@ -13,7 +13,6 @@ import {
 import { formatDate, formatEuro, todayISO } from '../lib/utils'
 import Icon from '../components/common/Icon'
 import EtatDesLieuxModal from '../components/baux/EtatDesLieuxModal'
-import PdfTemplateManagerModal from '../components/documents/PdfTemplateManagerModal'
 
 export default function EtatsDesLieux({ onNavigate, onOpenMail }) {
   const [biens, setBiens] = useState([])
@@ -28,7 +27,7 @@ export default function EtatsDesLieux({ onNavigate, onOpenMail }) {
 
   // Modale État des Lieux
   const [edlModalData, setEdlModalData] = useState(null) // { bail, bien, locataire, initialType, terminationInfo }
-  const [tplEditorOpen, setTplEditorOpen] = useState(false)
+  const [filterType, setFilterType] = useState('all') // 'all', 'entree', 'sortie'
 
   // Modale Mettre fin au bail & Déclencher EDL Sortie
   const [terminateModal, setTerminateModal] = useState(null) // { bail, bien, locataire, ... }
@@ -858,14 +857,6 @@ export default function EtatsDesLieux({ onNavigate, onOpenMail }) {
             </form>
           </div>
         </div>
-      )}
-
-      {tplEditorOpen && (
-        <PdfTemplateManagerModal
-          isOpen={tplEditorOpen}
-          initialTemplateId="etat_des_lieux_template"
-          onClose={() => setTplEditorOpen(false)}
-        />
       )}
     </div>
   )

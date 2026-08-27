@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Icon from '../common/Icon'
 import { formatEuro, formatDate, todayISO } from '../../lib/utils'
 import { buildEtatDesLieuxPDF } from '../../lib/pdfGenerator'
-import { getLoadedTemplateConfig, buildDataContext } from '../../lib/pdfTemplateEngine'
+import { buildDataContext } from '../../lib/pdfTemplateEngine'
 import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
 import {
   getBiens,
@@ -78,7 +78,6 @@ export default function EtatDesLieuxModal({
   const bailId = currentBail?.id || 'new'
   const storageKey = `keyfolio_edl_cache_${bailId}_${typeEdl}`
   const parsedFromBail = parseNotesFin(currentBail?.notes_fin || terminationInfo?.notesFin || '')
-  const edlTpl = getLoadedTemplateConfig('etat_des_lieux_template.json') || {}
 
   // Profil Bailleur sauvegardé
   const savedBailleur = (() => {
@@ -89,8 +88,8 @@ export default function EtatDesLieuxModal({
   })()
 
   // State des champs du document
-  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || edlTpl?.bailleur?.nomParDefaut || 'Bailleur / Propriétaire')
-  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || edlTpl?.bailleur?.adresseParDefaut || 'Adresse du bailleur')
+  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || localStorage.getItem('bailleur_nom') || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || localStorage.getItem('bailleur_adresse') || 'Adresse du bailleur')
   const [locataireNomCustom, setLocataireNomCustom] = useState(
     (currentLocataire ? `${currentLocataire.prenom} ${currentLocataire.nom}`.trim() : `${currentBail?.locataire_prenom || ''} ${currentBail?.locataire_nom || ''}`.trim()) || 'Locataire'
   )
@@ -100,24 +99,25 @@ export default function EtatDesLieuxModal({
   const [elecIndex, setElecIndex] = useState(terminationInfo?.compteurElec || parsedFromBail.compteurElec || '')
   const [eauIndex, setEauIndex] = useState(terminationInfo?.compteurEau || parsedFromBail.compteurEau || '')
   const [gazIndex, setGazIndex] = useState(terminationInfo?.compteurGaz || parsedFromBail.compteurGaz || '')
-  const [clesRemises, setClesRemises] = useState(terminationInfo?.clesRemises || parsedFromBail.clesRemises || edlTpl?.mentions?.clesDefaut || '2 jeux complets (porte d\'entrée + boîte aux lettres + badge)')
+  const [clesRemises, setClesRemises] = useState(terminationInfo?.clesRemises || parsedFromBail.clesRemises || '2 jeux complets (porte d\'entrée + boîte aux lettres + badge)')
   const [depotGarantieInitial, setDepotGarantieInitial] = useState(currentBail?.depot_garantie ?? 650)
   const [montantRetenu, setMontantRetenu] = useState(terminationInfo?.montantRetenu ?? parsedFromBail.montantRetenu ?? 0)
   const [motifRetenue, setMotifRetenue] = useState(terminationInfo?.motifRetenue || parsedFromBail.motifRetenue || '')
 
-  const defaultPieces = edlTpl?.piecesParDefaut || [
+  const defaultPieces = [
     { nom: 'Entrée / Dégagement', etat: 'Bon état', obs: 'Peinture propre, interphone fonctionnel' },
     { nom: 'Séjour / Salon', etat: 'Très bon état', obs: 'Murs et sols propres, fenêtres en bon état' },
     { nom: 'Cuisine', etat: 'Bon état', obs: 'Évier, placards et plaques nettoyés et fonctionnels' },
-    { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement de sol et prises électriques conformes' },
-    { nom: 'Salle d\'eau / WC', etat: 'Bon état', obs: 'Robinetterie et sanitaires sans fuite ni tartre' },
+    { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement de sol et prises conformes' },
+    { nom: 'Salle d\'eau / WC', etat: 'Bon état', obs: 'Robinetterie et sanitaires sans fuite ni tartre' }
   ]
   const [pieces, setPieces] = useState(defaultPieces)
 
-  const defaultObsText = isEntree
-    ? (edlTpl?.mentions?.observationsEntreeDefaut || 'Logement remis en bon état général d\'entretien et d\'usage. Les clés ont été remises en main propre au locataire ce jour.')
-    : (edlTpl?.mentions?.observationsSortieDefaut || 'Logement restitué propre et vidé de tout meuble et encombrant. Clés remises en main propre au bailleur.')
-  const [observationsGenerales, setObservationsGenerales] = useState(terminationInfo?.notesFin || parsedFromBail.notesFin || defaultObsText)
+  const [observationsGenerales, setObservationsGenerales] = useState(
+    terminationInfo?.notesFin || parsedFromBail.notesFin || (isEntree 
+      ? 'Logement remis en bon état général d\'entretien et d\'usage. Les clés ont été remises en main propre au locataire ce jour.'
+      : 'Logement restitué propre et vidé de tout meuble et encombrant. Clés remises en main propre au bailleur.')
+  )
 
   const [savedPath, setSavedPath] = useState(null)
   const [saving, setSaving] = useState(false)
