@@ -1,5 +1,7 @@
 export function applyTheme(themeChoice) {
-  const chosen = themeChoice || localStorage.getItem('app_theme') || 'system'
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+  const chosen = themeChoice || (typeof localStorage !== 'undefined' ? localStorage.getItem('app_theme') : null) || 'system'
   let isDark = false
 
   if (chosen === 'dark') {
@@ -11,23 +13,29 @@ export function applyTheme(themeChoice) {
     isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   }
 
-  if (isDark) {
-    document.documentElement.setAttribute('data-theme', 'dark')
-    document.body.classList.add('theme-dark')
-    document.body.classList.remove('theme-light')
-  } else {
-    document.documentElement.setAttribute('data-theme', 'light')
-    document.body.classList.add('theme-light')
-    document.body.classList.remove('theme-dark')
+  if (document.documentElement) {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+  }
+
+  if (document.body) {
+    if (isDark) {
+      document.body.classList.add('theme-dark')
+      document.body.classList.remove('theme-light')
+    } else {
+      document.body.classList.add('theme-light')
+      document.body.classList.remove('theme-dark')
+    }
   }
 }
 
 export function initThemeListener() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
   applyTheme()
   if (window.matchMedia) {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
-      const currentChoice = localStorage.getItem('app_theme') || 'system'
+      const currentChoice = typeof localStorage !== 'undefined' ? (localStorage.getItem('app_theme') || 'system') : 'system'
       if (currentChoice === 'system') {
         applyTheme('system')
       }
@@ -35,7 +43,9 @@ export function initThemeListener() {
     try {
       mediaQuery.addEventListener('change', handler)
     } catch(e) {
-      mediaQuery.addListener(handler)
+      if (mediaQuery.addListener) {
+        mediaQuery.addListener(handler)
+      }
     }
   }
 }

@@ -4,11 +4,11 @@ import App from './App'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import './index.css'
 
-// Global error handler to prevent silent white screens
+// Global error handler to guarantee on-screen visibility of any startup issue
 window.onerror = function(msg, url, line, col, error) {
   console.error('[KeyFolio Startup Error]', msg, url, line, col, error)
   const root = document.getElementById('root')
-  if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+  if (root) {
     root.innerHTML = `
       <div style="padding: 40px; font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <div style="background: #1e293b; padding: 24px; border-radius: 12px; max-width: 640px; border: 1px solid #ef4444; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
@@ -30,12 +30,20 @@ window.onerror = function(msg, url, line, col, error) {
   }
 }
 
+window.addEventListener('unhandledrejection', function(event) {
+  console.error('[KeyFolio Unhandled Rejection]', event.reason)
+})
+
 console.log('%c🎨 KeyFolio — FlowCreativeStudio', 'color:#6366f1;font-weight:bold;font-size:14px')
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-)
+const container = document.getElementById('root')
+if (container) {
+  const root = ReactDOM.createRoot(container)
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  )
+}
