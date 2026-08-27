@@ -5,7 +5,6 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  root: "Z:/Dossier/Dev/KeyFolio",
   resolve: {
     preserveSymlinks: true,
   },

@@ -38,14 +38,8 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
 
-    // Lancer le Patching Files audit 1.5s après le démarrage (laisser l'UI se charger)
-    const patchTimer = setTimeout(() => {
-      setPatchingOpen(true)
-    }, 1500)
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
-      clearTimeout(patchTimer)
     }
   }, [])
 
