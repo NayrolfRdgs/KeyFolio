@@ -17,6 +17,7 @@ import Icon from '../components/common/Icon'
 import MailboxPanel from '../components/mailbox/MailboxPanel'
 import QuickDocumentModal from '../components/documents/QuickDocumentModal'
 import ExcelGeneratorModal from '../components/documents/ExcelGeneratorModal'
+import InteractivePdfEditorModal from '../components/documents/InteractivePdfEditorModal'
 import BienHeaderCard from '../components/biens/BienHeaderCard'
 import BienOverviewTab from '../components/biens/BienOverviewTab'
 import BienFilesTab from '../components/biens/BienFilesTab'
@@ -58,6 +59,7 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
   // Modals & Photo Gallery & Map
   const [quickDocBienId, setQuickDocBienId] = useState(null)
   const [excelBienId, setExcelBienId] = useState(null)
+  const [pdfModalBienId, setPdfModalBienId] = useState(null)
   const [syncMsg, setSyncMsg] = useState(null)
   const [galleryModalOpen, setGalleryModalOpen] = useState(false)
   const [activePhotoIdx, setActivePhotoIdx] = useState(0)
@@ -493,6 +495,15 @@ export default function BienPanel({ bienId, initialTab = 'generale', mailOptions
       {/* ── MODALS AUXILIAIRES ── */}
       {quickDocBienId && (
         <QuickDocumentModal bienId={quickDocBienId} onClose={() => setQuickDocBienId(null)} onSuccess={() => loadAll()} />
+      )}
+
+      {pdfModalBienId && (
+        <InteractivePdfEditorModal
+          document={{ isNew: true }}
+          initialBienId={pdfModalBienId}
+          onClose={() => setPdfModalBienId(null)}
+          onSaved={() => { setPdfModalBienId(null); loadAll(); }}
+        />
       )}
 
       {excelBienId && (
