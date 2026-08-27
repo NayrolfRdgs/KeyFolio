@@ -1,12 +1,14 @@
 import Icon from '../common/Icon'
 import React, { useState, useEffect } from 'react'
 import { applyTheme } from '../../lib/theme'
-import { openExternalUrl } from '../../lib/db'
+import { openExternalUrl, openTemplatesFolder } from '../../lib/db'
+import PdfTemplateManagerModal from '../documents/PdfTemplateManagerModal'
 
 export default function SettingsModal({ isOpen, onClose, initialTab = 'general' }) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
 
   // Settings State — 'system' par défaut
   const [theme, setTheme] = useState(localStorage.getItem('app_theme') || 'system')
@@ -58,7 +60,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 99999 }}>
       <div
         className="modal-content card"
-        style={{ maxWidth: 680, width: '92%', padding: 0, overflow: 'hidden', borderRadius: 16 }}
+        style={{ maxWidth: 700, width: '94%', padding: 0, overflow: 'hidden', borderRadius: 16 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -67,7 +69,7 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
             <Icon name="settings" size={22} color="var(--color-accent)" />
             <div>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Options Générales & Réglages</h3>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>Thème, identifiants Google Client ID et préférences de l'application</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>Thème, templates PDF, identifiants Google et préférences</p>
             </div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ fontSize: 16 }}>✕</button>
@@ -77,24 +79,31 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--color-surface)' }}>
           <button
             className={`btn ${activeTab === 'general' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'general' ? '2px solid var(--color-primary)' : 'none' }}
+            style={{ flex: 1, borderRadius: 0, padding: '10px 14px', fontSize: 12.5, borderBottom: activeTab === 'general' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('general')}
           >
-            Général & Devise
+            Général
+          </button>
+          <button
+            className={`btn ${activeTab === 'templates' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ flex: 1, borderRadius: 0, padding: '10px 14px', fontSize: 12.5, borderBottom: activeTab === 'templates' ? '2px solid var(--color-primary)' : 'none' }}
+            onClick={() => setActiveTab('templates')}
+          >
+            📄 Modèles PDF
           </button>
           <button
             className={`btn ${activeTab === 'theme' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'theme' ? '2px solid var(--color-primary)' : 'none' }}
+            style={{ flex: 1, borderRadius: 0, padding: '10px 14px', fontSize: 12.5, borderBottom: activeTab === 'theme' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('theme')}
           >
-            Thème & Apparence
+            Apparence
           </button>
           <button
             className={`btn ${activeTab === 'google' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ flex: 1, borderRadius: 0, padding: '10px 16px', fontSize: 13, borderBottom: activeTab === 'google' ? '2px solid var(--color-primary)' : 'none' }}
+            style={{ flex: 1, borderRadius: 0, padding: '10px 14px', fontSize: 12.5, borderBottom: activeTab === 'google' ? '2px solid var(--color-primary)' : 'none' }}
             onClick={() => setActiveTab('google')}
           >
-            Identifiants Google & API
+            Google API
           </button>
         </div>
 
@@ -155,6 +164,139 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                   Application <strong>KeyFolio v0.1.0 (Beta)</strong> — Gestion Immobilière Native (Tauri v2 + Rust + SQLite)
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Modèles PDF Personnalisables */}
+          {activeTab === 'templates' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{
+                padding: '16px 20px',
+                background: 'linear-gradient(135deg, #eef4ff 0%, #f5f3ff 100%)',
+                border: '1px solid #c7d2fe',
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 14
+              }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a' }}>
+                    📁 Dossier des Modèles PDF KeyFolio
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                    Modifiez facilement la charte, vos coordonnées bailleur par défaut, mentions et clauses.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setTemplateEditorOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      background: '#ffffff',
+                      borderColor: '#c7d2fe',
+                      color: '#4f46e5'
+                    }}
+                  >
+                    <Icon name="edit" size={14} color="#4f46e5" /> Modifier les balises (UI)
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => openTemplatesFolder()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
+                    }}
+                  >
+                    <Icon name="folderOpen" size={15} /> Ouvrir le dossier des Templates →
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
+                  Fichiers de modèles disponibles dans votre dossier :
+                </div>
+
+                {[
+                  {
+                    file: 'quittance_template.json',
+                    title: 'Quittance de loyer mensuelle',
+                    desc: 'Couleurs de charte, coordonnées du bailleur, texte d\'attestation officiel.'
+                  },
+                  {
+                    file: 'avis_echeance_template.json',
+                    title: 'Avis d\'échéance / Appel de loyer',
+                    desc: 'IBAN/BIC par défaut, jour d\'échéance, mentions légales de paiement.'
+                  },
+                  {
+                    file: 'etat_des_lieux_template.json',
+                    title: 'États des lieux (Entrée & Sortie)',
+                    desc: 'Liste des pièces par défaut (Séjour, Cuisine, Chambres, etc.) et observations types.'
+                  },
+                  {
+                    file: 'fin_bail_template.json',
+                    title: 'Attestation de fin de bail & caution',
+                    desc: 'Clause de libération des lieux et modèle de restitution de garantie.'
+                  },
+                  {
+                    file: 'contrat_bail_template.json',
+                    title: 'Contrat de location Loi ALUR',
+                    desc: 'Clauses d\'indexation IRL, clause résolutoire et inventaire meublé obligatoire.'
+                  },
+                  {
+                    file: 'GUIDE_PERSONNALISATION_TEMPLATES.md',
+                    title: 'Guide complet d\'explication',
+                    desc: 'Manuel pas-à-pas expliquant comment modifier chaque paramètre et variable.'
+                  }
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 14px',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <code style={{ fontSize: 11, fontWeight: 700, color: '#4f46e5', background: '#e0e7ff', padding: '2px 6px', borderRadius: 4 }}>
+                          {item.file}
+                        </code>
+                        <span style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--color-text)' }}>
+                          {item.title}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, color: '#475569', lineHeight: 1.5 }}>
+                💡 <strong>Prise en compte immédiate :</strong> Chaque modification effectuée dans ces fichiers JSON est automatiquement et instantanément prise en compte lors de la génération de vos prochains documents PDF, sans nécessiter de redémarrage de l'application.
               </div>
             </div>
           )}
@@ -323,6 +465,12 @@ export default function SettingsModal({ isOpen, onClose, initialTab = 'general' 
           </button>
         </div>
       </div>
+
+      {/* Modale d'Édition des Modèles PDF */}
+      <PdfTemplateManagerModal
+        isOpen={templateEditorOpen}
+        onClose={() => setTemplateEditorOpen(false)}
+      />
     </div>
   )
 }

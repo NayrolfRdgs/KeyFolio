@@ -123,19 +123,19 @@ export default function BailDetailModal({
       ])
     })
 
-    // Sauvegarde dans le sous-dossier 07_LOCATION du bien si disponible
+    // Sauvegarde dans le sous-dossier 07_LOCATION/Quittances de loyer du bien si disponible
     if (currentBail.bien_id) {
       try {
         await generateQuestionnaireExcel({
           bienId: currentBail.bien_id,
-          filename: `07_LOCATION/${cleanTitle}.xlsx`,
+          filename: `07_LOCATION/Quittances de loyer/${cleanTitle}.xlsx`,
           title: `Historique Complet des Paiements & Caution — ${locataire ? locataire.prenom + ' ' + locataire.nom : 'Bail'}`,
           headers,
           sampleRows,
           hasTotals: true,
           hasCumul: true
         })
-        setExcelMsg(`Fichier Excel généré et synchronisé dans 07_LOCATION/${cleanTitle}.xlsx`)
+        setExcelMsg(`Fichier Excel généré et synchronisé dans 07_LOCATION/Quittances de loyer/${cleanTitle}.xlsx`)
         return
       } catch (err) {
         console.warn("Notice: falling back to direct download:", err)

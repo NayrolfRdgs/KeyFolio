@@ -22,7 +22,12 @@ import DocumentsTreeSidebar from '../components/documents/DocumentsTreeSidebar'
 import TreeNodeItem, { getFileIcon } from '../components/documents/TreeNodeItem'
 import FolderContentView from '../components/documents/FolderContentView'
 import DocumentPreviewer from '../components/documents/DocumentPreviewer'
+import ThemesDashboard from '../components/documents/ThemesDashboard'
 import AddDocumentModal from '../components/documents/AddDocumentModal'
+import InteractivePdfEditorModal from '../components/documents/InteractivePdfEditorModal'
+import BailGenerateurModal from '../components/baux/BailGenerateurModal'
+import EtatDesLieuxModal from '../components/baux/EtatDesLieuxModal'
+import QuittanceModal from '../components/paiements/QuittanceModal'
 import { RenameModal, MoveModal, DeleteConfirmModal } from '../components/documents/DocumentModals'
 
 // ─── Helpers d'arborescence ──────────────────────────────────────────────────
@@ -102,6 +107,12 @@ export default function Documents({ selectedBienId, initialFilePath }) {
 
   // Excel Generator Modal
   const [excelModal, setExcelModal] = useState(null) // { bienId, targetSubfolder }
+
+  // Modale Interactive PDF Editor Modal
+  const [interactiveEditorDoc, setInteractiveEditorDoc] = useState(null)
+
+  // Modales Générateurs Officiels (Bail, EDL, Quittance)
+  const [docHubAction, setDocHubAction] = useState(null) // 'bail' | 'edl' | 'quittance'
 
   // Toast helper
   const addToast = useCallback((message, type = 'success') => {
@@ -578,7 +589,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
           <h2>Documents & Fichiers</h2>
           <p>Explorateur de fichiers avec prévisualisation, liens web et glisser-déposer</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             className="btn btn-secondary"
             onClick={() => performScan(currentBienId)}
@@ -586,6 +597,33 @@ export default function Documents({ selectedBienId, initialFilePath }) {
             disabled={loading || !currentBienId}
           >
             Actualiser
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setDocHubAction('bail')}
+            disabled={!currentBienId}
+            title="Rédiger un contrat de bail légal ALUR"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <Icon name="fileSignature" size={13} color="#4f46e5" /> 📜 Rédiger Bail
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setDocHubAction('edl')}
+            disabled={!currentBienId}
+            title="Rédiger un état des lieux contradictoire"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <Icon name="clipboardCheck" size={13} color="#16a34a" /> 📋 État des Lieux
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setDocHubAction('quittance')}
+            disabled={!currentBienId}
+            title="Générer une quittance de loyer certifiée"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <Icon name="fileText" size={13} color="#2563eb" /> 💶 Quittance
           </button>
           <button
             className="btn btn-primary"
@@ -599,7 +637,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
             }}
             disabled={!currentBienId}
           >
-            <Icon name="plus" size={14} /> Ajouter un document / Lien Web
+            <Icon name="plus" size={14} /> + Ajouter un fichier / Lien
           </button>
         </div>
       </div>
@@ -664,6 +702,7 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   if (cf && f.startsWith(cf)) f = f.replace(cf, '').replace(/^\//, '')
                   setExcelModal({ bienId: parseInt(currentBienId), targetSubfolder: f })
                 }}
+                onBackToThemes={() => setSelectedFile(null)}
                 onContextMenu={handleContextMenu}
                 onDragStart={handleDragStart}
                 onFolderDrop={handleFolderDrop}
@@ -687,6 +726,24 @@ export default function Documents({ selectedBienId, initialFilePath }) {
                   </div>
 
                   <div className="actions-cell">
+                    {selectedFile.name.toLowerCase().endsWith('.pdf') && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setInteractiveEditorDoc(selectedFile)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontWeight: 700,
+                          background: '#4f46e5',
+                          borderColor: '#4f46e5',
+                          boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)'
+                        }}
+                        title="Remplir / Modifier ce document PDF avec l'assistant"
+                      >
+                        <Icon name="fileSignature" size={13} color="#ffffff" /> Modifier / Remplir
+                      </button>
+                    )}
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => handleOpenFile(selectedFile.relative_path)}
@@ -723,7 +780,30 @@ export default function Documents({ selectedBienId, initialFilePath }) {
               </>
             )
           ) : (
-            <DocumentPreviewer selectedFile={null} />
+            <ThemesDashboard
+              bien={biens.find(b => b.id === parseInt(currentBienId))}
+              treeNodes={treeNodes}
+              onSelectFolderByPath={(folderPath) => {
+                const node = findNodeByPath(treeNodes, folderPath)
+                if (node) {
+                  setSelectedFile(node)
+                  toggleExpand(folderPath)
+                } else {
+                  // Si le dossier n'a pas encore de fichier ou nœud scanné, ouvrir le générateur
+                  const currentBien = biens.find(b => b.id === parseInt(currentBienId))
+                  const cf = currentBien?.chemin_dossier || ''
+                  let f = folderPath
+                  if (cf && f.startsWith(cf)) f = f.replace(cf, '').replace(/^\//, '')
+                  setExcelModal({ bienId: parseInt(currentBienId), targetSubfolder: f })
+                }
+              }}
+              onGenerateDocument={(subfolder) => {
+                setExcelModal({
+                  bienId: parseInt(currentBienId),
+                  targetSubfolder: subfolder || '07_LOCATION'
+                })
+              }}
+            />
           )}
         </div>
       </div>
@@ -803,6 +883,59 @@ export default function Documents({ selectedBienId, initialFilePath }) {
           targetSubfolder={excelModal.targetSubfolder}
           onClose={() => setExcelModal(null)}
           onSuccess={() => { setExcelModal(null); performScan(currentBienId) }}
+        />
+      )}
+
+      {/* Interactive PDF Editor Modal */}
+      {interactiveEditorDoc && (
+        <InteractivePdfEditorModal
+          document={interactiveEditorDoc}
+          initialBienId={currentBienId}
+          onClose={() => setInteractiveEditorDoc(null)}
+          onSaved={() => {
+            setInteractiveEditorDoc(null)
+            performScan(currentBienId)
+            addToast('Document modifié et synchronisé avec succès !', 'success')
+          }}
+        />
+      )}
+
+      {/* Générateur de Bail ALUR */}
+      {docHubAction === 'bail' && (
+        <BailGenerateurModal
+          bien={biens.find(b => b.id === parseInt(currentBienId))}
+          onClose={() => setDocHubAction(null)}
+          onGenerated={() => {
+            setDocHubAction(null)
+            performScan(currentBienId)
+            addToast('Contrat de bail généré et enregistré dans le dossier du bien !')
+          }}
+        />
+      )}
+
+      {/* Générateur d'État des Lieux */}
+      {docHubAction === 'edl' && (
+        <EtatDesLieuxModal
+          bien={biens.find(b => b.id === parseInt(currentBienId))}
+          onClose={() => setDocHubAction(null)}
+          onSaved={() => {
+            setDocHubAction(null)
+            performScan(currentBienId)
+            addToast('État des lieux généré et enregistré dans le dossier du bien !')
+          }}
+        />
+      )}
+
+      {/* Générateur de Quittance */}
+      {docHubAction === 'quittance' && (
+        <QuittanceModal
+          bien={biens.find(b => b.id === parseInt(currentBienId))}
+          onClose={() => setDocHubAction(null)}
+          onGenerated={() => {
+            setDocHubAction(null)
+            performScan(currentBienId)
+            addToast('Quittance enregistrée dans le dossier du bien !')
+          }}
         />
       )}
 

@@ -686,6 +686,7 @@ pub fn save_etat_des_lieux_pdf(
     locataire_nom: String,
     date_edl: String,
     pdf_base64: String,
+    type_edl: Option<String>,
 ) -> Result<String, String> {
     let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -706,13 +707,19 @@ pub fn save_etat_des_lieux_pdf(
         }
     };
 
-    let subfolder = "07_LOCATION/Etat des lieux/Sortie";
+    let is_entree = type_edl.as_deref().map(|s| s.to_lowercase() == "entree").unwrap_or(false);
+    let subfolder = if is_entree {
+        "07_LOCATION/Etat des lieux/Entree"
+    } else {
+        "07_LOCATION/Etat des lieux/Sortie"
+    };
     let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
 
     let safe_nom = locataire_nom.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_");
     let safe_date = date_edl.replace('/', "-");
-    let filename = format!("Etat_des_lieux_sortie_{}_{}.pdf", safe_date, safe_nom);
+    let prefix = if is_entree { "Etat_des_lieux_entree" } else { "Etat_des_lieux_sortie" };
+    let filename = format!("{}_{}_{}.pdf", prefix, safe_date, safe_nom);
     let target_file = target_dir.join(&filename);
 
     use base64::Engine;
@@ -728,6 +735,7 @@ pub fn save_etat_des_lieux_pdf(
     std::fs::write(&target_file, bytes).map_err(|e| format!("Erreur écriture fichier PDF: {}", e))?;
 
     let rel_file = format!("{}/{}/{}", bien_rel_path, subfolder, filename);
+    let label_edl = if is_entree { "État des lieux d'entrée (PDF)" } else { "État des lieux de sortie (PDF)" };
 
     db.execute(
         "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
@@ -737,7 +745,7 @@ pub fn save_etat_des_lieux_pdf(
             subfolder,
             rel_file,
             date_edl,
-            format!("État des lieux de sortie (PDF) - {}", locataire_nom)
+            format!("{} - {}", label_edl, locataire_nom)
         ],
     ).map_err(|e| e.to_string())?;
 

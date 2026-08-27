@@ -214,25 +214,6 @@ export default function Sidebar({
           >
             <Icon name="search" size={13} />
           </button>
-          <button
-            className="sidebar-icon-btn"
-            onClick={onOpenExcelGenerator}
-            title="Générateur Excel"
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface-2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--text-secondary)'
-            }}
-          >
-            <Icon name="fileSpreadsheet" size={13} />
-          </button>
         </div>
       </div>
 

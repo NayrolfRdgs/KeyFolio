@@ -9,8 +9,6 @@ pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "00_ACHAT-VENTE/Annonce - Photos",
     "00_ACHAT-VENTE/Plans",
     "00_ACHAT-VENTE/Compromis de vente",
-    "00_ACHAT-VENTE/Correspondances agence - notaire",
-    "00_ACHAT-VENTE/Offres recues",
     "01_ADMINISTRATIF/Justificatifs domicile",
     "01_ADMINISTRATIF/Livret de famille - Pieces identite",
     "01_ADMINISTRATIF/Titre de propriete",
@@ -20,25 +18,16 @@ pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "03_COPROPRIETE/Reglement copropriete",
     "04_FISCAL_FINANCIER/Attestations bancaires",
     "04_FISCAL_FINANCIER/Credit immobilier - Tableau amortissement",
-    "04_FISCAL_FINANCIER/Regime fiscal",
-    "04_FISCAL_FINANCIER/Revenus fonciers",
     "04_FISCAL_FINANCIER/Taxe fonciere",
-    "04_FISCAL_FINANCIER/Taxe habitation",
     "04_FISCAL_FINANCIER/Bilans et syntheses",
     "04_FISCAL_FINANCIER/Declarations fiscales - LMNP - 2044",
     "05_TRAVAUX/Devis",
-    "05_TRAVAUX/Factures travaux/Chauffage",
-    "05_TRAVAUX/Factures travaux/Electricite",
-    "05_TRAVAUX/Factures travaux/Plomberie",
-    "05_TRAVAUX/Factures travaux/Toiture",
+    "05_TRAVAUX/Factures travaux",
     "05_TRAVAUX/Certificats conformite",
     "05_TRAVAUX/Garanties - Assurances decennales",
-    "05_TRAVAUX/Permis de construire - Declarations",
     "06_ENERGIE_CONTRATS/Assurance habitation",
     "06_ENERGIE_CONTRATS/Contrats entretien",
-    "06_ENERGIE_CONTRATS/Factures eau",
-    "06_ENERGIE_CONTRATS/Factures electricite",
-    "06_ENERGIE_CONTRATS/Factures gaz",
+    "06_ENERGIE_CONTRATS/Factures fluides",
     "07_LOCATION/Bail/Baux_anciens",
     "07_LOCATION/Bail/Bail_en_cours",
     "07_LOCATION/Etat des lieux/Entree",
@@ -47,11 +36,9 @@ pub const DEFAULT_FOLDER_HIERARCHY: &[&str] = &[
     "07_LOCATION/Locataires/Correspondances",
     "07_LOCATION/Locataires/Dossier candidature",
     "07_LOCATION/Assurance PNO",
-    "07_LOCATION/Depot de garantie",
     "07_LOCATION/Quittances de loyer",
     "07_LOCATION/Avis d echeance et Relances",
     "07_LOCATION/Regularisations de charges",
-    "08_DIVERS",
 ];
 
 /// Retourne le dossier racine où sont stockées la DB et les données des biens.
@@ -337,4 +324,79 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute("ALTER TABLE biens ADD COLUMN description TEXT", []).ok();
 
     Ok(())
+}
+
+/// Initialise et garantit la présence du dossier `Templates_PDF/` avec ses modèles personnalisables et son guide
+pub fn ensure_pdf_templates_folder(app: &tauri::AppHandle) -> std::io::Result<PathBuf> {
+    let base = get_base_dir(app);
+    let tpl_dir = base.join("Templates_PDF");
+    std::fs::create_dir_all(&tpl_dir)?;
+
+    let quittance_file = tpl_dir.join("quittance_template.json");
+    if !quittance_file.exists() {
+        let content = include_str!("../../templates/pdf/quittance_template.json");
+        std::fs::write(&quittance_file, content)?;
+    }
+
+    let avis_file = tpl_dir.join("avis_echeance_template.json");
+    if !avis_file.exists() {
+        let content = include_str!("../../templates/pdf/avis_echeance_template.json");
+        std::fs::write(&avis_file, content)?;
+    }
+
+    let edl_file = tpl_dir.join("etat_des_lieux_template.json");
+    if !edl_file.exists() {
+        let content = include_str!("../../templates/pdf/etat_des_lieux_template.json");
+        std::fs::write(&edl_file, content)?;
+    }
+
+    let fin_file = tpl_dir.join("fin_bail_template.json");
+    if !fin_file.exists() {
+        let content = include_str!("../../templates/pdf/fin_bail_template.json");
+        std::fs::write(&fin_file, content)?;
+    }
+
+    let bail_file = tpl_dir.join("contrat_bail_template.json");
+    if !bail_file.exists() {
+        let content = include_str!("../../templates/pdf/contrat_bail_template.json");
+        std::fs::write(&bail_file, content)?;
+    }
+
+    let guide_file = tpl_dir.join("GUIDE_PERSONNALISATION_TEMPLATES.md");
+    if !guide_file.exists() {
+        let content = include_str!("../../templates/pdf/GUIDE_PERSONNALISATION_TEMPLATES.md");
+        std::fs::write(&guide_file, content)?;
+    }
+
+    let quittance_pdf = tpl_dir.join("modele_quittance.pdf");
+    if !quittance_pdf.exists() {
+        let bytes = include_bytes!("../../templates/pdf/modele_quittance.pdf");
+        std::fs::write(&quittance_pdf, bytes)?;
+    }
+
+    let avis_pdf = tpl_dir.join("modele_avis_echeance.pdf");
+    if !avis_pdf.exists() {
+        let bytes = include_bytes!("../../templates/pdf/modele_avis_echeance.pdf");
+        std::fs::write(&avis_pdf, bytes)?;
+    }
+
+    let fin_pdf = tpl_dir.join("modele_fin_bail.pdf");
+    if !fin_pdf.exists() {
+        let bytes = include_bytes!("../../templates/pdf/modele_fin_bail.pdf");
+        std::fs::write(&fin_pdf, bytes)?;
+    }
+
+    let edl_pdf = tpl_dir.join("modele_etat_des_lieux.pdf");
+    if !edl_pdf.exists() {
+        let bytes = include_bytes!("../../templates/pdf/modele_etat_des_lieux.pdf");
+        std::fs::write(&edl_pdf, bytes)?;
+    }
+
+    let bail_pdf = tpl_dir.join("modele_contrat_bail.pdf");
+    if !bail_pdf.exists() {
+        let bytes = include_bytes!("../../templates/pdf/modele_contrat_bail.pdf");
+        std::fs::write(&bail_pdf, bytes)?;
+    }
+
+    Ok(tpl_dir)
 }

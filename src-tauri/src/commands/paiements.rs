@@ -3,6 +3,25 @@ use tauri::State;
 use crate::AppState;
 use crate::models::*;
 
+/// Résout le bien_id depuis un bail_id (non-optionnel dans Paiement)
+fn resolve_bien_id_from_bail(db: &rusqlite::Connection, bail_id: i64) -> Option<i64> {
+    db.query_row(
+        "SELECT bien_id FROM baux WHERE id = ?1",
+        params![bail_id],
+        |r| r.get(0),
+    ).ok()
+}
+
+/// Résout le bien_id depuis un paiement_id
+fn resolve_bien_id_from_paiement(db: &rusqlite::Connection, paiement_id: Option<i64>) -> Option<i64> {
+    let pid = paiement_id?;
+    db.query_row(
+        "SELECT b.bien_id FROM paiements p JOIN baux b ON b.id = p.bail_id WHERE p.id = ?1",
+        params![pid],
+        |r| r.get(0),
+    ).ok()
+}
+
 #[tauri::command]
 pub fn get_paiements(state: State<AppState>, bail_id: Option<i64>) -> Result<Vec<Paiement>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -81,7 +100,8 @@ pub fn get_paiements(state: State<AppState>, bail_id: Option<i64>) -> Result<Vec
 }
 
 #[tauri::command]
-pub fn create_paiement(state: State<AppState>, paiement: Paiement) -> Result<i64, String> {
+pub fn create_paiement(app: tauri::AppHandle, state: State<AppState>, paiement: Paiement) -> Result<i64, String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO paiements (bail_id, date_prevue, date_reelle, montant, methode, statut, fichier_quittance, notes)
@@ -91,12 +111,25 @@ pub fn create_paiement(state: State<AppState>, paiement: Paiement) -> Result<i64
             paiement.montant, paiement.methode, paiement.statut, paiement.fichier_quittance, paiement.notes
         ],
     ).map_err(|e| e.to_string())?;
-    Ok(db.last_insert_rowid())
+    let new_id = db.last_insert_rowid();
+
+    // Auto-sync Excel Suivi_Loyers
+    if let Some(bien_id) = resolve_bien_id_from_bail(&db, paiement.bail_id) {
+        crate::excel::sync_all_property_excels(&db, &base_dir, bien_id).ok();
+    }
+
+    Ok(new_id)
 }
 
 #[tauri::command]
-pub fn update_paiement(state: State<AppState>, paiement: Paiement) -> Result<(), String> {
+pub fn update_paiement(app: tauri::AppHandle, state: State<AppState>, paiement: Paiement) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    // Résoudre le bien_id avant la mise à jour
+    let bien_id = resolve_bien_id_from_bail(&db, paiement.bail_id)
+        .or_else(|| resolve_bien_id_from_paiement(&db, paiement.id));
+
     db.execute(
         "UPDATE paiements SET bail_id=?1, date_prevue=?2, date_reelle=?3, montant=?4,
                               methode=?5, statut=?6, notes=?7, fichier_quittance=?8
@@ -107,14 +140,31 @@ pub fn update_paiement(state: State<AppState>, paiement: Paiement) -> Result<(),
             paiement.fichier_quittance, paiement.id
         ],
     ).map_err(|e| e.to_string())?;
+
+    // Auto-sync Excel Suivi_Loyers
+    if let Some(bid) = bien_id {
+        crate::excel::sync_all_property_excels(&db, &base_dir, bid).ok();
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn delete_paiement(state: State<AppState>, id: i64) -> Result<(), String> {
+pub fn delete_paiement(app: tauri::AppHandle, state: State<AppState>, id: i64) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    // Résoudre le bien_id avant suppression
+    let bien_id = resolve_bien_id_from_paiement(&db, Some(id));
+
     db.execute("DELETE FROM paiements WHERE id=?1", params![id])
         .map_err(|e| e.to_string())?;
+
+    // Auto-sync Excel Suivi_Loyers
+    if let Some(bid) = bien_id {
+        crate::excel::sync_all_property_excels(&db, &base_dir, bid).ok();
+    }
+
     Ok(())
 }
 
@@ -151,7 +201,7 @@ pub fn attach_quittance_to_paiement(
         }
     };
 
-    let subfolder = "04_FISCAL_FINANCIER";
+    let subfolder = "07_LOCATION";
     let target_dir = base_dir.join(&bien_rel_path).join(subfolder);
     std::fs::create_dir_all(&target_dir).map_err(|e| format!("Erreur création sous-dossier: {}", e))?;
 
@@ -171,12 +221,14 @@ pub fn attach_quittance_to_paiement(
         params![relative_file_path, today, paiement_id],
     ).map_err(|e| e.to_string())?;
 
-    // Insérer également dans la table documents pour cohérence
     db.execute(
         "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
          VALUES (?1, 'facture', ?2, ?3, date('now'), 'Justificatif / Quittance de paiement')",
         params![bien_id, subfolder, relative_file_path],
     ).ok();
+
+    // Auto-sync Excel Suivi_Loyers
+    crate::excel::sync_all_property_excels(&db, &base_dir, bien_id).ok();
 
     Ok(relative_file_path)
 }

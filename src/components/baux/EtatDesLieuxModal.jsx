@@ -1,134 +1,235 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Icon from '../common/Icon'
 import { formatEuro, formatDate, todayISO } from '../../lib/utils'
-import { saveEtatDesLieuxPdf, saveFileToDisk, openFilePath } from '../../lib/db'
 import { buildEtatDesLieuxPDF } from '../../lib/pdfGenerator'
+import { getLoadedTemplateConfig, buildDataContext } from '../../lib/pdfTemplateEngine'
+import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
+import {
+  getBiens,
+  getBaux,
+  getLocataires,
+  getBienChampsLibres,
+  openTemplatesFolder,
+  saveEtatDesLieuxPdf,
+  savePdfToBien,
+  saveFileToDisk,
+  openFilePath,
+  saveEtatDesLieuxRecord,
+  saveBienChampsLibresBatch
+} from '../../lib/db'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
-// Helper pour extraire les informations sauvegardées depuis notes_fin
-function parseNotesFin(notesStr) {
-  if (!notesStr || typeof notesStr !== 'string') return {}
+const parseNotesFin = (notes) => {
+  if (!notes) return {}
   const res = {}
-  
-  const elecMatch = notesStr.match(/Elec=([^,\s|]+)/)
-  if (elecMatch) res.compteurElec = elecMatch[1]
-
-  const eauMatch = notesStr.match(/Eau=([^,\s|]+)/)
-  if (eauMatch) res.compteurEau = eauMatch[1]
-
-  const gazMatch = notesStr.match(/Gaz=([^,\s|]+)/)
-  if (gazMatch) res.compteurGaz = gazMatch[1]
-
-  const clesMatch = notesStr.match(/Clés\s*:\s*([^|]+)/)
-  if (clesMatch) res.clesRemises = clesMatch[1].trim()
-
-  const cautionRetenueMatch = notesStr.match(/Retenue de ([0-9.]+)€ \(([^)]+)\)/)
-  if (cautionRetenueMatch) {
-    res.montantRetenu = cautionRetenueMatch[1]
-    res.motifRetenue = cautionRetenueMatch[2]
-  }
-
-  const obsMatch = notesStr.match(/Observations\s*:\s*([^|]+)/)
-  if (obsMatch) res.notesFin = obsMatch[1].trim()
-
+  const matchElec = notes.match(/Elec:\s*([^\s|]+)/i)
+  const matchEau = notes.match(/Eau:\s*([^\s|]+)/i)
+  const matchGaz = notes.match(/Gaz:\s*([^\s|]+)/i)
+  const matchRetenue = notes.match(/Retenue:\s*([\d.]+)/i)
+  const matchMotif = notes.match(/Motif:\s*([^|]+)/i)
+  const matchCles = notes.match(/Cl[eé]s:\s*([^|]+)/i)
+  if (matchElec) res.compteurElec = matchElec[1]
+  if (matchEau) res.compteurEau = matchEau[1]
+  if (matchGaz) res.compteurGaz = matchGaz[1]
+  if (matchRetenue) res.montantRetenu = parseFloat(matchRetenue[1])
+  if (matchMotif) res.motifRetenue = matchMotif[1].trim()
+  if (matchCles) res.clesRemises = matchCles[1].trim()
+  res.notesFin = notes
   return res
 }
 
-export default function EtatDesLieuxModal({ bail, bien, locataire, terminationInfo, onClose, onSendMail }) {
-  const bailId = bail?.id || 'new'
-  const storageKey = `keyfolio_edl_cache_${bailId}`
-  const parsedFromBail = parseNotesFin(bail?.notes_fin || terminationInfo?.notesFin || '')
+// Steps config
+const STEPS = [
+  { num: 1, id: 'selection_parties', label: '1. Sélection & Parties' },
+  { num: 2, id: 'logement', label: '2. Logement & Dates' },
+  { num: 3, id: 'compteurs', label: '3. Compteurs & Clés' },
+  { num: 4, id: 'pieces', label: '4. Pièces & Équipements' },
+  { num: 5, id: 'caution', label: '5. Caution & Finalisation' },
+]
 
-  // Chargement des données sauvegardées en cache local ou depuis le bail
-  const initialData = (() => {
+export default function EtatDesLieuxModal({
+  bail: initialBail,
+  bien: initialBien,
+  locataire: initialLocataire,
+  initialType = 'entree',
+  terminationInfo = null,
+  onClose,
+  onSaved,
+  onSuccess,
+  onSendMail
+}) {
+  const [typeEdl, setTypeEdl] = useState(initialType || 'entree')
+  const [step, setStep] = useState(1)
+  const isEntree = typeEdl === 'entree'
+
+  // Listes complètes pour sélection dynamique
+  const [allBiens, setAllBiens] = useState([])
+  const [allBaux, setAllBaux] = useState([])
+  const [allLocataires, setAllLocataires] = useState([])
+
+  const [currentBienId, setCurrentBienId] = useState(initialBien?.id || initialBail?.bien_id || '')
+  const [currentBailId, setCurrentBailId] = useState(initialBail?.id || '')
+  const [currentLocataireId, setCurrentLocataireId] = useState(initialLocataire?.id || initialBail?.locataire_id || '')
+
+  const currentBien = allBiens.find(b => String(b.id) === String(currentBienId)) || initialBien
+  const currentBail = allBaux.find(b => String(b.id) === String(currentBailId)) || initialBail
+  const currentLocataire = allLocataires.find(l => String(l.id) === String(currentLocataireId)) || initialLocataire
+
+  const bailId = currentBail?.id || 'new'
+  const storageKey = `keyfolio_edl_cache_${bailId}_${typeEdl}`
+  const parsedFromBail = parseNotesFin(currentBail?.notes_fin || terminationInfo?.notesFin || '')
+  const edlTpl = getLoadedTemplateConfig('etat_des_lieux_template.json') || {}
+
+  // Profil Bailleur sauvegardé
+  const savedBailleur = (() => {
     try {
-      const cached = localStorage.getItem(storageKey)
-      if (cached) return JSON.parse(cached)
-    } catch (e) {}
-    return {}
+      const b = localStorage.getItem('keyfolio_bailleur_profile')
+      return b ? JSON.parse(b) : {}
+    } catch(e) { return {} }
   })()
 
-  const [bailleurNom, setBailleurNom] = useState(initialData.bailleurNom || 'Bailleur / Propriétaire')
-  const [bailleurAdresse, setBailleurAdresse] = useState(initialData.bailleurAdresse || 'Adresse du bailleur')
-  const [dateEdl, setDateEdl] = useState(
-    initialData.dateEdl || terminationInfo?.dateFin || bail?.date_fin || todayISO()
+  // State des champs du document
+  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || edlTpl?.bailleur?.nomParDefaut || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || edlTpl?.bailleur?.adresseParDefaut || 'Adresse du bailleur')
+  const [locataireNomCustom, setLocataireNomCustom] = useState(
+    (currentLocataire ? `${currentLocataire.prenom} ${currentLocataire.nom}`.trim() : `${currentBail?.locataire_prenom || ''} ${currentBail?.locataire_nom || ''}`.trim()) || 'Locataire'
   )
-  
-  // Compteurs
-  const [elecIndex, setElecIndex] = useState(
-    initialData.elecIndex || terminationInfo?.compteurElec || parsedFromBail.compteurElec || ''
-  )
-  const [eauIndex, setEauIndex] = useState(
-    initialData.eauIndex || terminationInfo?.compteurEau || parsedFromBail.compteurEau || ''
-  )
-  const [gazIndex, setGazIndex] = useState(
-    initialData.gazIndex || terminationInfo?.compteurGaz || parsedFromBail.compteurGaz || ''
-  )
+  const [bienAdresseCustom, setBienAdresseCustom] = useState(currentBien?.adresse || currentBail?.bien_adresse || '')
+  const [bienNomCustom, setBienNomCustom] = useState(currentBien?.nom || currentBail?.bien_nom || 'Logement')
+  const [dateEdl, setDateEdl] = useState(terminationInfo?.dateFin || (isEntree ? currentBail?.date_debut : currentBail?.date_fin) || todayISO())
+  const [elecIndex, setElecIndex] = useState(terminationInfo?.compteurElec || parsedFromBail.compteurElec || '')
+  const [eauIndex, setEauIndex] = useState(terminationInfo?.compteurEau || parsedFromBail.compteurEau || '')
+  const [gazIndex, setGazIndex] = useState(terminationInfo?.compteurGaz || parsedFromBail.compteurGaz || '')
+  const [clesRemises, setClesRemises] = useState(terminationInfo?.clesRemises || parsedFromBail.clesRemises || edlTpl?.mentions?.clesDefaut || '2 jeux complets (porte d\'entrée + boîte aux lettres + badge)')
+  const [depotGarantieInitial, setDepotGarantieInitial] = useState(currentBail?.depot_garantie ?? 650)
+  const [montantRetenu, setMontantRetenu] = useState(terminationInfo?.montantRetenu ?? parsedFromBail.montantRetenu ?? 0)
+  const [motifRetenue, setMotifRetenue] = useState(terminationInfo?.motifRetenue || parsedFromBail.motifRetenue || '')
 
-  // Clés
-  const [clesRemises, setClesRemises] = useState(
-    initialData.clesRemises || terminationInfo?.clesRemises || parsedFromBail.clesRemises || '2 jeux complets (porte + boîte aux lettres + badge)'
-  )
-
-  // Caution
-  const depotGarantieInitial = bail?.depot_garantie || 0
-  const [montantRetenu, setMontantRetenu] = useState(
-    initialData.montantRetenu ?? terminationInfo?.montantRetenu ?? parsedFromBail.montantRetenu ?? 0
-  )
-  const [motifRetenue, setMotifRetenue] = useState(
-    initialData.motifRetenue || terminationInfo?.motifRetenue || parsedFromBail.motifRetenue || ''
-  )
-  
-  const soldeRestitue = Math.max(0, depotGarantieInitial - parseFloat(montantRetenu || 0))
-
-  // Pièces
-  const defaultPieces = [
-    { nom: 'Entrée / Dégagement', etat: 'Bon état', obs: 'RAS, peinture propre' },
-    { nom: 'Séjour / Salon', etat: 'Très bon état', obs: 'Murs et sols propres, fenêtres en état' },
+  const defaultPieces = edlTpl?.piecesParDefaut || [
+    { nom: 'Entrée / Dégagement', etat: 'Bon état', obs: 'Peinture propre, interphone fonctionnel' },
+    { nom: 'Séjour / Salon', etat: 'Très bon état', obs: 'Murs et sols propres, fenêtres en bon état' },
     { nom: 'Cuisine', etat: 'Bon état', obs: 'Évier, placards et plaques nettoyés et fonctionnels' },
-    { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement sol et prises électriques conformes' },
+    { nom: 'Chambre(s)', etat: 'Très bon état', obs: 'Revêtement de sol et prises électriques conformes' },
     { nom: 'Salle d\'eau / WC', etat: 'Bon état', obs: 'Robinetterie et sanitaires sans fuite ni tartre' },
   ]
-  const [pieces, setPieces] = useState(initialData.pieces || defaultPieces)
+  const [pieces, setPieces] = useState(defaultPieces)
 
-  const [observationsGenerales, setObservationsGenerales] = useState(
-    initialData.observationsGenerales || terminationInfo?.notesFin || parsedFromBail.notesFin || 'Logement restitué propre et vidé de tout meuble et encombrant. Clés remises en main propre.'
-  )
+  const defaultObsText = isEntree
+    ? (edlTpl?.mentions?.observationsEntreeDefaut || 'Logement remis en bon état général d\'entretien et d\'usage. Les clés ont été remises en main propre au locataire ce jour.')
+    : (edlTpl?.mentions?.observationsSortieDefaut || 'Logement restitué propre et vidé de tout meuble et encombrant. Clés remises en main propre au bailleur.')
+  const [observationsGenerales, setObservationsGenerales] = useState(terminationInfo?.notesFin || parsedFromBail.notesFin || defaultObsText)
 
-  // État de sauvegarde sur disque
   const [savedPath, setSavedPath] = useState(null)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
 
-  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}` : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
-  const targetBienId = bien?.id || bail?.bien_id
+  // Live PDF preview state
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const debounceRef = useRef(null)
 
-  // Sauvegarde synchrone dans localStorage à chaque modification
+  // Chargement des données globales
   useEffect(() => {
-    try {
-      const stateToPersist = {
-        bailleurNom,
-        bailleurAdresse,
-        dateEdl,
-        elecIndex,
-        eauIndex,
-        gazIndex,
-        clesRemises,
-        montantRetenu,
-        motifRetenue,
-        pieces,
-        observationsGenerales
-      }
-      localStorage.setItem(storageKey, JSON.stringify(stateToPersist))
-    } catch (e) {}
-  }, [bailleurNom, bailleurAdresse, dateEdl, elecIndex, eauIndex, gazIndex, clesRemises, montantRetenu, motifRetenue, pieces, observationsGenerales])
+    Promise.all([
+      Promise.resolve().then(() => getBiens()).catch(() => []),
+      Promise.resolve().then(() => getBaux()).catch(() => []),
+      Promise.resolve().then(() => getLocataires()).catch(() => [])
+    ]).then(([bi, ba, lo]) => {
+      setAllBiens(bi || [])
+      setAllBaux(ba || [])
+      setAllLocataires(lo || [])
 
-  const getPdfDoc = () => {
+      if (!currentBienId && bi && bi.length > 0) {
+        handleSelectBien(bi[0].id, bi, ba, lo)
+      }
+    })
+  }, [])
+
+  // Auto-remplissage dès qu'un bien est sélectionné
+  const handleSelectBien = async (bienId, biensList = allBiens, bauxList = allBaux, locatairesList = allLocataires) => {
+    setCurrentBienId(bienId)
+    const selected = biensList.find(b => String(b.id) === String(bienId))
+    if (selected) {
+      setBienNomCustom(selected.nom)
+      setBienAdresseCustom(selected.adresse || '')
+
+      // Trouver le bail actif ou le plus récent pour ce bien
+      const bauxDuBien = bauxList.filter(b => String(b.bien_id) === String(bienId))
+      const bailActif = bauxDuBien.find(b => b.statut === 'actif') || bauxDuBien[0]
+
+      if (bailActif) {
+        setCurrentBailId(bailActif.id)
+        if (bailActif.depot_garantie) setDepotGarantieInitial(bailActif.depot_garantie)
+        if (bailActif.date_debut && isEntree) setDateEdl(bailActif.date_debut)
+        if (bailActif.date_fin && !isEntree) setDateEdl(bailActif.date_fin)
+
+        const loc = locatairesList.find(l => String(l.id) === String(bailActif.locataire_id))
+        if (loc) {
+          setCurrentLocataireId(loc.id)
+          setLocataireNomCustom(`${loc.prenom} ${loc.nom}`.trim())
+        } else if (bailActif.locataire_nom) {
+          setLocataireNomCustom(`${bailActif.locataire_prenom || ''} ${bailActif.locataire_nom}`.trim())
+        }
+      }
+
+      // Charger automatiquement les index de compteurs existants pour ce bien
+      try {
+        const champs = await getBienChampsLibres(bienId)
+        if (champs && Array.isArray(champs)) {
+          const map = {}
+          champs.forEach(c => { map[c.cle] = c.valeur })
+          if (map.compteur_elec) setElecIndex(map.compteur_elec)
+          if (map.compteur_eau) setEauIndex(map.compteur_eau)
+          if (map.compteur_gaz) setGazIndex(map.compteur_gaz)
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Auto-remplissage dès qu'un bail est sélectionné
+  const handleSelectBail = (bailId) => {
+    setCurrentBailId(bailId)
+    const selectedBail = allBaux.find(b => String(b.id) === String(bailId))
+    if (selectedBail) {
+      if (selectedBail.depot_garantie) setDepotGarantieInitial(selectedBail.depot_garantie)
+      if (selectedBail.date_debut && isEntree) setDateEdl(selectedBail.date_debut)
+      if (selectedBail.date_fin && !isEntree) setDateEdl(selectedBail.date_fin)
+
+      const loc = allLocataires.find(l => String(l.id) === String(selectedBail.locataire_id))
+      if (loc) {
+        setCurrentLocataireId(loc.id)
+        setLocataireNomCustom(`${loc.prenom} ${loc.nom}`.trim())
+      } else if (selectedBail.locataire_nom) {
+        setLocataireNomCustom(`${selectedBail.locataire_prenom || ''} ${selectedBail.locataire_nom}`.trim())
+      }
+    }
+  }
+
+  // Auto-remplissage dès qu'un locataire est sélectionné
+  const handleSelectLocataire = (locId) => {
+    setCurrentLocataireId(locId)
+    const loc = allLocataires.find(l => String(l.id) === String(locId))
+    if (loc) {
+      setLocataireNomCustom(`${loc.prenom} ${loc.nom}`.trim())
+    }
+  }
+
+  const soldeRestitue = Math.max(0, parseFloat(depotGarantieInitial || 0) - parseFloat(montantRetenu || 0))
+
+  const getPdfDoc = useCallback(() => {
     return buildEtatDesLieuxPDF({
-      bail,
-      bien,
-      locataire,
+      bail: currentBail,
+      bien: {
+        ...(currentBien || {}),
+        nom: bienNomCustom,
+        adresse: bienAdresseCustom
+      },
+      locataire: {
+        ...(currentLocataire || {}),
+        nom: locataireNomCustom,
+        prenom: ''
+      },
+      typeEdl,
       bailleurNom,
       bailleurAdresse,
       dateEdl,
@@ -136,70 +237,149 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
       eauIndex,
       gazIndex,
       clesRemises,
-      depotGarantieInitial,
-      montantRetenu,
+      depotGarantieInitial: parseFloat(depotGarantieInitial || 0),
+      montantRetenu: parseFloat(montantRetenu || 0),
       motifRetenue,
       pieces,
       observationsGenerales
     })
-  }
+  }, [currentBail, currentBien, currentLocataire, bienNomCustom, bienAdresseCustom, locataireNomCustom, typeEdl, bailleurNom, bailleurAdresse, dateEdl, elecIndex, eauIndex, gazIndex, clesRemises, depotGarantieInitial, montantRetenu, motifRetenue, pieces, observationsGenerales])
 
-  // Sauvegarde automatique du PDF dans le dossier du bien
+  // Construction du résultat PDF (en utilisant le template PDF réel du disque ou le générateur)
+  const getPdfResult = useCallback(async () => {
+    const dataCtx = buildDataContext({
+      bail: currentBail,
+      bien: { ...(currentBien || {}), nom: bienNomCustom, adresse: bienAdresseCustom },
+      locataire: { ...(currentLocataire || {}), nom: locataireNomCustom },
+      dateDoc: dateEdl,
+      elecIndex,
+      eauIndex,
+      gazIndex,
+      clesRemises,
+      depotGarantie: depotGarantieInitial,
+      montantRetenu,
+      motifRetenue,
+      customValues: {
+        bailleur_nom: bailleurNom,
+        bailleur_adresse: bailleurAdresse
+      }
+    })
+
+    return await createPdfFromTemplate({
+      templatePdfName: 'modele_etat_des_lieux.pdf',
+      dataContext: dataCtx,
+      fallbackGenerator: getPdfDoc
+    })
+  }, [currentBail, currentBien, currentLocataire, bienNomCustom, bienAdresseCustom, locataireNomCustom, dateEdl, elecIndex, eauIndex, gazIndex, clesRemises, depotGarantieInitial, montantRetenu, motifRetenue, bailleurNom, bailleurAdresse, getPdfDoc])
+
+  // Rafraîchissement live du PDF
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getPdfResult()
+        setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return res.blobUrl })
+      } catch (e) {
+        console.warn('PDF preview error', e)
+      }
+    }, 350)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [getPdfResult])
+
+  useEffect(() => {
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
+  }, [])
+
+  // Enregistrement officiel et visibilité dans le logiciel
   const handleSaveToProperty = async () => {
-    if (!targetBienId) return
+    const targetId = currentBienId || currentBien?.id || initialBien?.id
+    if (!targetId) {
+      setToastMsg('⚠️ Veuillez sélectionner un logement pour enregistrer l\'état des lieux.')
+      return null
+    }
     setSaving(true)
     try {
-      const doc = getPdfDoc()
-      const pdfBase64 = doc.output('datauristring')
-      const relPath = await saveEtatDesLieuxPdf(targetBienId, locataireFullName, dateEdl, pdfBase64)
+      const res = await getPdfResult()
+      const pdfBase64 = res.dataUri
+      const subfolder = isEntree ? '07_LOCATION/Etat des lieux/Entree' : '07_LOCATION/Etat des lieux/Sortie'
+      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filename = `EDL_${isEntree ? 'Entree' : 'Sortie'}_${sanitizedLoc}_${dateEdl || todayISO()}.pdf`
+      const title = `État des Lieux (${isEntree ? 'Entrée' : 'Sortie'}) - ${locataireNomCustom}`
+
+      // 1. Sauvegarde dans le dossier du bien et dans la table documents
+      let relPath = null
+      try {
+        relPath = await saveEtatDesLieuxPdf(targetId, locataireNomCustom, dateEdl, pdfBase64, typeEdl)
+      } catch (e) {
+        relPath = await savePdfToBien(targetId, subfolder, filename, pdfBase64, title)
+      }
+
+      // 2. Enregistrement dans la table etats_des_lieux pour visibilité immédiate dans l'historique
+      await saveEtatDesLieuxRecord({
+        bailId: currentBailId || null,
+        bien_id: parseInt(targetId),
+        bien_nom: bienNomCustom,
+        locataire_id: currentLocataireId ? parseInt(currentLocataireId) : null,
+        locataire_nom: locataireNomCustom,
+        type_edl: typeEdl,
+        date_edl: dateEdl,
+        pdf_path: relPath,
+        elec_index: elecIndex,
+        eau_index: eauIndex,
+        gaz_index: gazIndex,
+        cles_remises: clesRemises,
+        pieces,
+        observations: observationsGenerales,
+        depot_garantie: parseFloat(depotGarantieInitial || 0),
+        montant_retenu: isEntree ? 0 : parseFloat(montantRetenu || 0),
+        motif_retenue: isEntree ? null : motifRetenue
+      })
+
+      // 3. Sauvegarder les index compteurs sur le bien
+      const champs = []
+      if (elecIndex) champs.push({ cle: 'compteur_elec', valeur: String(elecIndex) })
+      if (eauIndex) champs.push({ cle: 'compteur_eau', valeur: String(eauIndex) })
+      if (gazIndex) champs.push({ cle: 'compteur_gaz', valeur: String(gazIndex) })
+      if (champs.length > 0) await saveBienChampsLibresBatch(targetId, champs)
+
       setSavedPath(relPath)
+      setToastMsg(`✅ État des lieux archivé avec succès : ${relPath}`)
+      if (onSaved) onSaved(relPath)
+      if (onSuccess) onSuccess(relPath)
       return relPath
     } catch (err) {
-      console.warn('Erreur sauvegarde PDF état des lieux :', err)
+      setToastMsg(`❌ Erreur d'enregistrement : ${err?.toString()}`)
+      return null
     } finally {
       setSaving(false)
+      setTimeout(() => setToastMsg(null), 6000)
     }
   }
 
-  useEffect(() => {
-    handleSaveToProperty()
-  }, [])
-
-  // Export & Téléchargement direct du fichier PDF avec dialogue natif
+  // Export PDF direct
   const handleExportPDF = async () => {
     setExporting(true)
     try {
-      const doc = getPdfDoc()
-      const safeNom = locataireFullName.replace(/[^a-zA-Z0-9_-]/g, '_')
-      const defaultFilename = `Etat_des_lieux_sortie_${dateEdl}_${safeNom}.pdf`
-      
-      // 1. Sauvegarde dans le dossier du bien
-      const relPath = await handleSaveToProperty()
-      
-      // 2. Demande à l'utilisateur où exporter
-      const chosenPath = await openSaveDialog({
+      const res = await getPdfResult()
+      const sanitizedLoc = locataireNomCustom.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const defaultFilename = `EDL_${isEntree ? 'Entree' : 'Sortie'}_${sanitizedLoc}_${dateEdl || todayISO()}.pdf`
+      const savePath = await openSaveDialog({
         defaultPath: defaultFilename,
         filters: [{ name: 'Document PDF (*.pdf)', extensions: ['pdf'] }]
       })
-
-      if (chosenPath) {
-        const pdfBase64 = doc.output('datauristring')
-        await saveFileToDisk(chosenPath, pdfBase64)
-        setToastMsg(` PDF enregistré avec succès dans : ${chosenPath}`)
-        await openFilePath(chosenPath)
-      } else if (relPath) {
-        // Si l'utilisateur annule le dialogue, on ouvre quand même le PDF du dossier du bien
-        await openFilePath(relPath)
+      if (savePath) {
+        const rawBase64 = res.dataUri.split(',')[1]
+        await saveFileToDisk(savePath, rawBase64)
+        setToastMsg(`✅ PDF exporté : ${savePath}`)
       }
     } catch (err) {
-      console.error('Erreur export PDF :', err)
+      setToastMsg(`❌ Erreur export PDF : ${err?.toString()}`)
     } finally {
       setExporting(false)
       setTimeout(() => setToastMsg(null), 5000)
     }
   }
 
-  // Ouvrir le PDF généré
   const handleOpenPDFDirect = async () => {
     if (savedPath) {
       await openFilePath(savedPath)
@@ -214,302 +394,758 @@ export default function EtatDesLieuxModal({ bail, bien, locataire, terminationIn
     updated[idx][field] = val
     setPieces(updated)
   }
+  const handleAddPiece = () => setPieces(prev => [...prev, { nom: 'Nouvelle pièce', etat: 'Bon état', obs: '' }])
+  const handleRemovePiece = (idx) => setPieces(prev => prev.filter((_, i) => i !== idx))
+
+  // Baux disponibles pour le bien sélectionné
+  const bauxDuBienSelectionne = allBaux.filter(b => String(b.bien_id) === String(currentBienId))
 
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 99999 }}>
-      <div className="modal-card" style={{ maxWidth: 880, width: '96%', maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        
-        {/* Header Modal */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}> Édition & Export PDF de l'État des Lieux</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Édition directe et génération PDF vectoriel officiel (Loi n° 89-462)
-            </span>
+      <div
+        className="modal-card"
+        style={{
+          maxWidth: 1480,
+          width: '96vw',
+          height: '92vh',
+          maxHeight: '92vh',
+          overflow: 'hidden',
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 16,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ─── EN-TÊTE PRINCIPAL WIZARD ─── */}
+        <div style={{
+          padding: '16px 24px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
+            }}>
+              <Icon name="fileSignature" size={22} color="#ffffff" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>
+                État des Lieux Contradictoire {isEntree ? "d'Entrée" : 'de Sortie'}
+              </h3>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Assistant pas-à-pas • Étape {step} sur {STEPS.length}
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button className="btn btn-primary btn-sm" onClick={handleExportPDF} disabled={exporting}>
-              {exporting ? ' Exportation...' : ' Exporter le PDF'}
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleOpenPDFDirect}>
-              Ouvrir le PDF
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleSaveToProperty} disabled={saving}>
-              {saving ? ' Enregistrement...' : ' Sauvegarder'}
-            </button>
-            {onSendMail && (
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Type selector toggle */}
+            <div style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: 3,
+              borderRadius: 10,
+              border: '1px solid #e2e8f0'
+            }}>
               <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => onSendMail(targetBienId, {
-                  recipientEmail: locataire?.email || bail?.locataire_email || '',
-                  initialTemplate: 'fin_bail'
-                })}
+                type="button"
+                onClick={() => setTypeEdl('entree')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: isEntree ? '#16a34a' : 'transparent',
+                  color: isEntree ? '#ffffff' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isEntree ? '0 2px 4px rgba(22, 163, 74, 0.2)' : 'none'
+                }}
               >
-                Mail
+                🟢 Entrée
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setTypeEdl('sortie')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: !isEntree ? '#2563eb' : 'transparent',
+                  color: !isEntree ? '#ffffff' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: !isEntree ? '0 2px 4px rgba(37, 99, 235, 0.2)' : 'none'
+                }}
+              >
+                🔵 Sortie
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={openTemplatesFolder}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontWeight: 700,
+                fontSize: 11.5,
+                color: '#4f46e5',
+                borderColor: '#c7d2fe',
+                background: '#eef2ff'
+              }}
+              title="Ouvrir le dossier contenant les fichiers modèles PDF et configurations"
+            >
+              <Icon name="folder" size={13} color="#4f46e5" /> 📂 Modèles PDF
+            </button>
+
             <button className="btn btn-ghost btn-icon" onClick={onClose}>
-              <Icon name="x" size={18} />
+              <Icon name="x" size={20} />
             </button>
           </div>
         </div>
 
-        {/* Toast info */}
+        {/* ─── BARRE D'ONGLETS / ÉTAPES WIZARD ─── */}
+        <div style={{
+          padding: '10px 24px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          gap: 8,
+          background: '#ffffff',
+          flexShrink: 0,
+          overflowX: 'auto'
+        }}>
+          {STEPS.map((s) => {
+            const isActive = s.num === step
+            const isCompleted = s.num < step
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setStep(s.num)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 10,
+                  border: isActive ? '1.5px solid #4f46e5' : '1px solid #e2e8f0',
+                  background: isActive ? '#4f46e5' : '#ffffff',
+                  color: isActive ? '#ffffff' : (isCompleted ? '#1e293b' : '#64748b'),
+                  fontWeight: isActive ? 700 : 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  boxShadow: isActive ? '0 2px 6px rgba(79, 70, 229, 0.25)' : 'none'
+                }}
+              >
+                {s.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Toast notification */}
         {toastMsg && (
-          <div style={{ marginBottom: 12, padding: '10px 14px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12 }}>
+          <div style={{ padding: '8px 24px', background: '#dcfce7', color: '#166534', fontSize: 12, fontWeight: 600, borderBottom: '1px solid #bbf7d0', flexShrink: 0 }}>
             {toastMsg}
           </div>
         )}
 
-        {/* Bannière de confirmation de sauvegarde PDF dans le dossier du bien */}
+        {/* ─── CORPS PRINCIPAL (FORMULAIRE GAUCHE + APERÇU PDF DROITE) ─── */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+          {/* ═════════ COLONNE GAUCHE : FORMULAIRE WIZARD ═════════ */}
+          <div style={{
+            flex: '0 0 46%',
+            maxWidth: '46%',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18,
+            background: '#ffffff'
+          }}>
+
+            {/* ÉTAPE 1 : SÉLECTION DU LOGEMENT, DU BAIL ET DES PARTIES */}
+            {step === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* 🎯 SÉLECTION RAPIDE BIEN & BAIL */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                  padding: 18,
+                  borderRadius: 12,
+                  border: '1.5px solid #c7d2fe',
+                  boxShadow: '0 2px 8px rgba(79, 70, 229, 0.08)'
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#3730a3', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="sparkles" size={16} color="#4f46e5" />
+                    🎯 Remplissage Ultra-Rapide : Choisir le Logement & Bail
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Sélecteur de Bien */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: 12, color: '#312e81' }}>
+                        1. Sélectionner l'appartement / bien immobilier :
+                      </label>
+                      <select
+                        className="form-control"
+                        style={{ fontWeight: 700, background: '#ffffff' }}
+                        value={currentBienId}
+                        onChange={e => handleSelectBien(e.target.value)}
+                      >
+                        <option value="">-- Choisir un logement --</option>
+                        {allBiens.map(b => (
+                          <option key={b.id} value={b.id}>
+                            🏢 {b.nom} {b.adresse ? `(${b.adresse})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Sélecteur de Bail / Locataire lié */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: 12, color: '#312e81' }}>
+                        2. Sélectionner le bail / locataire concerné :
+                      </label>
+                      <select
+                        className="form-control"
+                        style={{ fontWeight: 600, background: '#ffffff' }}
+                        value={currentBailId}
+                        onChange={e => handleSelectBail(e.target.value)}
+                      >
+                        <option value="">-- Choisir un bail ou locataire --</option>
+                        {bauxDuBienSelectionne.map(b => {
+                          const isActif = b.statut === 'actif'
+                          return (
+                            <option key={b.id} value={b.id}>
+                              {isActif ? '🟢 Bail actif' : '🟠 Bail terminé'} — {b.locataire_prenom || ''} {b.locataire_nom || 'Locataire'} ({formatDate(b.date_debut)})
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bailleur */}
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="user" size={16} color="#4f46e5" /> Bailleur / Propriétaire
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Nom complet du bailleur / SCI *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: M. Dupont Jean / SCI Les Oliviers"
+                        value={bailleurNom}
+                        onChange={e => setBailleurNom(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Adresse postale du bailleur</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: 14 Rue de la République, 69002 Lyon"
+                        value={bailleurAdresse}
+                        onChange={e => setBailleurAdresse(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Locataire */}
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="users" size={16} color="#4f46e5" /> {isEntree ? 'Locataire Entrant' : 'Locataire Sortant'}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Nom et prénom du locataire *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="ex: Martin Claire"
+                      value={locataireNomCustom}
+                      onChange={e => setLocataireNomCustom(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ÉTAPE 2 : LOGEMENT ET DATES */}
+            {step === 2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="house" size={16} color="#4f46e5" /> Identification du Logement
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Désignation / Nom du bien</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={bienNomCustom}
+                        placeholder="ex: Appartement T3 Centre"
+                        onChange={e => setBienNomCustom(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Adresse complète du logement</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: 14 Rue de la République, 69002 Lyon"
+                        value={bienAdresseCustom}
+                        onChange={e => setBienAdresseCustom(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>
+                          {isEntree ? "Date d'entrée effective" : "Date de sortie effective"}
+                        </label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={dateEdl}
+                          onChange={e => setDateEdl(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Régime juridique</label>
+                        <div style={{
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          background: '#e0e7ff',
+                          color: '#4338ca',
+                          fontWeight: 700,
+                          fontSize: 13
+                        }}>
+                          {currentBail?.type_bail === 'meuble' ? '🛋️ Meublé (Loi ALUR)' : '🏢 Nu / Non Meublé'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ÉTAPE 3 : COMPTEURS & CLÉS */}
+            {step === 3 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="activity" size={16} color="#4f46e5" /> Relevé des Compteurs
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Électricité (kWh)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: 14500"
+                        value={elecIndex}
+                        onChange={e => setElecIndex(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Eau froide (m³)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: 380"
+                        value={eauIndex}
+                        onChange={e => setEauIndex(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Gaz (m³)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="ex: 125"
+                        value={gazIndex}
+                        onChange={e => setGazIndex(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="key" size={16} color="#4f46e5" /> {isEntree ? 'Remise des clés & accès' : 'Restitution des clés'}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Inventaire des clés remises</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={clesRemises}
+                      onChange={e => setClesRemises(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ÉTAPE 4 : PIÈCES & ÉQUIPEMENTS */}
+            {step === 4 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name="clipboard" size={16} color="#4f46e5" /> État détaillé par pièce
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddPiece}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontWeight: 700, color: '#4f46e5', borderColor: '#c7d2fe', background: '#eef2ff' }}
+                    >
+                      + Ajouter une pièce
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {pieces.map((p, idx) => (
+                      <div key={idx} style={{
+                        padding: 12,
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 10,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8
+                      }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ fontWeight: 700 }}
+                            value={p.nom}
+                            onChange={e => handleEtatChange(idx, 'nom', e.target.value)}
+                          />
+                          <select
+                            className="form-control"
+                            value={p.etat}
+                            onChange={e => handleEtatChange(idx, 'etat', e.target.value)}
+                          >
+                            <option value="Très bon état">Très bon état</option>
+                            <option value="Bon état">Bon état</option>
+                            <option value="État d'usage normal">État d'usage normal</option>
+                            <option value="Dégradé / Travaux">Dégradé / Travaux</option>
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ flex: 1, fontSize: 12 }}
+                            placeholder="Observations (murs, sols, fenêtres, prises, etc.)"
+                            value={p.obs}
+                            onChange={e => handleEtatChange(idx, 'obs', e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePiece(idx)}
+                            className="btn btn-ghost btn-icon"
+                            style={{ color: '#94a3b8' }}
+                            title="Supprimer cette pièce"
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ÉTAPE 5 : CAUTION, OBSERVATIONS & FINALISATION */}
+            {step === 5 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="creditCard" size={16} color="#4f46e5" />
+                    {isEntree ? 'Dépôt de Garantie Encaissé' : 'Synthèse du Dépôt de Garantie'}
+                  </div>
+
+                  {isEntree ? (
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Montant versé par le locataire (€)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        style={{ fontWeight: 700 }}
+                        value={depotGarantieInitial}
+                        onChange={e => setDepotGarantieInitial(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Caution initiale versée (€)</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={depotGarantieInitial}
+                            onChange={e => setDepotGarantieInitial(e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Retenue éventuelle (€)</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={montantRetenu}
+                            onChange={e => setMontantRetenu(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: 12 }}>Motif de la retenue</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="ex: Nettoyage et réfection des peintures"
+                          value={motifRetenue}
+                          onChange={e => setMotifRetenue(e.target.value)}
+                        />
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: '#dcfce7',
+                        border: '1px solid #bbf7d0',
+                        padding: '10px 14px',
+                        borderRadius: 8
+                      }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>SOLDE NET À RESTITUER :</span>
+                        <span style={{ fontSize: 15, fontWeight: 900, color: '#166534' }}>{formatEuro(soldeRestitue)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="fileText" size={16} color="#4f46e5" /> Observations Générales
+                  </div>
+                  <div className="form-group">
+                    <textarea
+                      rows={3}
+                      className="form-control"
+                      value={observationsGenerales}
+                      onChange={e => setObservationsGenerales(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── NAVIGATION PRÉCÉDENT / SUIVANT / EXPORT ─── */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 'auto',
+              paddingTop: 16,
+              borderTop: '1px solid var(--border-color)'
+            }}>
+              {step > 1 ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setStep(s => s - 1)}
+                  style={{ fontWeight: 700 }}
+                >
+                  ← Précédent
+                </button>
+              ) : <div />}
+
+              {step < STEPS.length ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setStep(s => s + 1)}
+                  style={{
+                    fontWeight: 700,
+                    padding: '8px 24px',
+                    borderRadius: 8,
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)'
+                  }}
+                >
+                  Suivant →
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleExportPDF}
+                    disabled={exporting}
+                    style={{ fontWeight: 700 }}
+                  >
+                    <Icon name="download" size={14} /> {exporting ? 'Exportation...' : 'Exporter le PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleSaveToProperty}
+                    disabled={saving}
+                    style={{
+                      fontWeight: 700,
+                      background: isEntree ? '#16a34a' : '#2563eb',
+                      borderColor: isEntree ? '#16a34a' : '#2563eb'
+                    }}
+                  >
+                    <Icon name="save" size={14} /> {saving ? 'Enregistrement...' : 'Sauvegarder & Archiver'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ═════════ COLONNE DROITE : APERÇU PDF EN TEMPS RÉEL (AGRANDI ET NET) ═════════ */}
+          <div style={{
+            flex: '1 1 54%',
+            maxWidth: '54%',
+            borderLeft: '1px solid var(--border-color)',
+            background: '#0f172a',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Barre d'outils du visualiseur PDF */}
+            <div style={{
+              padding: '10px 18px',
+              background: '#1e293b',
+              borderBottom: '1px solid #334155',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: '#22c55e',
+                  display: 'inline-block'
+                }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.02em' }}>
+                  APERÇU DU DOCUMENT PDF
+                </span>
+                <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                  (Synchronisé en direct)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleOpenPDFDirect}
+                  style={{ fontSize: 11, fontWeight: 600, color: '#38bdf8' }}
+                >
+                  <Icon name="externalLink" size={12} /> Ouvrir
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleExportPDF}
+                  style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}
+                >
+                  <Icon name="download" size={12} /> Télécharger
+                </button>
+              </div>
+            </div>
+
+            {/* Zone d'affichage du PDF */}
+            <div style={{ flex: 1, padding: 8, background: '#0f172a', overflow: 'hidden' }}>
+              {pdfUrl ? (
+                <iframe
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: 6,
+                    background: '#ffffff'
+                  }}
+                  title="Aperçu PDF"
+                />
+              ) : (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#94a3b8',
+                  fontSize: 13
+                }}>
+                  Génération de l'aperçu PDF...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── BANDEAU FICHIER ARCHIVÉ SI EXISTANT ─── */}
         {savedPath && (
-          <div style={{ marginBottom: 14, padding: '8px 14px', background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            padding: '8px 24px',
+            background: '#dcfce7',
+            borderTop: '1px solid #bbf7d0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: '#166534' }}>
               <Icon name="folder" size={14} />
-              <span><strong>Fichier PDF archivé :</strong> {savedPath}</span>
+              <span><strong>Document archivé dans le dossier du bien :</strong> {savedPath}</span>
             </div>
             <button
               className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, padding: '2px 8px', color: '#166534', fontWeight: 700 }}
               onClick={() => openFilePath(savedPath)}
+              style={{ fontSize: 11, fontWeight: 700, color: '#166534' }}
             >
-              Ouvrir le PDF →
+              Ouvrir le fichier →
             </button>
           </div>
         )}
-
-        {/* Options Bailleur & Date */}
-        <div style={{ marginBottom: 16, background: 'var(--color-surface-2)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Nom du Bailleur</label>
-            <input type="text" className="form-control" style={{ fontSize: 12 }} value={bailleurNom} onChange={e => setBailleurNom(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Adresse du Bailleur</label>
-            <input type="text" className="form-control" style={{ fontSize: 12 }} value={bailleurAdresse} onChange={e => setBailleurAdresse(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700 }}>Date de sortie effective</label>
-            <input type="date" className="form-control" style={{ fontSize: 12 }} value={dateEdl} onChange={e => setDateEdl(e.target.value)} />
-          </div>
-        </div>
-
-        {/* FEUILLE D'ÉDITION ÉTAT DES LIEUX */}
-        <div style={{ background: '#ffffff', color: '#0f172a', padding: 28, borderRadius: 8, border: '1px solid #cbd5e1', fontFamily: 'Arial, sans-serif', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          
-          {/* Entête */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 18 }}>
-            <div>
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 800, textTransform: 'uppercase' }}>
-                ÉTAT DES LIEUX CONTRADICTOIRE DE SORTIE
-              </h2>
-              <div style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>
-                Établi en application de la Loi n° 89-462 du 6 juillet 1989 modifiée — Décret n° 2016-382
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#2563eb' }}>KeyFolio</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>Date : {formatDate(dateEdl)}</div>
-            </div>
-          </div>
-
-          {/* Parties */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-            <div style={{ background: '#f8fafc', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>BAILLEUR / REPRÉSENTANT</div>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{bailleurNom}</div>
-              <div style={{ fontSize: 11, color: '#334155' }}>{bailleurAdresse}</div>
-            </div>
-
-            <div style={{ background: '#f8fafc', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>LOCATAIRE SORTANT</div>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{locataireFullName}</div>
-              <div style={{ fontSize: 11, color: '#334155' }}>
-                <strong>Logement :</strong> {bien?.nom || bail?.bien_nom || 'Logement'} — {bien?.adresse || ''}
-              </div>
-            </div>
-          </div>
-
-          {/* Dates du bail */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: '#f1f5f9', padding: '8px 12px', borderRadius: 6, marginBottom: 16, fontSize: 12 }}>
-            <div><strong>Date d'entrée :</strong> {formatDate(bail?.date_debut)}</div>
-            <div><strong>Date de sortie :</strong> {formatDate(dateEdl)}</div>
-            <div><strong>Motif :</strong> {terminationInfo?.motifFin || bail?.motif_fin || 'Congé locataire'}</div>
-          </div>
-
-          {/* Relevé des Compteurs & Clés */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-                RELEVÉ DES COMPTEURS DE SORTIE
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Électricité (kWh) :</span>
-                  <input
-                    type="text"
-                    style={{ width: 130, padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                    value={elecIndex}
-                    placeholder="ex: 14500"
-                    onChange={e => setElecIndex(e.target.value)}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Eau froide (m³) :</span>
-                  <input
-                    type="text"
-                    style={{ width: 130, padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                    value={eauIndex}
-                    placeholder="ex: 380"
-                    onChange={e => setEauIndex(e.target.value)}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Gaz (m³) :</span>
-                  <input
-                    type="text"
-                    style={{ width: 130, padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                    value={gazIndex}
-                    placeholder="ex: 125"
-                    onChange={e => setGazIndex(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-                RESTITUTION DES CLÉS
-              </div>
-              <input
-                type="text"
-                style={{ width: '100%', padding: '5px 8px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                value={clesRemises}
-                onChange={e => setClesRemises(e.target.value)}
-              />
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>
-                L'ensemble des clés et moyens d'accès remis à l'entrée ont été restitués ce jour.
-              </div>
-            </div>
-          </div>
-
-          {/* Grille des pièces */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
-              ÉTAT DÉTAILLÉ PAR PIÈCE
-            </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, border: '1px solid #cbd5e1' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
-                  <th style={{ padding: '6px 8px', width: '25%' }}>Pièce / Espace</th>
-                  <th style={{ padding: '6px 8px', width: '25%' }}>État constaté</th>
-                  <th style={{ padding: '6px 8px' }}>Observations & Équipements</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pieces.map((p, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '6px 8px', fontWeight: 600 }}>{p.nom}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <select
-                        style={{ padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4, width: '100%' }}
-                        value={p.etat}
-                        onChange={e => handleEtatChange(idx, 'etat', e.target.value)}
-                      >
-                        <option value="Très bon état">Très bon état</option>
-                        <option value="Bon état"> Bon état</option>
-                        <option value="État d'usage normal">État d'usage</option>
-                        <option value="Dégradé / Travaux">Dégradé / Réparations</option>
-                      </select>
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <input
-                        type="text"
-                        style={{ width: '100%', padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                        value={p.obs}
-                        onChange={e => handleEtatChange(idx, 'obs', e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Synthèse Caution */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 12, marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>
-                SYNTHÈSE DU DÉPÔT DE GARANTIE (CAUTION)
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 800 }}>
-                Initial : {formatEuro(depotGarantieInitial)}
-              </span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11 }}>
-              <div>
-                <span>Montant retenu : </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  style={{ width: 80, padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                  value={montantRetenu}
-                  onChange={e => setMontantRetenu(e.target.value)}
-                />
-              </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <span>Motif : </span>
-                <input
-                  type="text"
-                  style={{ width: '75%', padding: '3px 6px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-                  placeholder="ex: Nettoyage approfondi..."
-                  value={motifRetenue}
-                  onChange={e => setMotifRetenue(e.target.value)}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 12, color: '#166534' }}>
-              <span>Solde net à restituer au locataire :</span>
-              <span>{formatEuro(soldeRestitue)}</span>
-            </div>
-          </div>
-
-          {/* Observations générales */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', textTransform: 'uppercase', marginBottom: 4 }}>
-              OBSERVATIONS GÉNÉRALES & CLAUSE DE CLÔTURE
-            </div>
-            <textarea
-              rows={2}
-              style={{ width: '100%', padding: '6px 8px', fontSize: 11, border: '1px solid #cbd5e1', borderRadius: 4 }}
-              value={observationsGenerales}
-              onChange={e => setObservationsGenerales(e.target.value)}
-            />
-          </div>
-
-          {/* Bloc Signatures */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, borderTop: '1px solid #cbd5e1', paddingTop: 14 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>Signature du Bailleur :</div>
-              <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>Mention "Lu et approuvé"</div>
-              <div style={{ height: 50, borderBottom: '1px dotted #94a3b8', marginTop: 8 }}></div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>Signature du Locataire Sortant :</div>
-              <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>Mention "Lu et approuvé"</div>
-              <div style={{ height: 50, borderBottom: '1px dotted #94a3b8', marginTop: 8 }}></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-          <button className="btn btn-secondary" onClick={onClose}>Fermer</button>
-          <button className="btn btn-primary" onClick={handleExportPDF} disabled={exporting}>
-            {exporting ? ' Exportation...' : ' Exporter en PDF direct'}
-          </button>
-        </div>
       </div>
     </div>
   )

@@ -63,6 +63,13 @@ pub fn run() {
             commands::biens::import_bien_folder,
             commands::biens::generate_questionnaire_excel,
             commands::biens::save_file_to_disk,
+            commands::biens::save_pdf_to_bien,
+            commands::biens::audit_bien_files,
+            commands::biens::apply_patch,
+            commands::biens::open_templates_folder,
+            commands::biens::get_pdf_template,
+            commands::biens::save_pdf_template,
+            commands::biens::get_pdf_template_bytes,
 
             // Commandes Locataires & Baux
             commands::locataires::get_locataires,

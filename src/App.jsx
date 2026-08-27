@@ -17,13 +17,15 @@ import AnalysesRapports    from './pages/AnalysesRapports'
 import NotificationsPage   from './pages/NotificationsPage'
 import BienPanel           from './pages/BienPanel'
 import GlobalSearchModal   from './components/common/GlobalSearchModal'
-import ExcelGeneratorModal from './components/documents/ExcelGeneratorModal'
 import WizardCreateBien    from './components/biens/WizardCreateBien'
 import SettingsModal       from './components/common/SettingsModal'
 import UpdateBanner        from './components/common/UpdateBanner'
+import PatchingFilesModal  from './components/common/PatchingFilesModal'
 import { initThemeListener } from './lib/theme'
 
 export default function App() {
+  const [patchingOpen, setPatchingOpen] = useState(false)
+
   useEffect(() => {
     initThemeListener()
 
@@ -35,7 +37,16 @@ export default function App() {
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+
+    // Lancer le Patching Files audit 1.5s après le démarrage (laisser l'UI se charger)
+    const patchTimer = setTimeout(() => {
+      setPatchingOpen(true)
+    }, 1500)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      clearTimeout(patchTimer)
+    }
   }, [])
 
   const [page, setPage] = useState('dashboard')
@@ -44,11 +55,11 @@ export default function App() {
   const [mailBienId, setMailBienId] = useState(null)
   const [mailOptions, setMailOptions] = useState(null)
   const [searchModalOpen, setSearchModalOpen] = useState(false)
-  const [excelGenModalOpen, setExcelGenModalOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState('general')
   const [documentFilePath, setDocumentFilePath] = useState(null)
+
 
   const handleOpenSettings = (targetTab = 'general') => {
     setSettingsTab(typeof targetTab === 'string' ? targetTab : 'general')
@@ -140,7 +151,6 @@ export default function App() {
           currentBienId={currentBienId}
           onNavigate={navigate}
           onOpenSearch={() => setSearchModalOpen(true)}
-          onOpenExcelGenerator={() => setExcelGenModalOpen(true)}
           onOpenMail={openMail}
           onOpenSettings={handleOpenSettings}
         />
@@ -151,12 +161,6 @@ export default function App() {
         <GlobalSearchModal
           onClose={() => setSearchModalOpen(false)}
           onNavigate={navigate}
-        />
-      )}
-
-      {excelGenModalOpen && (
-        <ExcelGeneratorModal
-          onClose={() => setExcelGenModalOpen(false)}
         />
       )}
 
@@ -172,6 +176,10 @@ export default function App() {
         initialTab={settingsTab}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {patchingOpen && (
+        <PatchingFilesModal onClose={() => setPatchingOpen(false)} />
+      )}
     </div>
   )
 }

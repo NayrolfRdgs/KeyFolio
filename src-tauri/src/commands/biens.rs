@@ -2,7 +2,6 @@ use rusqlite::params;
 use tauri::State;
 use calamine::{Reader, Xlsx};
 use rust_xlsxwriter::Workbook as XlsxWorkbook;
-use base64::Engine;
 use crate::AppState;
 use crate::models::*;
 
@@ -208,6 +207,83 @@ pub fn copy_file_to_bien(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![bien_id, final_type, clean_subfolder, relative_file_path, date_document, notes],
     ).map_err(|e| e.to_string())?;
+
+    Ok(relative_file_path)
+}
+
+#[tauri::command]
+pub fn save_pdf_to_bien(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    bien_id: i64,
+    subfolder: String,
+    filename: String,
+    pdf_base64: String,
+    doc_title: Option<String>,
+) -> Result<String, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let clean_subfolder = if subfolder.trim().is_empty() || subfolder.trim() == "/" {
+        "01_ADMINISTRATIF".to_string()
+    } else {
+        subfolder.trim_start_matches('/').to_string()
+    };
+
+    let (nom_bien, chemin_dossier): (String, Option<String>) = db.query_row(
+        "SELECT nom, chemin_dossier FROM biens WHERE id = ?1",
+        params![bien_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).map_err(|e| format!("Bien non trouvé: {}", e))?;
+
+    let bien_rel_path = match chemin_dossier {
+        Some(path) if !path.trim().is_empty() => path,
+        _ => {
+            let (rel_path, _) = crate::db::create_property_folder_tree(&base_dir, &nom_bien)
+                .map_err(|e| format!("Erreur création dossier: {}", e))?;
+            db.execute("UPDATE biens SET chemin_dossier = ?1 WHERE id = ?2", params![rel_path, bien_id])
+                .map_err(|e| e.to_string())?;
+            rel_path
+        }
+    };
+
+    let target_subfolder_dir = base_dir.join(&bien_rel_path).join(&clean_subfolder);
+    std::fs::create_dir_all(&target_subfolder_dir).map_err(|e| format!("Erreur création sous-dossier: {}", e))?;
+
+    let safe_filename = if filename.ends_with(".pdf") {
+        filename
+    } else {
+        format!("{}.pdf", filename)
+    };
+
+    let target_file_path = target_subfolder_dir.join(&safe_filename);
+
+    use base64::Engine;
+    let clean_b64 = if let Some(idx) = pdf_base64.find("base64,") {
+        &pdf_base64[idx + 7..]
+    } else {
+        &pdf_base64
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(clean_b64.trim())
+        .map_err(|e| format!("Erreur décodage base64 PDF: {}", e))?;
+
+    std::fs::write(&target_file_path, bytes).map_err(|e| format!("Erreur écriture fichier PDF: {}", e))?;
+
+    let relative_file_path = format!("{}/{}/{}", bien_rel_path, clean_subfolder, safe_filename);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    db.execute(
+        "INSERT INTO documents (bien_id, type_doc, sous_categorie, chemin_fichier, date_document, notes)
+         VALUES (?1, 'pdf', ?2, ?3, ?4, ?5)",
+        params![
+            bien_id,
+            clean_subfolder,
+            relative_file_path,
+            today,
+            doc_title.unwrap_or_else(|| safe_filename.clone())
+        ],
+    ).ok();
 
     Ok(relative_file_path)
 }
@@ -854,7 +930,7 @@ pub fn move_file_to_subfolder(
     target_subfolder: String,
 ) -> Result<String, String> {
     let base_dir = crate::db::get_base_dir(&app);
-    let old_abs_path = validate_safe_path(&base_dir, &source_relative_path)?;
+    validate_safe_path(&base_dir, &source_relative_path)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
     let chemin_dossier: String = db.query_row(
@@ -1271,4 +1347,181 @@ pub fn save_file_to_disk(target_path: String, base64_data: String) -> Result<(),
     std::fs::write(&target_path, bytes).map_err(|e| format!("Erreur écriture fichier: {}", e))?;
     Ok(())
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ─── PATCHING FILES : Audit et correction des fichiers Excel ───
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, serde::Serialize)]
+pub struct PatchEntry {
+    pub bien_id: i64,
+    pub bien_nom: String,
+    pub fichiers_manquants: Vec<String>,
+}
+
+/// Scanne tous les biens et détecte les fichiers Excel manquants dans leurs dossiers.
+/// Retourne une liste de biens avec les noms de fichiers absents.
+#[tauri::command]
+pub fn audit_bien_files(app: tauri::AppHandle, state: State<AppState>) -> Result<Vec<PatchEntry>, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = db.prepare(
+        "SELECT id, nom, chemin_dossier FROM biens ORDER BY nom"
+    ).map_err(|e| e.to_string())?;
+
+    let biens: Vec<(i64, String, Option<String>)> = stmt.query_map([], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+    }).map_err(|e| e.to_string())?
+    .filter_map(|r| r.ok())
+    .collect();
+
+    // Les fichiers attendus par sous-dossier (base du nom sans date ni extension)
+    let expected_files = vec![
+        ("01_ADMINISTRATIF", "Fiche_Bien"),
+        ("07_LOCATION/Quittances de loyer", "Suivi_Loyers"),
+        ("04_FISCAL_FINANCIER/Bilans et syntheses", "Suivi_Depenses"),
+        ("07_LOCATION/Bail/Bail_en_cours", "Locataires_Baux"),
+        ("04_FISCAL_FINANCIER/Credit immobilier - Tableau amortissement", "Tableau_Amortissement"),
+    ];
+
+    let mut entries = Vec::new();
+
+    for (bien_id, bien_nom, chemin_dossier) in biens {
+        let Some(rel_path) = chemin_dossier else { continue; };
+        if rel_path.trim().is_empty() { continue; }
+
+        let bien_dir = base_dir.join(&rel_path);
+        if !bien_dir.exists() {
+            // Le dossier entier est manquant
+            entries.push(PatchEntry {
+                bien_id,
+                bien_nom: bien_nom.clone(),
+                fichiers_manquants: expected_files.iter().map(|(sub, name)| format!("{}/{}.xlsx", sub, name)).collect(),
+            });
+            continue;
+        }
+
+        let mut manquants = Vec::new();
+        for (subfolder, file_base) in &expected_files {
+            let target_dir = bien_dir.join(subfolder);
+            let found = if target_dir.exists() {
+                std::fs::read_dir(&target_dir).ok()
+                    .map(|entries| entries.flatten().any(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        name.ends_with(&format!("_{}.xlsx", file_base))
+                            || name == format!("{}.xlsx", file_base)
+                    }))
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+
+            if !found {
+                manquants.push(format!("{}/{}.xlsx", subfolder, file_base));
+            }
+        }
+
+        if !manquants.is_empty() {
+            entries.push(PatchEntry {
+                bien_id,
+                bien_nom,
+                fichiers_manquants: manquants,
+            });
+        }
+    }
+
+    Ok(entries)
+}
+
+/// Applique le patch pour les bien_ids listés : (re)génère tous les fichiers Excel manquants.
+#[tauri::command]
+pub fn apply_patch(app: tauri::AppHandle, state: State<AppState>, bien_ids: Vec<i64>) -> Result<Vec<String>, String> {
+    let base_dir = crate::db::get_base_dir(&app);
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut errors = Vec::new();
+
+    for bien_id in bien_ids {
+        if let Err(e) = crate::excel::sync_all_property_excels(&db, &base_dir, bien_id) {
+            errors.push(format!("Bien #{}: {}", bien_id, e));
+        }
+    }
+
+    Ok(errors)
+}
+
+/// Ouvre le dossier Templates_PDF dans l'explorateur de fichiers de l'OS
+#[tauri::command]
+pub fn open_templates_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let tpl_dir = crate::db::ensure_pdf_templates_folder(&app).map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(tpl_dir)
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir l'explorateur: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(tpl_dir)
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir le Finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(tpl_dir)
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir le gestionnaire de fichiers: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Récupère le contenu d'un fichier de template JSON
+#[tauri::command]
+pub fn get_pdf_template(app: tauri::AppHandle, template_name: String) -> Result<String, String> {
+    let tpl_dir = crate::db::ensure_pdf_templates_folder(&app).map_err(|e| e.to_string())?;
+    let safe_name = if template_name.ends_with(".json") { template_name } else { format!("{}.json", template_name) };
+    let file_path = tpl_dir.join(&safe_name);
+
+    if file_path.exists() {
+        std::fs::read_to_string(&file_path).map_err(|e| e.to_string())
+    } else {
+        Err(format!("Template non trouvé : {}", safe_name))
+    }
+}
+
+/// Enregistre un fichier de template JSON modifié
+#[tauri::command]
+pub fn save_pdf_template(app: tauri::AppHandle, template_name: String, content: String) -> Result<(), String> {
+    let tpl_dir = crate::db::ensure_pdf_templates_folder(&app).map_err(|e| e.to_string())?;
+    let safe_name = if template_name.ends_with(".json") { template_name } else { format!("{}.json", template_name) };
+    let file_path = tpl_dir.join(&safe_name);
+
+    std::fs::write(&file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Récupère le contenu d'un fichier PDF modèle en base64 pour être lu et rempli par pdf-lib
+#[tauri::command]
+pub fn get_pdf_template_bytes(app: tauri::AppHandle, template_name: String) -> Result<String, String> {
+    let tpl_dir = crate::db::ensure_pdf_templates_folder(&app).map_err(|e| e.to_string())?;
+    let safe_name = if template_name.ends_with(".pdf") { template_name } else { format!("{}.pdf", template_name) };
+    let file_path = tpl_dir.join(&safe_name);
+
+    if file_path.exists() {
+        let bytes = std::fs::read(&file_path).map_err(|e| e.to_string())?;
+        use base64::Engine;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    } else {
+        Err(format!("Fichier PDF modèle non trouvé : {}", safe_name))
+    }
+}
+
 

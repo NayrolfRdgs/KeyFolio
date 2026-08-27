@@ -1,468 +1,33 @@
 import { jsPDF } from 'jspdf'
-import { formatEuro, formatDate } from './utils'
+import { formatEuro, formatDate, todayISO } from './utils'
+import { getLoadedTemplateConfig, replaceTextTags, buildDataContext } from './pdfTemplateEngine'
+import {
+  KF_COLORS,
+  drawDocHeader,
+  drawPageReminderHeader,
+  drawDocFooter,
+  drawSectionTitle,
+  drawPersonCards,
+  drawPropertyMetrics,
+  drawFinancialSummary,
+  drawNumberedClauses,
+  drawSignatureBlocks
+} from './pdfDesignSystem'
 
-/**
- * Génère un PDF officiel et élégant d'État des Lieux Contradictoire de Sortie
- */
-export function buildEtatDesLieuxPDF({
-  bail, bien, locataire,
-  bailleurNom = 'Bailleur / Propriétaire',
-  bailleurAdresse = '',
-  dateEdl = '',
-  elecIndex = '',
-  eauIndex = '',
-  gazIndex = '',
-  clesRemises = '',
-  depotGarantieInitial = 0,
-  montantRetenu = 0,
-  motifRetenue = '',
-  pieces = [],
-  observationsGenerales = ''
-}) {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  })
-
-  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}` : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
-  const bienNom = bien?.nom || bail?.bien_nom || 'Logement'
-  const bienAdresse = bien?.adresse || ''
-
-  const soldeRestitue = Math.max(0, parseFloat(depotGarantieInitial || 0) - parseFloat(montantRetenu || 0))
-
-  // Couleurs de la charte
-  const primaryColor = [37, 99, 235]    // #2563eb
-  const darkColor = [15, 23, 42]        // #0f172a
-  const textMuted = [100, 116, 139]     // #64748b
-  const bgLight = [248, 250, 252]       // #f8fafc
-  const borderLight = [203, 213, 225]   // #cbd5e1
-
-  let y = 16
-
-  // ── EN-TÊTE ──
-  doc.setFillColor(...primaryColor)
-  doc.rect(14, y, 4, 18, 'F')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(15)
-  doc.setTextColor(...darkColor)
-  doc.text('ÉTAT DES LIEUX CONTRADICTOIRE DE SORTIE', 22, y + 6)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...textMuted)
-  doc.text('Loi n° 89-462 du 6 juillet 1989 modifiée — Décret n° 2016-382', 22, y + 12)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...primaryColor)
-  doc.text('KeyFolio', 196, y + 6, { align: 'right' })
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...textMuted)
-  doc.text(`Date : ${formatDate(dateEdl)}`, 196, y + 12, { align: 'right' })
-
-  y += 24
-
-  // Ligne de séparation
-  doc.setDrawColor(...borderLight)
-  doc.setLineWidth(0.4)
-  doc.line(14, y - 2, 196, y - 2)
-
-  // ── CADRES BAILLEUR & LOCATAIRE ──
-  const boxWidth = 88
-  const boxHeight = 22
-
-  // Box Bailleur
-  doc.setFillColor(...bgLight)
-  doc.setDrawColor(...borderLight)
-  doc.roundedRect(14, y, boxWidth, boxHeight, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
-  doc.setTextColor(...textMuted)
-  doc.text('BAILLEUR / REPRÉSENTANT', 18, y + 5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9.5)
-  doc.setTextColor(...darkColor)
-  doc.text(bailleurNom || 'Bailleur', 18, y + 11)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(bailleurAdresse || 'Adresse non spécifiée', 18, y + 16)
-
-  // Box Locataire
-  doc.roundedRect(108, y, boxWidth, boxHeight, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
-  doc.setTextColor(...textMuted)
-  doc.text('LOCATAIRE SORTANT', 112, y + 5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9.5)
-  doc.setTextColor(...darkColor)
-  doc.text(locataireFullName, 112, y + 11)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Logement : ${bienNom}${bienAdresse ? ' — ' + bienAdresse : ''}`, 112, y + 16)
-
-  y += boxHeight + 4
-
-  // ── BANDEAU DATES DU CONTRAT ──
-  doc.setFillColor(241, 245, 249)
-  doc.roundedRect(14, y, 182, 9, 1.5, 1.5, 'F')
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Date d'entrée : ${formatDate(bail?.date_debut)}`, 18, y + 6)
-  doc.text(`Date de sortie : ${formatDate(dateEdl)}`, 85, y + 6)
-  doc.text(`Motif : ${bail?.motif_fin || 'Congé locataire'}`, 145, y + 6)
-
-  y += 13
-
-  // ── RELEVÉ DES COMPTEURS & CLÉS ──
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, boxWidth, 24, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('INDEX DES COMPTEURS DE SORTIE', 18, y + 5)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Électricité : ${elecIndex ? elecIndex + ' kWh' : '—'}`, 18, y + 11)
-  doc.text(`Eau froide : ${eauIndex ? eauIndex + ' m³' : '—'}`, 18, y + 16)
-  doc.text(`Gaz : ${gazIndex ? gazIndex + ' m³' : '—'}`, 18, y + 21)
-
-  // Box Clés
-  doc.roundedRect(108, y, boxWidth, 24, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('RESTITUTION DES CLÉS', 112, y + 5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text(clesRemises || '2 jeux de clés complets remis', 112, y + 12)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
-  doc.setTextColor(...textMuted)
-  doc.text("L'ensemble des clés et accès remis ont été restitués.", 112, y + 18)
-
-  y += 28
-
-  // ── ÉTAT DÉTAILLÉ PAR PIÈCE ──
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...darkColor)
-  doc.text('ÉTAT DÉTAILLÉ PAR PIÈCE & ÉQUIPEMENTS', 14, y)
-
-  y += 3
-
-  // Table header
-  doc.setFillColor(241, 245, 249)
-  doc.rect(14, y, 182, 7, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text('Pièce / Espace', 18, y + 5)
-  doc.text('État constaté', 68, y + 5)
-  doc.text('Observations & Remarques', 115, y + 5)
-
-  y += 7
-
-  // Rows
-  pieces.forEach((p, idx) => {
-    const rowH = 7.5
-    if (idx % 2 === 1) {
-      doc.setFillColor(250, 250, 250)
-      doc.rect(14, y, 182, rowH, 'F')
-    }
-    doc.setDrawColor(...borderLight)
-    doc.rect(14, y, 182, rowH, 'D')
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(...darkColor)
-    doc.text(p.nom || '', 18, y + 5)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.setTextColor(51, 65, 85)
-    doc.text(p.etat || '', 68, y + 5)
-    doc.text(doc.splitTextToSize(p.obs || 'RAS', 75), 115, y + 5)
-
-    y += rowH
-  })
-
-  y += 4
-
-  // ── SYNTHÈSE DÉPÔT DE GARANTIE ──
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, 182, 16, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('SYNTHÈSE DU DÉPÔT DE GARANTIE (CAUTION)', 18, y + 5)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Caution initiale : ${formatEuro(depotGarantieInitial)}`, 18, y + 11)
-  doc.text(`Retenue : ${formatEuro(montantRetenu)} (${motifRetenue || 'Aucune'})`, 75, y + 11)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(22, 101, 52)
-  doc.text(`Solde net à restituer : ${formatEuro(soldeRestitue)}`, 140, y + 11)
-
-  y += 20
-
-  // ── OBSERVATIONS GÉNÉRALES ──
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('OBSERVATIONS GÉNÉRALES & CLAUSES', 14, y)
-
-  y += 3
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, 182, 12, 1.5, 1.5, 'FD')
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
-  doc.setTextColor(51, 65, 85)
-  const wrappedObs = doc.splitTextToSize(observationsGenerales || 'Logement restitué propre et en bon état général.', 174)
-  doc.text(wrappedObs, 18, y + 5)
-
-  y += 18
-
-  // ── SIGNATURES ──
-  doc.setDrawColor(...borderLight)
-  doc.line(14, y, 196, y)
-
-  y += 5
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('Signature du Bailleur :', 18, y)
-  doc.text('Signature du Locataire Sortant :', 112, y)
-
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(7)
-  doc.setTextColor(...textMuted)
-  doc.text('Mention manuscrite "Lu et approuvé"', 18, y + 4)
-  doc.text('Mention manuscrite "Lu et approuvé"', 112, y + 4)
-
-  // Lignes pointillées de signature
-  doc.setLineDashPattern([1, 1.5], 0)
-  doc.line(18, y + 20, 85, y + 20)
-  doc.line(112, y + 20, 180, y + 20)
-  doc.setLineDashPattern([], 0)
-
-  // ── PIED DE PAGE ──
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...textMuted)
-  doc.text(
-    `Fait en deux exemplaires originaux le ${formatDate(dateEdl)}. Document généré officiellement par KeyFolio — Gestion Immobilière.`,
-    105, 288, { align: 'center' }
-  )
-
-  return doc
+function generateDocRef(prefix = 'KF', id = null) {
+  const year = new Date().getFullYear()
+  const randomNum = id ? String(id).padStart(4, '0') : Math.floor(1000 + Math.random() * 9000)
+  return `${prefix}-${year}-${randomNum}`
 }
 
 /**
- * Génère un PDF officiel de Quittance de Loyer
- */
-export function buildQuittancePDF({
-  paiement, bien, locataire, bail,
-  bailleurNom = 'Bailleur / Propriétaire',
-  bailleurAdresse = ''
-}) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-
-  const primaryColor = [37, 99, 235]
-  const darkColor = [15, 23, 42]
-  const textMuted = [100, 116, 139]
-  const bgLight = [248, 250, 252]
-  const borderLight = [203, 213, 225]
-
-  const locataireNom = locataire ? `${locataire.prenom} ${locataire.nom}` : (paiement?.locataire_nom || 'Locataire')
-  const bienNom = bien?.nom || paiement?.bien_nom || 'Logement'
-  const bienAdresse = bien?.adresse || ''
-  const datePaye = paiement?.date_reelle || paiement?.date_prevue || todayISO()
-  const montantTotal = paiement?.montant || (bail?.loyer_mensuel || 0) + (bail?.charges_mensuelles || 0)
-  const loyerHC = bail?.loyer_mensuel || (montantTotal - (bail?.charges_mensuelles || 0))
-  const charges = bail?.charges_mensuelles || 0
-
-  let y = 20
-
-  // Titre
-  doc.setFillColor(...primaryColor)
-  doc.rect(16, y, 4, 18, 'F')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.setTextColor(...darkColor)
-  doc.text('QUITTANCE DE LOYER', 24, y + 6)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...textMuted)
-  doc.text('Reçu délivré conformément à l’article 21 de la Loi n° 89-462 du 6 juillet 1989', 24, y + 12)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.setTextColor(...primaryColor)
-  doc.text('KeyFolio', 194, y + 6, { align: 'right' })
-
-  y += 26
-  doc.setDrawColor(...borderLight)
-  doc.line(16, y, 194, y)
-  y += 6
-
-  // Box Bailleur & Locataire
-  const boxW = 86
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(16, y, boxW, 26, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...textMuted)
-  doc.text('BAILLEUR', 20, y + 6)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...darkColor)
-  doc.text(bailleurNom, 20, y + 12)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text(bailleurAdresse || 'Adresse non spécifiée', 20, y + 18)
-
-  // Box Locataire
-  doc.roundedRect(108, y, boxW, 26, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...textMuted)
-  doc.text('LOCATAIRE', 112, y + 6)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...darkColor)
-  doc.text(locataireNom, 112, y + 12)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Logement : ${bienNom}`, 112, y + 18)
-  if (bienAdresse) doc.text(bienAdresse, 112, y + 23)
-
-  y += 34
-
-  // Détail de la période
-  doc.setFillColor(241, 245, 249)
-  doc.roundedRect(16, y, 178, 10, 1.5, 1.5, 'F')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Période d'échéance : ${formatDate(paiement?.date_prevue)}`, 20, y + 6.5)
-  doc.text(`Date du règlement : ${formatDate(datePaye)}`, 110, y + 6.5)
-
-  y += 16
-
-  // Tableau Montants
-  doc.setFillColor(241, 245, 249)
-  doc.rect(16, y, 178, 8, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text('Désignation', 20, y + 5.5)
-  doc.text('Montant (€)', 188, y + 5.5, { align: 'right' })
-
-  y += 8
-
-  // Loyer HC
-  doc.rect(16, y, 178, 8, 'D')
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...darkColor)
-  doc.text('Loyer principal (hors charges)', 20, y + 5.5)
-  doc.text(formatEuro(loyerHC), 188, y + 5.5, { align: 'right' })
-
-  y += 8
-
-  // Charges
-  doc.rect(16, y, 178, 8, 'D')
-  doc.text('Provisions sur charges locatives', 20, y + 5.5)
-  doc.text(formatEuro(charges), 188, y + 5.5, { align: 'right' })
-
-  y += 8
-
-  // Total
-  doc.setFillColor(241, 245, 249)
-  doc.rect(16, y, 178, 10, 'FD')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(22, 101, 52)
-  doc.text('TOTAL REÇU ET ACQUITTÉ', 20, y + 6.5)
-  doc.text(formatEuro(montantTotal), 188, y + 6.5, { align: 'right' })
-
-  y += 20
-
-  // Attestation
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  const attestation = `Je soussigné ${bailleurNom}, propriétaire du logement désigné ci-dessus, atteste avoir reçu de ${locataireNom} la somme de ${formatEuro(montantTotal)} au titre du paiement du loyer et des charges pour la période mentionnée.`
-  doc.text(doc.splitTextToSize(attestation, 178), 16, y)
-
-  y += 24
-
-  // Signature
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(...darkColor)
-  doc.text('Signature du Bailleur :', 130, y)
-
-  doc.setLineDashPattern([1, 1.5], 0)
-  doc.line(130, y + 25, 188, y + 25)
-  doc.setLineDashPattern([], 0)
-
-  // Footer
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
-  doc.setTextColor(...textMuted)
-  doc.text('Document certifié et émis via KeyFolio.', 105, 286, { align: 'center' })
-
-  return doc
-}
-
-/**
- * Génère un Contrat de Location Type officiel conforme à la Loi ALUR (Décret n° 2015-587)
+ * ═══════════════════════════════════════════════════════════════
+ * 1. CONTRAT DE LOCATION D'HABITATION (LOI ALUR / DÉCRET 2015-587)
+ * ═══════════════════════════════════════════════════════════════
  */
 export function buildContratBailPDF({
   bail, bien, locataire,
-  bailleurNom = 'Bailleur / Propriétaire',
+  bailleurNom = '',
   bailleurAdresse = '',
   bailleurEmail = '',
   bailleurTelephone = '',
@@ -477,241 +42,620 @@ export function buildContratBailPDF({
   elecEntree = '',
   eauEntree = '',
   gazEntree = '',
-  equipements = 'Cuisine équipée, literie, rangements, luminaires',
+  equipements = '',
   clausesParticulieres = ''
 }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-
-  const primaryColor = [37, 99, 235]    // #2563eb
-  const darkColor = [15, 23, 42]        // #0f172a
-  const textMuted = [100, 116, 139]     // #64748b
-  const bgLight = [248, 250, 252]       // #f8fafc
-  const borderLight = [203, 213, 225]   // #cbd5e1
-
+  const ref = generateDocRef('KF-BAIL', bail?.id || bien?.id)
+  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}`.trim() : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const bienAdresse = bien?.adresse || bail?.bien_adresse || 'Adresse du logement'
   const isMeuble = typeBail === 'meuble' || typeBail === 'etudiant' || typeBail === 'mobilite'
-  const dureeLegale = isMeuble ? (typeBail === 'etudiant' ? '9 mois' : typeBail === 'mobilite' ? '1 à 10 mois' : '1 an (tacitement reconductible)') : '3 ans (tacitement reconductible)'
-  const typeLabel = isMeuble ? 'CONTRAT DE LOCATION DE LOGEMENT MEUBLÉ' : 'CONTRAT DE LOCATION DE LOGEMENT NON MEUBLÉ'
-
-  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}` : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const dureeTexte = isMeuble
+    ? (typeBail === 'etudiant' ? '9 mois' : typeBail === 'mobilite' ? '1 à 10 mois' : '1 an (tacitement reconductible)')
+    : '3 ans (tacitement reconductible)'
   const totalLoyer = parseFloat(loyerHC || 0) + parseFloat(charges || 0)
 
-  // ═══════════════════════════════════════════════════════════
-  // PAGE 1 : DÉSIGNATION DES PARTIES & OBJET DU CONTRAT
-  // ═══════════════════════════════════════════════════════════
-  let y = 16
+  // ─────────────────────────────────────────────────────────────
+  // PAGE 1 : EN-TÊTE, PARTIES, LOGEMENT & CONDITIONS FINANCIÈRES
+  // ─────────────────────────────────────────────────────────────
+  let y = drawDocHeader(doc, {
+    title: 'CONTRAT DE LOCATION',
+    subtitle: isMeuble ? "Bail meublé — Loi ALUR (Décret n° 2015-587)" : "Bail nu — Loi du 6 juillet 1989",
+    reference: ref,
+    bienAdresse: bienAdresse,
+    bienSurface: bien?.surface_m2 || '',
+    bienType: isMeuble ? 'Meublé' : 'Nu',
+    dateDoc: dateDebut || todayISO(),
+    accentColor: KF_COLORS.primary
+  })
 
-  // En-tête officiel
-  doc.setFillColor(...primaryColor)
-  doc.rect(14, y, 4, 18, 'F')
+  // 01 — DÉSIGNATION DES PARTIES
+  y = drawSectionTitle(doc, { number: '01', title: 'Désignation des Parties Contractantes', startY: y, accentColor: KF_COLORS.primary })
+  y = drawPersonCards(doc, {
+    bailleur: {
+      nom: bailleurNom || 'Bailleur / Propriétaire',
+      adresse: bailleurAdresse,
+      telephone: bailleurTelephone,
+      email: bailleurEmail
+    },
+    locataire: {
+      nom: locataireFullName,
+      adresse: bienAdresse,
+      profession: locataire?.profession || 'Locataire principal',
+      telephone: locataire?.telephone || bail?.locataire_telephone || '',
+      email: locataire?.email || bail?.locataire_email || ''
+    },
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  // 02 — LE LOGEMENT & DÉSIGNATION
+  y = drawSectionTitle(doc, { number: '02', title: 'Objet du Contrat & Locaux Loués', startY: y, accentColor: KF_COLORS.primary })
+  y = drawPropertyMetrics(doc, {
+    adresse: bienAdresse,
+    surface: bien?.surface_m2 || '',
+    pieces: bien?.nb_pieces || '2',
+    typeBien: bien?.type_bien || 'Appartement',
+    regime: isMeuble ? '🛋️ Meublé (1 an)' : '🏢 Nu (3 ans)',
+    dateEffet: dateDebut || todayISO(),
+    startY: y
+  })
+
+  // 03 — CONDITIONS FINANCIÈRES
+  y = drawSectionTitle(doc, { number: '03', title: 'Conditions Financières & Dépôt de Garantie', startY: y, accentColor: KF_COLORS.primary })
+  y = drawFinancialSummary(doc, {
+    loyerHC: parseFloat(loyerHC || 0),
+    charges: parseFloat(charges || 0),
+    total: totalLoyer,
+    depotGarantie: parseFloat(depotGarantie || 0),
+    jourPaiement: parseInt(jourPaiement || 5),
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  drawDocFooter(doc, { pageNum: 1, totalPages: 3, reference: ref })
+
+  // ─────────────────────────────────────────────────────────────
+  // PAGE 2 : CONDITIONS GÉNÉRALES & CLAUSES DU BAIL
+  // ─────────────────────────────────────────────────────────────
+  doc.addPage()
+  y = drawPageReminderHeader(doc, {
+    title: 'Contrat de location',
+    reference: ref,
+    bienAdresse: bienAdresse,
+    locataireNom: locataireFullName,
+    accentColor: KF_COLORS.primary
+  })
+
+  y = drawSectionTitle(doc, { number: '04', title: 'Clauses & Conditions Générales du Contrat', startY: y, accentColor: KF_COLORS.primary })
+
+  const clausesList = [
+    {
+      title: 'Prise d\'effet et durée du contrat',
+      text: `Le présent contrat prend effet le ${formatDate(dateDebut || todayISO())}. Il est consenti pour une durée légale de ${dureeTexte}. À l'expiration de cette période, le bail se renouvelle tacitement par périodes de même durée, sous réserve des règles de congé légal.`
+    },
+    {
+      title: 'Modalités de paiement du loyer et révision IRL',
+      text: `Le loyer mensuel de ${formatEuro(loyerHC)} hors charges, majoré de la provision de ${formatEuro(charges)} pour charges locatives, est payable d'avance le ${jourPaiement} de chaque mois. ${clauseIRL ? "Le loyer fera l'objet d'une révision annuelle automatique à chaque date anniversaire selon la variation de l'Indice de Référence des Loyers (IRL) publié par l'INSEE." : "Le loyer reste fixe sans révision contractuelle."}`
+    },
+    {
+      title: 'Destination et usage exclusif des lieux',
+      text: 'Les locaux loués sont destinés exclusivement à l\'habitation principale du preneur. Toute transformation substantielle, cession de bail ou sous-location totale ou partielle est strictement interdite sans accord écrit et préalable du bailleur.'
+    },
+    {
+      title: 'Entretien, réparations locatives et jouissance paisible',
+      text: 'Le locataire est tenu de maintenir les lieux en bon état d\'entretien locatif et d\'effectuer les menues réparations à sa charge (décret n° 87-712). Il s\'engage à respecter la tranquillité de l\'immeuble et le règlement de copropriété en vigueur.'
+    },
+    {
+      title: 'Dépôt de garantie et restitution',
+      text: `Un dépôt de garantie de ${formatEuro(depotGarantie)} est versé à la signature. Il sera restitué dans un délai légal maximal d'un mois (si l'état des lieux de sortie est conforme) ou de deux mois (en cas de dégradations constatées), déduction faite des sommes restant dues au bailleur.`
+    },
+    {
+      title: 'Index et relevés des compteurs à la remise des clés',
+      text: `Relevés d'entrée — Électricité : ${elecEntree || 'Relevé à l\'entrée'} kWh | Eau froide : ${eauEntree || 'Relevé à l\'entrée'} m³ | Gaz : ${gazEntree || 'Non raccordé / Relevé'} m³.`
+    }
+  ]
+
+  if (isMeuble && equipements) {
+    clausesList.push({
+      title: 'Inventaire des équipements et mobilier (Loi ALUR)',
+      text: `Mobilier et équipements mis à disposition : ${equipements}`
+    })
+  }
+
+  if (clausesParticulieres) {
+    clausesList.push({
+      title: 'Conditions particulières convenues entre les parties',
+      text: clausesParticulieres
+    })
+  }
+
+  y = drawNumberedClauses(doc, { clauses: clausesList, startY: y, accentColor: KF_COLORS.primary })
+  drawDocFooter(doc, { pageNum: 2, totalPages: 3, reference: ref })
+
+  // ─────────────────────────────────────────────────────────────
+  // PAGE 3 : ANNEXES & SIGNATURES CONTRADICTOIRES
+  // ─────────────────────────────────────────────────────────────
+  doc.addPage()
+  y = drawPageReminderHeader(doc, {
+    title: 'Contrat de location — Signatures',
+    reference: ref,
+    bienAdresse: bienAdresse,
+    locataireNom: locataireFullName,
+    accentColor: KF_COLORS.primary
+  })
+
+  y = drawSectionTitle(doc, { number: '05', title: 'Dossier de Diagnostic & Annexes Obligatoires', startY: y, accentColor: KF_COLORS.primary })
+
+  // Carte des annexes
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, 38, 3, 3, 'FD')
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...darkColor)
-  doc.text(typeLabel, 22, y + 5)
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.dark)
+  doc.text('DOCUMENTS ANNEXÉS AU PRÉSENT CONTRAT :', 20, y + 6)
+
+  const annexes = [
+    '✓ Notice d\'information relative aux droits et obligations des locataires et bailleurs',
+    '✓ Dossier de Diagnostic Technique (DPE, Constat de risque d\'exposition au plomb, ERP, Amiante)',
+    '✓ État des lieux contradictoire d\'entrée et inventaire détaillé du mobilier (si meublé)',
+    '✓ Extrait du règlement de copropriété concernant la destination des parties privatives'
+  ]
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(...textMuted)
-  doc.text('Contrat type régi par la Loi n° 89-462 du 6 juillet 1989 modifiée par la Loi ALUR (Décret n° 2015-587)', 22, y + 11)
-  doc.text('Soumis au titre Ier bis de la loi du 6 juillet 1989', 22, y + 15)
+  doc.setFontSize(7.5)
+  doc.setTextColor(...KF_COLORS.body)
+  annexes.forEach((a, i) => {
+    doc.text(a, 20, y + 13 + i * 5.5)
+  })
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...primaryColor)
-  doc.text('KeyFolio', 196, y + 6, { align: 'right' })
+  y += 46
 
-  y += 24
-  doc.setDrawColor(...borderLight)
-  doc.line(14, y, 196, y)
-  y += 5
+  // 06 — SIGNATURES CONTRADICTOIRES
+  y = drawSectionTitle(doc, { number: '06', title: 'Signatures et Paraphes des Parties', startY: y, accentColor: KF_COLORS.primary })
+  drawSignatureBlocks(doc, {
+    bailleurNom: bailleurNom || 'Bailleur',
+    locataireNom: locataireFullName,
+    dateDoc: dateDebut || todayISO(),
+    lieu: `Fait à ${bienAdresse ? bienAdresse.split(',').pop().trim() : 'Paris'}`,
+    startY: y
+  })
 
-  // 1. DÉSIGNATION DES PARTIES
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...primaryColor)
-  doc.text('I. DÉSIGNATION DES PARTIES', 14, y)
-  y += 4
-
-  const boxW = 88
-  // Box Bailleur
-  doc.setFillColor(...bgLight)
-  doc.setDrawColor(...borderLight)
-  doc.roundedRect(14, y, boxW, 30, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...textMuted)
-  doc.text('LE BAILLEUR (OU SON MANDATAIRE)', 18, y + 5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9.5)
-  doc.setTextColor(...darkColor)
-  doc.text(bailleurNom, 18, y + 11)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Adresse : ${bailleurAdresse || 'Non spécifiée'}`, 18, y + 16)
-  if (bailleurEmail) doc.text(`Email : ${bailleurEmail}`, 18, y + 21)
-  if (bailleurTelephone) doc.text(`Tél : ${bailleurTelephone}`, 18, y + 26)
-
-  // Box Locataire
-  doc.roundedRect(108, y, boxW, 30, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...textMuted)
-  doc.text('LE LOCATAIRE', 112, y + 5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9.5)
-  doc.setTextColor(...darkColor)
-  doc.text(locataireFullName, 112, y + 11)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  if (locataire?.email) doc.text(`Email : ${locataire.email}`, 112, y + 16)
-  if (locataire?.telephone) doc.text(`Tél : ${locataire.telephone}`, 112, y + 21)
-  if (locataire?.profession) doc.text(`Profession : ${locataire.profession}`, 112, y + 26)
-
-  y += 35
-
-  // 2. OBJET DU CONTRAT & LOGEMENT
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...primaryColor)
-  doc.text('II. OBJET DU CONTRAT & DÉSIGNATION DU LOGEMENT', 14, y)
-  y += 4
-
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, 182, 34, 2, 2, 'FD')
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`• Dénomination du bien : ${bien?.nom || 'Logement'}`, 18, y + 6)
-  doc.text(`• Adresse : ${bien?.adresse || 'Non spécifiée'}`, 18, y + 12)
-  doc.text(`• Surface habitable : ${bien?.surface_m2 ? bien.surface_m2 + ' m²' : 'Non précisée'} | Type : ${bien?.type_bien || 'Appartement'}`, 18, y + 18)
-  doc.text(`• Destination des lieux : Usage exclusif d'habitation principale`, 18, y + 24)
-  doc.text(`• Régime juridique : Logement ${isMeuble ? 'meublé équipé' : 'nu / vide'} selon inventaire annexé`, 18, y + 30)
-
-  y += 39
-
-  // 3. CONDITIONS FINANCIÈRES
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...primaryColor)
-  doc.text('III. CONDITIONS FINANCIÈRES & MODALITÉS DE PAIEMENT', 14, y)
-  y += 4
-
-  // Tableau loyer
-  doc.setFillColor(241, 245, 249)
-  doc.rect(14, y, 182, 7, 'FD')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text('Élément financier', 18, y + 5)
-  doc.text('Montant mensuel (€)', 190, y + 5, { align: 'right' })
-
-  y += 7
-  doc.setDrawColor(...borderLight)
-  doc.rect(14, y, 182, 7, 'D')
-  doc.setFont('helvetica', 'normal')
-  doc.text('Loyer principal de base (hors charges)', 18, y + 5)
-  doc.text(formatEuro(loyerHC), 190, y + 5, { align: 'right' })
-
-  y += 7
-  doc.rect(14, y, 182, 7, 'D')
-  doc.text('Provisions sur charges locatives (avec régularisation annuelle)', 18, y + 5)
-  doc.text(formatEuro(charges), 190, y + 5, { align: 'right' })
-
-  y += 7
-  doc.setFillColor(241, 245, 249)
-  doc.rect(14, y, 182, 8, 'FD')
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(22, 101, 52)
-  doc.text('TOTAL MENSUEL CHARGES COMPRISES', 18, y + 5.5)
-  doc.text(formatEuro(totalLoyer), 190, y + 5.5, { align: 'right' })
-
-  y += 12
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`• Modalité de paiement : Le loyer est payable d'avance le ${jourPaiement} de chaque mois par virement bancaire.`, 18, y)
-  y += 5
-  doc.text(`• Dépôt de garantie (Caution) : ${formatEuro(depotGarantie)} versé à la signature du bail.`, 18, y)
-  y += 5
-  doc.text(`• Révision annuelle du loyer : ${clauseIRL ? "Prévue selon l'Indice de Référence des Loyers (IRL) publié par l'INSEE." : 'Non applicable.'}`, 18, y)
-
-  y += 12
-
-  // 4. DURÉE & PRISE D'EFFET
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...primaryColor)
-  doc.text('IV. DURÉE DU CONTRAT & PRISE D\'EFFET', 14, y)
-  y += 4
-
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, 182, 20, 2, 2, 'FD')
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`• Date de prise d'effet du contrat : ${formatDate(dateDebut)}`, 18, y + 5)
-  doc.text(`• Durée du bail : ${dureeLegale}`, 18, y + 10)
-  doc.text(`• Conditions de congé : Préavis légal de 1 mois pour le locataire (meublé/zone tendue) et 3 mois pour le bailleur (pour vente ou reprise).`, 18, y + 15)
-
-  y += 26
-
-  // 5. COMPTEURS D'ENTRÉE & CLAUSES
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...primaryColor)
-  doc.text('V. RELEVÉ DES COMPTEURS & CLAUSES', 14, y)
-  y += 4
-
-  doc.setFillColor(...bgLight)
-  doc.roundedRect(14, y, 182, 16, 2, 2, 'FD')
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(51, 65, 85)
-  doc.text(`Index entrée — Électricité : ${elecEntree ? elecEntree + ' kWh' : '—'} | Eau : ${eauEntree ? eauEntree + ' m³' : '—'} | Gaz : ${gazEntree ? gazEntree + ' m³' : '—'}`, 18, y + 5)
-  doc.text(`Clause résolutoire : Résiliation de plein droit en cas de non-paiement du loyer ou des charges, ou de défaut d'assurance.`, 18, y + 11)
-
-  y += 22
-
-  // 6. SIGNATURES
-  doc.setDrawColor(...borderLight)
-  doc.line(14, y, 196, y)
-  y += 4
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...darkColor)
-  doc.text('Fait le ' + formatDate(dateDebut || todayISO()) + ' en autant d’exemplaires originaux que de parties.', 14, y)
-
-  y += 6
-  doc.text('Le Bailleur (ou mandataire) :', 18, y)
-  doc.text('Le Locataire :', 112, y)
-
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(7)
-  doc.setTextColor(...textMuted)
-  doc.text('Mention manuscrite "Lu et approuvé"', 18, y + 4)
-  doc.text('Mention manuscrite "Lu et approuvé"', 112, y + 4)
-
-  doc.setLineDashPattern([1, 1.5], 0)
-  doc.line(18, y + 18, 85, y + 18)
-  doc.line(112, y + 18, 180, y + 18)
-  doc.setLineDashPattern([], 0)
-
-  // Footer
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...textMuted)
-  doc.text('Contrat type conforme Loi ALUR généré via KeyFolio.', 105, 288, { align: 'center' })
+  drawDocFooter(doc, { pageNum: 3, totalPages: 3, reference: ref })
 
   return doc
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 2. ÉTAT DES LIEUX CONTRADICTOIRE (DÉCRET N° 2016-382)
+ * ═══════════════════════════════════════════════════════════════
+ */
+export function buildEtatDesLieuxPDF({
+  bail, bien, locataire,
+  typeEdl = 'sortie',
+  bailleurNom = '',
+  bailleurAdresse = '',
+  dateEdl = '',
+  elecIndex = '',
+  eauIndex = '',
+  gazIndex = '',
+  clesRemises = '',
+  depotGarantieInitial = 0,
+  montantRetenu = 0,
+  motifRetenue = '',
+  pieces = [],
+  observationsGenerales = ''
+}) {
+  const isEntree = typeEdl === 'entree'
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const accentColor = isEntree ? KF_COLORS.success : KF_COLORS.accent
+  const ref = generateDocRef(isEntree ? 'KF-EDL-IN' : 'KF-EDL-OUT', bail?.id || bien?.id)
+
+  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}`.trim() : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const bienAdresse = bien?.adresse || bail?.bien_adresse || 'Adresse du logement'
+  const soldeRestitue = Math.max(0, parseFloat(depotGarantieInitial || 0) - parseFloat(montantRetenu || 0))
+
+  // ─────────────────────────────────────────────────────────────
+  // PAGE 1 : EN-TÊTE, PARTIES, COMPTEURS & GRILLE DES PIÈCES
+  // ─────────────────────────────────────────────────────────────
+  let y = drawDocHeader(doc, {
+    title: isEntree ? "ÉTAT DES LIEUX D'ENTRÉE" : "ÉTAT DES LIEUX DE SORTIE",
+    subtitle: 'Document contradictoire officiel — Décret n° 2016-382',
+    reference: ref,
+    bienAdresse: bienAdresse,
+    bienSurface: bien?.surface_m2 || '',
+    bienType: bail?.type_bail === 'meuble' ? 'Meublé' : 'Nu',
+    dateDoc: dateEdl || todayISO(),
+    accentColor: accentColor
+  })
+
+  // 01 — DÉSIGNATION DES PARTIES
+  y = drawSectionTitle(doc, { number: '01', title: 'Parties & Logement', startY: y, accentColor })
+  y = drawPersonCards(doc, {
+    bailleur: { nom: bailleurNom || 'Bailleur / Propriétaire', adresse: bailleurAdresse },
+    locataire: { nom: locataireFullName, roleLabel: isEntree ? 'LOCATAIRE ENTRANT' : 'LOCATAIRE SORTANT' },
+    startY: y,
+    accentColor
+  })
+
+  // 02 — COMPTEURS & CLÉS
+  y = drawSectionTitle(doc, { number: '02', title: isEntree ? 'Compteurs & Remise des Clés' : 'Compteurs & Restitution des Clés', startY: y, accentColor })
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, 22, 3, 3, 'FD')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.dark)
+  doc.text(`INDEX DES COMPTEURS :  Électricité : ${elecIndex || '—'} kWh   ·   Eau froide : ${eauIndex || '—'} m³   ·   Gaz : ${gazIndex || '—'} m³`, 20, y + 7)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...KF_COLORS.body)
+  doc.text(`Moyens d'accès et clés remis : ${clesRemises || '2 jeux complets de clés et badges'}`, 20, y + 14)
+
+  y += 28
+
+  // 03 — ÉTAT DÉTAILLÉ DES PIÈCES
+  y = drawSectionTitle(doc, { number: '03', title: 'Constat Détaillé par Pièce', startY: y, accentColor })
+
+  // En-tête de tableau
+  const tableX = 14
+  const col1W = 55
+  const col2W = 40
+  const col3W = 87
+  const rowH = 6
+
+  doc.setFillColor(...KF_COLORS.bgBadge)
+  doc.rect(tableX, y, 182, rowH, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...KF_COLORS.dark)
+  doc.text('PIÈCE / ESPACE', tableX + 3, y + 4.2)
+  doc.text('ÉTAT CONSTATÉ', tableX + col1W + 3, y + 4.2)
+  doc.text('OBSERVATIONS & ÉQUIPEMENTS', tableX + col1W + col2W + 3, y + 4.2)
+  y += rowH
+
+  const piecesToShow = pieces.slice(0, 7)
+  piecesToShow.forEach((p, idx) => {
+    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252)
+    doc.rect(tableX, y, 182, rowH, 'F')
+    doc.setDrawColor(...KF_COLORS.border)
+    doc.line(tableX, y + rowH, tableX + 182, y + rowH)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...KF_COLORS.dark)
+    doc.text(p.nom || 'Pièce', tableX + 3, y + 4.2)
+
+    doc.setFont('helvetica', 'normal')
+    doc.text(p.etat || 'Bon état', tableX + col1W + 3, y + 4.2)
+    doc.setTextColor(...KF_COLORS.body)
+    doc.text(p.obs || 'RAS', tableX + col1W + col2W + 3, y + 4.2)
+
+    y += rowH
+  })
+
+  drawDocFooter(doc, { pageNum: 1, totalPages: 2, reference: ref })
+
+  // ─────────────────────────────────────────────────────────────
+  // PAGE 2 : SYNTHÈSE FINANCIÈRE, OBSERVATIONS & SIGNATURES
+  // ─────────────────────────────────────────────────────────────
+  doc.addPage()
+  y = drawPageReminderHeader(doc, {
+    title: isEntree ? "État des lieux d'entrée" : "État des lieux de sortie",
+    reference: ref,
+    bienAdresse: bienAdresse,
+    locataireNom: locataireFullName,
+    accentColor
+  })
+
+  // 04 — SYNTHÈSE DU DÉPÔT DE GARANTIE
+  y = drawSectionTitle(doc, { number: '04', title: isEntree ? 'Dépôt de Garantie Encaissé' : 'Restitution & Solde de Caution', startY: y, accentColor })
+
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, isEntree ? 20 : 34, 3, 3, 'FD')
+
+  if (isEntree) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...KF_COLORS.dark)
+    doc.text(`Dépôt de garantie versé à l'entrée : ${formatEuro(depotGarantieInitial)}`, 22, y + 11)
+    y += 26
+  } else {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...KF_COLORS.body)
+    doc.text(`Dépôt de garantie initial versé : ${formatEuro(depotGarantieInitial)}`, 22, y + 7)
+    doc.text(`Retenue pour réparations / remise en état : ${formatEuro(montantRetenu)} ${motifRetenue ? `(${motifRetenue})` : ''}`, 22, y + 13)
+
+    // Solde net restitué mis en avant
+    doc.setFillColor(...KF_COLORS.successLight)
+    doc.roundedRect(22, y + 17, 166, 12, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...KF_COLORS.success)
+    doc.text('SOLDE NET À RESTITUER AU LOCATAIRE :', 26, y + 24.5)
+    doc.setFontSize(10.5)
+    doc.text(formatEuro(soldeRestitue), 180, y + 24.5, { align: 'right' })
+    y += 40
+  }
+
+  // 05 — OBSERVATIONS GÉNÉRALES
+  y = drawSectionTitle(doc, { number: '05', title: 'Observations Générales & Remarques', startY: y, accentColor })
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, 24, 3, 3, 'FD')
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...KF_COLORS.body)
+  const obsLines = doc.splitTextToSize(observationsGenerales || 'Aucune observation complémentaire. Logement et équipements inspectés contradictoirement.', 174)
+  doc.text(obsLines, 20, y + 6)
+  y += 30
+
+  // 06 — SIGNATURES CONTRADICTOIRES
+  y = drawSectionTitle(doc, { number: '06', title: 'Signatures Contradictoires', startY: y, accentColor })
+  drawSignatureBlocks(doc, {
+    bailleurNom: bailleurNom || 'Bailleur',
+    locataireNom: locataireFullName,
+    dateDoc: dateEdl || todayISO(),
+    lieu: `Fait à ${bienAdresse ? bienAdresse.split(',').pop().trim() : 'Paris'}`,
+    startY: y
+  })
+
+  drawDocFooter(doc, { pageNum: 2, totalPages: 2, reference: ref })
+
+  return doc
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 3. QUITTANCE DE LOYER OFFICIELLE (LOI 1989)
+ * ═══════════════════════════════════════════════════════════════
+ */
+export function buildQuittancePDF({
+  paiement, bien, locataire, bail,
+  bailleurNom = '',
+  bailleurAdresse = '',
+  datePaiement = '',
+  periode = '',
+  montantLoyer = null,
+  montantCharges = null
+}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const ref = generateDocRef('KF-QUITT', paiement?.id || bail?.id)
+  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}`.trim() : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const bienAdresse = bien?.adresse || bail?.bien_adresse || 'Adresse du logement'
+
+  const loyerHC = montantLoyer !== null ? montantLoyer : (bail?.loyer_mensuel || (paiement?.montant ? paiement.montant - (bail?.charges_mensuelles || 0) : 0))
+  const charges = montantCharges !== null ? montantCharges : (bail?.charges_mensuelles || 0)
+  const total = paiement?.montant || (loyerHC + charges)
+  const dateStr = datePaiement || paiement?.date_paiement || todayISO()
+
+  let y = drawDocHeader(doc, {
+    title: 'QUITTANCE DE LOYER',
+    subtitle: `Période acquittée : ${periode || formatDate(dateStr)}`,
+    reference: ref,
+    bienAdresse: bienAdresse,
+    bienSurface: bien?.surface_m2 || '',
+    bienType: bail?.type_bail === 'meuble' ? 'Meublé' : 'Nu',
+    dateDoc: dateStr,
+    accentColor: KF_COLORS.primary
+  })
+
+  // 01 — PARTIES
+  y = drawSectionTitle(doc, { number: '01', title: 'Bailleur & Locataire', startY: y, accentColor: KF_COLORS.primary })
+  y = drawPersonCards(doc, {
+    bailleur: { nom: bailleurNom || 'Bailleur / Propriétaire', adresse: bailleurAdresse },
+    locataire: { nom: locataireFullName, adresse: bienAdresse },
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  // 02 — DÉTAIL DU RÈGLEMENT
+  y = drawSectionTitle(doc, { number: '02', title: 'Détail des Sommes Acquittées', startY: y, accentColor: KF_COLORS.primary })
+  y = drawFinancialSummary(doc, {
+    loyerHC: parseFloat(loyerHC || 0),
+    charges: parseFloat(charges || 0),
+    total: parseFloat(total || 0),
+    depotGarantie: parseFloat(bail?.depot_garantie || 0),
+    jourPaiement: parseInt(bail?.jour_paiement || 5),
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  // 03 — MENTION LÉGALE DE QUITTANCE
+  y = drawSectionTitle(doc, { number: '03', title: 'Attestation & Quittance de Paiement', startY: y, accentColor: KF_COLORS.primary })
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, 28, 3, 3, 'FD')
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.body)
+  const attestationText = `Je soussigné(e) ${bailleurNom || 'le bailleur'}, propriétaire du logement situé au ${bienAdresse}, certifie avoir reçu de ${locataireFullName} la somme totale de ${formatEuro(total)} (${formatEuro(loyerHC)} au titre du loyer et ${formatEuro(charges)} au titre des provisions pour charges) en règlement du terme échu pour la période de ${periode || 'ce mois'}. Cette quittance annule tous les reçus qui auraient pu être donnés pour acompte.`
+  const lines = doc.splitTextToSize(attestationText, 172)
+  doc.text(lines, 20, y + 6)
+
+  y += 34
+
+  // SIGNATURE
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.muted)
+  doc.text(`Fait le ${formatDate(dateStr)} pour valoir quittance de droit.`, 14, y)
+  y += 6
+
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 88, 28, 2.5, 2.5, 'FD')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.dark)
+  doc.text(`Signature du Bailleur : ${bailleurNom || ''}`, 18, y + 6)
+
+  drawDocFooter(doc, { pageNum: 1, totalPages: 1, reference: ref, mention: 'Quittance officielle de loyer certifiée par KeyFolio' })
+
+  return doc
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 4. AVIS D'ÉCHÉANCE / APPEL DE LOYER
+ * ═══════════════════════════════════════════════════════════════
+ */
+export function buildAvisEcheancePDF({
+  bail, bien, locataire,
+  bailleurNom = '',
+  bailleurAdresse = '',
+  dateEmission = '',
+  dateEcheance = '',
+  periode = '',
+  montantLoyer = null,
+  montantCharges = null,
+  iban = ''
+}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const ref = generateDocRef('KF-AVIS', bail?.id || bien?.id)
+  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}`.trim() : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const bienAdresse = bien?.adresse || bail?.bien_adresse || 'Adresse du logement'
+
+  const loyerHC = montantLoyer !== null ? montantLoyer : (bail?.loyer_mensuel || 0)
+  const charges = montantCharges !== null ? montantCharges : (bail?.charges_mensuelles || 0)
+  const total = loyerHC + charges
+
+  let y = drawDocHeader(doc, {
+    title: 'AVIS D\'ÉCHÉANCE DE LOYER',
+    subtitle: `Appel de loyer pour la période : ${periode || 'Mois en cours'}`,
+    reference: ref,
+    bienAdresse: bienAdresse,
+    bienSurface: bien?.surface_m2 || '',
+    bienType: bail?.type_bail === 'meuble' ? 'Meublé' : 'Nu',
+    dateDoc: dateEmission || todayISO(),
+    accentColor: KF_COLORS.primary
+  })
+
+  y = drawSectionTitle(doc, { number: '01', title: 'Parties Contractantes', startY: y, accentColor: KF_COLORS.primary })
+  y = drawPersonCards(doc, {
+    bailleur: { nom: bailleurNom || 'Bailleur / Propriétaire', adresse: bailleurAdresse },
+    locataire: { nom: locataireFullName, adresse: bienAdresse },
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  y = drawSectionTitle(doc, { number: '02', title: 'Montant Exigible à l\'Échéance', startY: y, accentColor: KF_COLORS.primary })
+  y = drawFinancialSummary(doc, {
+    loyerHC: parseFloat(loyerHC || 0),
+    charges: parseFloat(charges || 0),
+    total: parseFloat(total || 0),
+    depotGarantie: parseFloat(bail?.depot_garantie || 0),
+    jourPaiement: parseInt(bail?.jour_paiement || 5),
+    startY: y,
+    accentColor: KF_COLORS.primary
+  })
+
+  if (iban) {
+    y = drawSectionTitle(doc, { number: '03', title: 'Coordonnées Bancaires pour le Règlement', startY: y, accentColor: KF_COLORS.primary })
+    doc.setFillColor(...KF_COLORS.bgCard)
+    doc.setDrawColor(...KF_COLORS.border)
+    doc.roundedRect(14, y, 182, 16, 2.5, 2.5, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...KF_COLORS.dark)
+    doc.text(`IBAN : ${iban}`, 20, y + 6)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...KF_COLORS.muted)
+    doc.text(`Merci de mentionner la référence "${ref}" dans le libellé de votre virement.`, 20, y + 11)
+  }
+
+  drawDocFooter(doc, { pageNum: 1, totalPages: 1, reference: ref, mention: 'Avis d\'échéance officiel émis par KeyFolio OS Patrimoine' })
+
+  return doc
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 5. LETTRE DE FIN DE BAIL / CONGÉ
+ * ═══════════════════════════════════════════════════════════════
+ */
+export function buildFinBailLetterPDF({
+  bail, bien, locataire,
+  bailleurNom = '',
+  bailleurAdresse = '',
+  dateFin = '',
+  motifFin = '',
+  notesFin = '',
+  montantRetenu = 0,
+  motifRetenue = '',
+  typeLettre = 'restitution_caution'
+}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const ref = generateDocRef('KF-CLOTURE', bail?.id || bien?.id)
+  const locataireFullName = locataire ? `${locataire.prenom} ${locataire.nom}`.trim() : `${bail?.locataire_prenom || ''} ${bail?.locataire_nom || ''}`.trim() || 'Locataire'
+  const bienAdresse = bien?.adresse || bail?.bien_adresse || 'Adresse du logement'
+  const cautionInitiale = parseFloat(bail?.depot_garantie || 0)
+  const soldeRestitue = Math.max(0, cautionInitiale - parseFloat(montantRetenu || 0))
+
+  let y = drawDocHeader(doc, {
+    title: 'CLÔTURE DE BAIL & SOLDE DE CAUTION',
+    subtitle: 'Notification officielle de fin de location',
+    reference: ref,
+    bienAdresse: bienAdresse,
+    bienSurface: bien?.surface_m2 || '',
+    bienType: bail?.type_bail === 'meuble' ? 'Meublé' : 'Nu',
+    dateDoc: dateFin || todayISO(),
+    accentColor: KF_COLORS.dark
+  })
+
+  y = drawSectionTitle(doc, { number: '01', title: 'Parties', startY: y, accentColor: KF_COLORS.dark })
+  y = drawPersonCards(doc, {
+    bailleur: { nom: bailleurNom || 'Bailleur / Propriétaire', adresse: bailleurAdresse },
+    locataire: { nom: locataireFullName, adresse: bienAdresse, roleLabel: 'LOCATAIRE SORTANT' },
+    startY: y,
+    accentColor: KF_COLORS.dark
+  })
+
+  y = drawSectionTitle(doc, { number: '02', title: 'Décompte Définitif du Dépôt de Garantie', startY: y, accentColor: KF_COLORS.dark })
+  doc.setFillColor(...KF_COLORS.bgCard)
+  doc.setDrawColor(...KF_COLORS.border)
+  doc.roundedRect(14, y, 182, 34, 3, 3, 'FD')
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.body)
+  doc.text(`Date de clôture effective : ${formatDate(dateFin || todayISO())}  ·  Motif : ${motifFin || 'Départ convenu'}`, 22, y + 7)
+  doc.text(`Dépôt de garantie initial versé : ${formatEuro(cautionInitiale)}`, 22, y + 13)
+  if (parseFloat(montantRetenu || 0) > 0) {
+    doc.text(`Retenue pour réparations / remise en état : ${formatEuro(montantRetenu)} (${motifRetenue || 'Justificatifs annexés'})`, 22, y + 19)
+  }
+
+  // Solde net restitué
+  doc.setFillColor(...KF_COLORS.successLight)
+  doc.roundedRect(22, y + 22, 166, 9, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(...KF_COLORS.success)
+  doc.text('SOLDE NET RESTITUÉ :', 26, y + 28)
+  doc.text(formatEuro(soldeRestitue), 180, y + 28, { align: 'right' })
+
+  y += 42
+
+  // SIGNATURES
+  y = drawSectionTitle(doc, { number: '03', title: 'Signatures et Quitus de Clôture', startY: y, accentColor: KF_COLORS.dark })
+  drawSignatureBlocks(doc, {
+    bailleurNom: bailleurNom || 'Bailleur',
+    locataireNom: locataireFullName,
+    dateDoc: dateFin || todayISO(),
+    lieu: `Fait à ${bienAdresse ? bienAdresse.split(',').pop().trim() : 'Paris'}`,
+    startY: y
+  })
+
+  drawDocFooter(doc, { pageNum: 1, totalPages: 1, reference: ref, mention: 'Document officiel de clôture de bail — KeyFolio' })
+
+  return doc
+}

@@ -1,0 +1,24 @@
+{
+  "theme": {
+    "primaryColor": "#2563eb",
+    "darkColor": "#0f172a",
+    "textColor": "#334155",
+    "textMuted": "#64748b",
+    "cadreReglementBg": "#f8fafc"
+  },
+  "bailleur": {
+    "nomParDefaut": "Bailleur / Propriétaire",
+    "adresseParDefaut": "Adresse du bailleur",
+    "iban": "FR76 XXXX XXXX XXXX XXXX XXXX XXX",
+    "bic": "XXXXXXXX",
+    "modePaiement": "Virement bancaire"
+  },
+  "mentions": {
+    "titre": "AVIS D'ÉCHÉANCE — APPEL DE LOYER",
+    "sousTitre": "Appel de loyer et provisions pour charges d'habitation",
+    "noticeBasDePage": "Cet avis d'échéance ne constitue pas une quittance de loyer. Une quittance sera délivrée après paiement effectif."
+  },
+  "delais": {
+    "jourEcheanceDefaut": 5
+  }
+}

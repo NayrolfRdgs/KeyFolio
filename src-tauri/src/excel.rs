@@ -4,6 +4,7 @@ use rust_xlsxwriter::*;
 use calamine::{DataType, Reader, Xlsx, open_workbook};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[allow(dead_code)]
 pub struct CustomChampLibre {
     pub id: Option<i64>,
     pub bien_id: i64,
@@ -69,7 +70,7 @@ fn create_total_format() -> Format {
 }
 
 /// Helper pour placer les fichiers Excel auto-générés dans le sous-dossier adéquat avec la date du jour AAAA-MM-JJ.
-/// Nettoie les anciens fichiers de synthèse pour éviter les doublons ou la présence à la racine.
+/// Nettoie les anciens fichiers de synthèse pour éviter les doublons ou la présence à la racine / mauvais sous-dossier.
 fn get_dated_subfolder_file_path(bien_dir: &Path, subfolder: &str, file_base: &str) -> PathBuf {
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let target_dir = bien_dir.join(subfolder);
@@ -77,31 +78,34 @@ fn get_dated_subfolder_file_path(bien_dir: &Path, subfolder: &str, file_base: &s
         std::fs::create_dir_all(&target_dir).ok();
     }
 
-    // 1. Nettoyer tout ancien fichier de synthèse directement à la racine s'il en existe
-    if let Ok(entries) = std::fs::read_dir(bien_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_file() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name == format!("{}.xlsx", file_base) || name.ends_with(&format!("_{}.xlsx", file_base)) {
-                    std::fs::remove_file(entry.path()).ok();
-                }
-            }
+    // 1. Nettoyer tout ancien fichier de synthèse directement à la racine du bien
+    clean_old_files_in_dir(bien_dir, file_base);
+
+    // 2. Nettoyer dans les dossiers parents intermédiaires (ex: 07_LOCATION, 04_FISCAL_FINANCIER)
+    if let Some(parent_sub) = subfolder.split('/').next() {
+        let parent_dir = bien_dir.join(parent_sub);
+        if parent_dir != target_dir && parent_dir.exists() {
+            clean_old_files_in_dir(&parent_dir, file_base);
         }
     }
 
-    // 2. Nettoyer les anciennes versions dans le sous-dossier de destination
-    if let Ok(entries) = std::fs::read_dir(&target_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_file() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name == format!("{}.xlsx", file_base) || name.ends_with(&format!("_{}.xlsx", file_base)) {
-                    std::fs::remove_file(entry.path()).ok();
-                }
-            }
-        }
-    }
+    // 3. Nettoyer les anciennes versions dans le sous-dossier de destination
+    clean_old_files_in_dir(&target_dir, file_base);
 
     target_dir.join(format!("{}_{}.xlsx", today, file_base))
+}
+
+fn clean_old_files_in_dir(dir: &Path, file_base: &str) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name == format!("{}.xlsx", file_base) || name.ends_with(&format!("_{}.xlsx", file_base)) {
+                    std::fs::remove_file(entry.path()).ok();
+                }
+            }
+        }
+    }
 }
 
 /// 1. Fiche_Bien.xlsx — Informations générales + Champs libres
@@ -208,7 +212,7 @@ pub fn sync_fiche_bien_excel(conn: &Connection, bien_dir: &Path, bien_id: i64, _
 
 /// 2. Suivi_Loyers.xlsx — Historique des paiements de loyer
 pub fn sync_suivi_loyers_excel(conn: &Connection, bien_dir: &Path, bien_id: i64) -> Result<(), String> {
-    let file_path = get_dated_subfolder_file_path(bien_dir, "07_LOCATION", "Suivi_Loyers");
+    let file_path = get_dated_subfolder_file_path(bien_dir, "07_LOCATION/Quittances de loyer", "Suivi_Loyers");
 
     let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();
@@ -286,7 +290,7 @@ pub fn sync_suivi_loyers_excel(conn: &Connection, bien_dir: &Path, bien_id: i64)
 
 /// 3. Suivi_Depenses.xlsx — Dépenses ventilées avec formule de total
 pub fn sync_suivi_depenses_excel(conn: &Connection, bien_dir: &Path, bien_id: i64) -> Result<(), String> {
-    let file_path = get_dated_subfolder_file_path(bien_dir, "04_FISCAL_FINANCIER", "Suivi_Depenses");
+    let file_path = get_dated_subfolder_file_path(bien_dir, "04_FISCAL_FINANCIER/Bilans et syntheses", "Suivi_Depenses");
 
     let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();
@@ -357,7 +361,7 @@ pub fn sync_suivi_depenses_excel(conn: &Connection, bien_dir: &Path, bien_id: i6
 
 /// 4. Locataires_Baux.xlsx — Historique des baux et locataires
 pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i64) -> Result<(), String> {
-    let file_path = get_dated_subfolder_file_path(bien_dir, "07_LOCATION", "Locataires_Baux");
+    let file_path = get_dated_subfolder_file_path(bien_dir, "07_LOCATION/Bail/Bail_en_cours", "Locataires_Baux");
 
     let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();
@@ -453,7 +457,7 @@ pub fn sync_locataires_baux_excel(conn: &Connection, bien_dir: &Path, bien_id: i
 
 /// 5. Tableau_Amortissement.xlsx — Amortissement LMNP/BIC, déductions temporelles et échéancier 30 ans
 pub fn sync_tableau_amortissement_excel(conn: &Connection, bien_dir: &Path, bien_id: i64) -> Result<(), String> {
-    let file_path = get_dated_subfolder_file_path(bien_dir, "04_FINANCES", "Tableau_Amortissement");
+    let file_path = get_dated_subfolder_file_path(bien_dir, "04_FISCAL_FINANCIER/Credit immobilier - Tableau amortissement", "Tableau_Amortissement");
 
     let mut workbook = Workbook::new();
 

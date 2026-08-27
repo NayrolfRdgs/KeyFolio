@@ -67,6 +67,14 @@ export const renameDocumentFile = (relativePath, newFilename) =>
 export const moveFileToSubfolder = (bienId, sourceRelativePath, targetSubfolder) =>
   cmd('move_file_to_subfolder', { bienId, sourceRelativePath, targetSubfolder })
 
+export const savePdfToBien = (bienId, subfolder, filename, pdfBase64, docTitle = null) =>
+  cmd('save_pdf_to_bien', { bienId, subfolder, filename, pdfBase64, docTitle })
+
+export const openTemplatesFolder = () => cmd('open_templates_folder')
+export const getPdfTemplate = (templateName) => cmd('get_pdf_template', { templateName })
+export const savePdfTemplate = (templateName, content) => cmd('save_pdf_template', { templateName, content })
+export const getPdfTemplateBytes = (templateName) => cmd('get_pdf_template_bytes', { templateName })
+
 // ─── Locataires ───────────────────────────────────────────────
 export const getLocataires = () => cmd('get_locataires')
 export const createLocataire = (locataire, sourcePath = null) => cmd('create_locataire', { locataire, sourcePath })
@@ -83,8 +91,8 @@ export const terminateBail = (bailId, dateFin = null, motifFin = null, notesFin 
   cmd('terminate_bail', { bailId, dateFin, motifFin, notesFin })
 export const saveEtatDesLieux = (bienId, locataireNom, dateEdl, htmlContent) =>
   cmd('save_etat_des_lieux', { bienId, locataireNom, dateEdl, htmlContent })
-export const saveEtatDesLieuxPdf = (bienId, locataireNom, dateEdl, pdfBase64) =>
-  cmd('save_etat_des_lieux_pdf', { bienId, locataireNom, dateEdl, pdfBase64 })
+export const saveEtatDesLieuxPdf = (bienId, locataireNom, dateEdl, pdfBase64, typeEdl = 'sortie') =>
+  cmd('save_etat_des_lieux_pdf', { bienId, locataireNom, dateEdl, pdfBase64, typeEdl })
 export const saveContratBailPdf = (bailId, bienId, locataireNom, dateDebut, pdfBase64) =>
   cmd('save_contrat_bail_pdf', { bailId, bienId, locataireNom, dateDebut, pdfBase64 })
 
@@ -135,6 +143,10 @@ export const saveEmailAttachmentToBien = ({ bienId, subfolder, filename, base64D
   cmd('save_email_attachment_to_bien', { bienId, subfolder, filename, base64Data })
 export const attachQuittanceToPaiement = (paiementId, sourcePath) =>
   cmd('attach_quittance_to_paiement', { paiementId, sourcePath })
+
+// ─── Patching Files ───────────────────────────────────────────
+export const auditBienFiles = () => cmd('audit_bien_files')
+export const applyPatch = (bienIds) => cmd('apply_patch', { bienIds })
 
 // ═══════════════════════════════════════════════════════════════
 // ─── EXTENSIONS OS PATRIMOINE : PROJETS, PRÊTS, TÂCHES, SIMUS ──

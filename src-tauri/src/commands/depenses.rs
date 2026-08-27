@@ -35,7 +35,8 @@ pub fn get_depenses(state: State<AppState>, bien_id: Option<i64>) -> Result<Vec<
 }
 
 #[tauri::command]
-pub fn create_depense(state: State<AppState>, depense: Depense) -> Result<i64, String> {
+pub fn create_depense(app: tauri::AppHandle, state: State<AppState>, depense: Depense) -> Result<i64, String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO depenses (bien_id, date, categorie, description, montant, fournisseur, fichier_justificatif)
@@ -45,11 +46,17 @@ pub fn create_depense(state: State<AppState>, depense: Depense) -> Result<i64, S
             depense.montant, depense.fournisseur, depense.fichier_justificatif
         ],
     ).map_err(|e| e.to_string())?;
-    Ok(db.last_insert_rowid())
+    let new_id = db.last_insert_rowid();
+
+    // Auto-sync Excel Suivi_Depenses (bien_id est i64, toujours présent)
+    crate::excel::sync_all_property_excels(&db, &base_dir, depense.bien_id).ok();
+
+    Ok(new_id)
 }
 
 #[tauri::command]
-pub fn update_depense(state: State<AppState>, depense: Depense) -> Result<(), String> {
+pub fn update_depense(app: tauri::AppHandle, state: State<AppState>, depense: Depense) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
         "UPDATE depenses SET bien_id=?1, date=?2, categorie=?3, description=?4,
@@ -60,13 +67,32 @@ pub fn update_depense(state: State<AppState>, depense: Depense) -> Result<(), St
             depense.montant, depense.fournisseur, depense.fichier_justificatif, depense.id
         ],
     ).map_err(|e| e.to_string())?;
+
+    // Auto-sync Excel Suivi_Depenses
+    crate::excel::sync_all_property_excels(&db, &base_dir, depense.bien_id).ok();
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn delete_depense(state: State<AppState>, id: i64) -> Result<(), String> {
+pub fn delete_depense(app: tauri::AppHandle, state: State<AppState>, id: i64) -> Result<(), String> {
+    let base_dir = crate::db::get_base_dir(&app);
     let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    // Résoudre le bien_id avant suppression
+    let bien_id: Option<i64> = db.query_row(
+        "SELECT bien_id FROM depenses WHERE id = ?1",
+        params![id],
+        |r| r.get(0),
+    ).ok();
+
     db.execute("DELETE FROM depenses WHERE id=?1", params![id])
         .map_err(|e| e.to_string())?;
+
+    // Auto-sync Excel Suivi_Depenses
+    if let Some(bid) = bien_id {
+        crate::excel::sync_all_property_excels(&db, &base_dir, bid).ok();
+    }
+
     Ok(())
 }

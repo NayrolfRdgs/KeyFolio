@@ -1,6 +1,7 @@
 import React from 'react'
 import { formatBytes } from '../../lib/utils'
 import Icon from '../common/Icon'
+import { getThemeForPath } from '../../lib/folderThemes'
 
 export function getFileIcon(filename) {
   if (!filename) return <Icon name="folder" size={14} color="#f59e0b" />
@@ -40,6 +41,8 @@ export default function TreeNodeItem({
 
   const isExpanded = expandedPaths.has(node.relative_path) || searchQuery.length > 0
   const isSelected = selectedFile?.relative_path === node.relative_path
+  const theme = depth === 0 ? getThemeForPath(node.relative_path) : null
+  const folderColor = theme ? theme.primary : '#f59e0b'
 
   if (node.is_dir) {
     const fileCount = countFilesRecursive(node)
@@ -71,10 +74,10 @@ export default function TreeNodeItem({
             >
               {isExpanded ? '▼' : '▶'}
             </span>
-            <Icon name={isExpanded ? 'folderOpen' : 'folder'} size={15} color="#f59e0b" />
-            <span>{node.name}</span>
+            <Icon name={isExpanded ? 'folderOpen' : (theme?.icon || 'folder')} size={15} color={folderColor} />
+            <span style={{ fontWeight: depth === 0 ? 600 : 500 }}>{node.name}</span>
           </div>
-          <span className="badge badge-muted" style={{ fontSize: 10 }}>
+          <span className="badge badge-muted" style={{ fontSize: 10, background: theme && fileCount > 0 ? theme.bg : undefined, color: theme && fileCount > 0 ? theme.badgeText : undefined }}>
             {fileCount}
           </span>
         </div>
