@@ -7,6 +7,9 @@ import LoanFormModal from '../components/prets/LoanFormModal'
 import LoanScheduleModal from '../components/prets/LoanScheduleModal'
 import LoanSimulatorModal from '../components/prets/LoanSimulatorModal'
 
+import PageHeader from '../components/common/PageHeader'
+import EmptyState from '../components/common/EmptyState'
+
 export default function Prets({ onNavigate }) {
   const [prets, setPrets] = useState([])
   const [biens, setBiens] = useState([])
@@ -76,64 +79,61 @@ export default function Prets({ onNavigate }) {
   return (
     <div className="page-content">
       {/* ── EN-TÊTE HARMONISÉ ── */}
-      <div className="page-header">
-        <div>
-          <h2>Prêts & Financements</h2>
-          <p className="page-subtitle">
-            Suivi du passif, tableau d'amortissement, ratios dette/valeur et simulateur de crédit
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={() => setSimuModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="calculator" size={14} color="#4f46e5" /> Simulateur de prêt
-          </button>
-          <button className="btn btn-primary" onClick={() => { setEditPret(null); setFormModalOpen(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="plus" size={14} /> + Nouveau prêt
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Prêts & Financements"
+        subtitle="Suivi du passif, tableau d'amortissement, ratios dette/valeur et simulateur de crédit"
+        icon="circleDollarSign"
+        badge={prets.length > 0 ? `${prets.length} prêt${prets.length > 1 ? 's' : ''}` : null}
+        actions={
+          <>
+            <button className="btn btn-secondary" onClick={() => setSimuModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="calculator" size={14} color="#4f46e5" /> Simulateur de prêt
+            </button>
+            <button className="btn btn-primary" onClick={() => { setEditPret(null); setFormModalOpen(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="plus" size={14} /> + Nouveau prêt
+            </button>
+          </>
+        }
+      />
 
       {/* ── BANDEAU KPI DÉTACHÉ ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Dette restante</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{formatEuro(kpis.capitalRestant)}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Sur {formatEuro(kpis.detteInitiale)} empruntés</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{formatEuro(kpis.capitalRestant)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>sur {formatEuro(kpis.detteInitiale)} empruntés</div>
+        </div>
+
+        <div className="card" style={{ padding: '18px 20px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Capital déjà remboursé</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{formatEuro(kpis.capitalAmorti)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>constituant votre patrimoine net</div>
         </div>
 
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Mensualités globales</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#4f46e5', marginTop: 4 }}>{formatEuro(kpis.mensualitesTotal)}<span style={{ fontSize: 13, fontWeight: 500 }}>/m</span></div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{kpis.nbPrets} crédit(s) en cours</div>
-        </div>
-
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Capital Amorti</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{formatEuro(kpis.capitalAmorti)}</div>
-          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>Patrimoine remboursé</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{formatEuro(kpis.mensualitesTotal)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>débitées chaque mois</div>
         </div>
 
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Ratio Dette / Valeur (LTV)</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: kpis.ltv > 70 ? '#f59e0b' : '#16a34a', marginTop: 4 }}>{kpis.ltv}%</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: kpis.ltv <= 70 ? 'var(--color-accent)' : '#f59e0b', marginTop: 4 }}>{kpis.ltv}%</div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{kpis.ltv <= 70 ? 'Niveau d\'endettement sain' : 'Endettement élevé'}</div>
         </div>
       </div>
 
       {/* ── CARTES DES PRÊTS DÉTACHÉES ── */}
       {prets.length === 0 ? (
-        <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-          <Icon name="circleDollarSign" size={44} color="#cbd5e1" style={{ marginBottom: 12 }} />
-          <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Aucun prêt immobilier enregistré</h3>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
-            Ajoutez vos crédits en cours pour suivre l'amortissement du capital et le coût total de vos financements.
-          </p>
-          <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 10 }}>
-            <button className="btn btn-secondary" onClick={() => setSimuModalOpen(true)}>Simulateur de crédit</button>
-            <button className="btn btn-primary" onClick={() => { setEditPret(null); setFormModalOpen(true) }}>+ Ajouter un prêt</button>
-          </div>
-        </div>
+        <EmptyState
+          icon="circleDollarSign"
+          title="Aucun prêt immobilier enregistré"
+          description="Ajoutez vos crédits en cours pour suivre l'amortissement du capital et le coût total de vos financements."
+          actionLabel="+ Ajouter un prêt"
+          onAction={() => { setEditPret(null); setFormModalOpen(true) }}
+          secondaryActionLabel="Simulateur de crédit"
+          onSecondaryAction={() => setSimuModalOpen(true)}
+        />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
           {prets.map(p => {

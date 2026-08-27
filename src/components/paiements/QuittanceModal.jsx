@@ -7,17 +7,12 @@ import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
 import { saveFileToDisk, openFilePath, openTemplatesFolder, savePdfToBien } from '../../lib/db'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
+import { useBailleurProfile } from '../../hooks/useBailleurProfile'
+
 export default function QuittanceModal({ paiement, bien, locataire, bail, onClose, onSendMail, onSaved }) {
-  const [bailleurNom, setBailleurNom] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).nom || 'Bailleur / Propriétaire' } catch (e) {}
-    return 'Bailleur / Propriétaire'
-  })
-  const [bailleurAdresse, setBailleurAdresse] = useState(() => {
-    const saved = localStorage.getItem('keyfolio_bailleur_profile')
-    if (saved) try { return JSON.parse(saved).adresse || 'Adresse du bailleur' } catch (e) {}
-    return 'Adresse du bailleur'
-  })
+  const { profile } = useBailleurProfile()
+  const [bailleurNom, setBailleurNom] = useState(profile?.nom || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(profile?.adresse || 'Adresse du bailleur')
   const [dateQuittance, setDateQuittance] = useState(todayISO())
   const [modePaiement, setModePaiement] = useState('Virement bancaire')
 

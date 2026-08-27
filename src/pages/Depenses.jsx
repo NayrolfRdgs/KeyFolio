@@ -4,6 +4,10 @@ import { formatDate, formatEuro, todayISO } from '../lib/utils'
 import Icon from '../components/common/Icon'
 import QuickDocumentModal from '../components/documents/QuickDocumentModal'
 
+import PageHeader from '../components/common/PageHeader'
+import FilterBar from '../components/common/FilterBar'
+import EmptyState from '../components/common/EmptyState'
+
 const CATEGORIES = ['travaux','energie','assurance','taxe','entretien','frais_gestion','autre']
 const LABELS_CAT = {
   travaux: 'Travaux', energie: 'Énergie', assurance: 'Assurance',
@@ -30,7 +34,7 @@ export default function Depenses() {
   const loadAll = async () => {
     try {
       const [d, b] = await Promise.all([getDepenses(), getBiens()])
-      setDepenses(d); setBiens(b)
+      setDepenses(d || []); setBiens(b || [])
     } catch(e) { setError(e?.toString()) }
   }
   useEffect(() => { loadAll() }, [])
@@ -78,44 +82,48 @@ export default function Depenses() {
 
   return (
     <div className="page-content">
-      <div className="page-header">
-        <div>
-          <h2>Dépenses</h2>
-          <p>Total affiché : <strong>{formatEuro(totalFiltered)}</strong></p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="paperclip" size={14} /> Associer une facture PDF
-          </button>
-          <button id="btn-add-depense" className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="plus" size={14} /> Nouvelle dépense
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Dépenses & Factures"
+        subtitle={`Total affiché : ${formatEuro(totalFiltered)}`}
+        icon="receipt"
+        badge={filtered.length > 0 ? `${filtered.length} dépense${filtered.length > 1 ? 's' : ''}` : null}
+        actions={
+          <>
+            <button className="btn btn-secondary" onClick={() => setQuickDocModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="paperclip" size={14} /> Associer une facture PDF
+            </button>
+            <button id="btn-add-depense" className="btn btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="plus" size={14} /> Nouvelle dépense
+            </button>
+          </>
+        }
+      />
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      <div className="filter-bar">
-        <select className="form-control" value={filterBien} onChange={e => setFilterBien(e.target.value)}>
-          <option value="">Tous les biens</option>
-          {biens.map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
-        </select>
-        <select className="form-control" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-          <option value="">Toutes catégories</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{LABELS_CAT[c]}</option>)}
-        </select>
-      </div>
+      <FilterBar
+        filters={
+          <>
+            <select className="form-control" value={filterBien} onChange={e => setFilterBien(e.target.value)} style={{ maxWidth: 200 }}>
+              <option value="">Tous les biens</option>
+              {biens.map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
+            </select>
+            <select className="form-control" value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ maxWidth: 180 }}>
+              <option value="">Toutes catégories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{LABELS_CAT[c]}</option>)}
+            </select>
+          </>
+        }
+      />
 
       {filtered.length === 0 ? (
-        <div className="table-wrapper">
-          <div className="empty-state">
-            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              <Icon name="receipt" size={40} color="#94a3b8" />
-            </div>
-            <h3>Aucune dépense</h3>
-            <p>Enregistrez vos charges et frais liés à vos biens</p>
-          </div>
-        </div>
+        <EmptyState
+          icon="receipt"
+          title="Aucune dépense enregistrée"
+          description="Enregistrez vos charges, travaux et frais d'exploitation liés à votre patrimoine."
+          actionLabel="+ Nouvelle dépense"
+          onAction={openCreate}
+        />
       ) : (
         <div className="table-wrapper">
           <table className="data-table">

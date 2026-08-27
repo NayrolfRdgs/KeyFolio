@@ -38,6 +38,8 @@ const parseNotesFin = (notes) => {
   return res
 }
 
+import { useBailleurProfile } from '../../hooks/useBailleurProfile'
+
 // Steps config
 const STEPS = [
   { num: 1, id: 'selection_parties', label: '1. Sélection & Parties' },
@@ -79,13 +81,7 @@ export default function EtatDesLieuxModal({
   const storageKey = `keyfolio_edl_cache_${bailId}_${typeEdl}`
   const parsedFromBail = parseNotesFin(currentBail?.notes_fin || terminationInfo?.notesFin || '')
 
-  // Profil Bailleur sauvegardé
-  const savedBailleur = (() => {
-    try {
-      const b = localStorage.getItem('keyfolio_bailleur_profile')
-      return b ? JSON.parse(b) : {}
-    } catch(e) { return {} }
-  })()
+  const { profile: savedBailleur } = useBailleurProfile()
 
   // State des champs du document
   const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || localStorage.getItem('bailleur_nom') || 'Bailleur / Propriétaire')

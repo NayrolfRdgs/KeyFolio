@@ -154,13 +154,11 @@ export const applyPatch = (bienIds) => cmd('apply_patch', { bienIds })
 
 // ─── 1. PROJETS IMMOBILIERS ───────────────────────────────────
 export async function getProjets() {
-  // Projets peuvent être extraits des biens dont statut='projet' ou du store de projets dédié
   try {
     const biens = await getBiens()
-    const projetsBiens = biens.filter(b => String(b.statut).toLowerCase() === 'projet')
+    const projetsBiens = (biens || []).filter(b => String(b.statut).toLowerCase() === 'projet')
     const storedProjets = getStorage('projets', [])
     
-    // Fusionner harmonieusement
     const map = new Map()
     storedProjets.forEach(p => map.set(p.id, p))
     projetsBiens.forEach(b => {
@@ -185,7 +183,8 @@ export async function getProjets() {
       }
     })
     return Array.from(map.values())
-  } catch {
+  } catch (err) {
+    console.warn('[db:getProjets] Falling back to local storage:', err)
     return getStorage('projets', [])
   }
 }
@@ -205,7 +204,6 @@ export async function createProjet(projet) {
   projets.unshift(newProjet)
   setStorage('projets', projets)
 
-  // Créer également le bien correspondant avec statut='projet'
   try {
     await createBien({
       nom: newProjet.nom,
@@ -219,7 +217,7 @@ export async function createProjet(projet) {
       description: newProjet.description || null
     })
   } catch (e) {
-    console.warn("Bien projet non synchronisé avec le backend :", e)
+    console.warn('[db:createProjet] Bien projet non synchronisé avec backend:', e)
   }
 
   return newProjet
@@ -240,7 +238,9 @@ export async function deleteProjet(id) {
   setStorage('projets', projets.filter(p => p.id !== id))
   try {
     await deleteBien(id)
-  } catch {}
+  } catch (e) {
+    console.warn('[db:deleteProjet] deleteBien failed or not found in backend:', e)
+  }
   return true
 }
 
@@ -249,12 +249,10 @@ export async function convertProjetToBien(projetId, bienData) {
   const projet = projets.find(p => p.id === projetId)
   if (!projet) throw new Error("Projet introuvable")
 
-  // Marquer le projet comme terminé
   projet.statut = 'termine'
   projet.pourcentage_avancement = 100
   setStorage('projets', projets)
 
-  // Créer ou mettre à jour le bien comme actif
   const newBien = {
     nom: bienData.nom || projet.nom,
     adresse: bienData.adresse || projet.adresse,
@@ -266,8 +264,7 @@ export async function convertProjetToBien(projetId, bienData) {
     date_acquisition: new Date().toISOString().split('T')[0]
   }
 
-  const result = await createBien(newBien)
-  return result
+  return await createBien(newBien)
 }
 
 // ─── 2. BUDGET DE PROJET ──────────────────────────────────────
@@ -386,14 +383,15 @@ export function deleteSimulation(id) {
 }
 
 // ─── 6. TÂCHES & ÉCHÉANCES ────────────────────────────────────
+const DEFAULT_TACHES = [
+  { id: 1, titre: 'Renouveler attestation assurance PNO', categorie: 'assurance', echeance: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0], priorite: 'urgent', statut: 'a_faire', termine: false },
+  { id: 2, titre: 'Révision annuelle de loyer (Indice IRL)', categorie: 'revision_loyer', echeance: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'a_faire', termine: false },
+  { id: 3, titre: 'Entretien annuel chaudière gaz', categorie: 'entretien', echeance: new Date(Date.now() + 45 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'a_faire', termine: false },
+  { id: 4, titre: 'Paiement Taxe Foncière', categorie: 'fiscalite', echeance: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'planifie', termine: false },
+]
+
 export function getTaches() {
-  const defaultTaches = [
-    { id: 1, titre: 'Renouveler attestation assurance PNO', categorie: 'assurance', echeance: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0], priorite: 'urgent', statut: 'a_faire', termine: false },
-    { id: 2, titre: 'Révision annuelle de loyer (Indice IRL)', categorie: 'revision_loyer', echeance: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'a_faire', termine: false },
-    { id: 3, titre: 'Entretien annuel chaudière gaz', categorie: 'entretien', echeance: new Date(Date.now() + 45 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'a_faire', termine: false },
-    { id: 4, titre: 'Paiement Taxe Foncière', categorie: 'fiscalite', echeance: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0], priorite: 'normal', statut: 'planifie', termine: false },
-  ]
-  return getStorage('taches', defaultTaches)
+  return getStorage('taches', DEFAULT_TACHES)
 }
 
 export function createTache(tache) {
@@ -459,3 +457,4 @@ export function deleteEtatDesLieuxRecord(id) {
   setStorage('etats_des_lieux', list.filter(e => e.id !== id))
   return true
 }
+

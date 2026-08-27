@@ -17,6 +17,8 @@ import { createPdfFromTemplate } from '../../lib/pdfTemplateCreator'
 import { buildDataContext } from '../../lib/pdfTemplateEngine'
 import { save as openSaveDialog } from '@tauri-apps/plugin-dialog'
 
+import { useBailleurProfile } from '../../hooks/useBailleurProfile'
+
 const STEPS = [
   { num: 1, id: 'parties', label: '1. Parties' },
   { num: 2, id: 'logement', label: '2. Logement & Type' },
@@ -35,19 +37,12 @@ export default function BailGenerateurModal({
   onSendMail
 }) {
   const [step, setStep] = useState(1)
-
-  // Profil Bailleur sauvegardé
-  const savedBailleur = (() => {
-    try {
-      const b = localStorage.getItem('keyfolio_bailleur_profile')
-      return b ? JSON.parse(b) : {}
-    } catch(e) { return {} }
-  })()
+  const { profile: savedBailleur } = useBailleurProfile()
 
   // 1. Informations Bailleur
-  const [bailleurNom, setBailleurNom] = useState(savedBailleur.nom || localStorage.getItem('bailleur_nom') || 'Bailleur / Propriétaire')
-  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur.adresse || localStorage.getItem('bailleur_adresse') || 'Adresse du bailleur')
-  const [bailleurEmail, setBailleurEmail] = useState(savedBailleur.email || localStorage.getItem('bailleur_email') || '')
+  const [bailleurNom, setBailleurNom] = useState(savedBailleur?.nom || 'Bailleur / Propriétaire')
+  const [bailleurAdresse, setBailleurAdresse] = useState(savedBailleur?.adresse || 'Adresse du bailleur')
+  const [bailleurEmail, setBailleurEmail] = useState(savedBailleur?.email || '')
   const [bailleurTelephone, setBailleurTelephone] = useState(savedBailleur.telephone || localStorage.getItem('bailleur_telephone') || '')
 
   // 2. Informations Logement
